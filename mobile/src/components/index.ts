@@ -7,3 +7,4 @@ export { default as Avatar } from './Avatar';
 export { default as ConversationItem } from './ConversationItem';
 export { default as MessageBubble } from './MessageBubble';
 export { default as MatchModal } from './MatchModal';
+export { CommentsModal } from './CommentsModal';

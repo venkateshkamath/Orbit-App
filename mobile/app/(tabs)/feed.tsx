@@ -26,7 +26,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { formatDistanceToNow } from 'date-fns';
 import { Colors, FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
-import { Avatar } from '../../src/components';
+import { Avatar, CommentsModal } from '../../src/components';
 import { postApi } from '../../src/api/posts';
 import { Post } from '../../src/types';
 
@@ -115,10 +115,12 @@ function PostItem({
           </View>
         )}
 
-        {post.comment_count > 0 && (
+        {post.comment_count >= 0 && (
           <TouchableOpacity onPress={onComment}>
             <Text style={styles.viewComments}>
-              View all {post.comment_count} comments
+              {post.comment_count === 0 
+                ? 'Add a comment...' 
+                : `View all ${post.comment_count} comments`}
             </Text>
           </TouchableOpacity>
         )}
@@ -139,6 +141,13 @@ export default function FeedScreen() {
   const [caption, setCaption] = useState('');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [commentsModalVisible, setCommentsModalVisible] = useState(false);
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+
+  const handleOpenComments = (postId: string) => {
+    setSelectedPostId(postId);
+    setCommentsModalVisible(true);
+  };
 
   const fetchFeed = async () => {
     try {
@@ -272,7 +281,7 @@ export default function FeedScreen() {
             <PostItem
               post={item}
               onLike={() => postApi.likePost(item.id)}
-              onComment={() => {}}
+              onComment={() => handleOpenComments(item.id)}
               onShare={() => handleShare(item)}
             />
           )}
@@ -304,6 +313,13 @@ export default function FeedScreen() {
               </TouchableOpacity>
             </View>
           }
+        />
+
+        {/* Comments Modal */}
+        <CommentsModal
+          visible={commentsModalVisible}
+          onClose={() => setCommentsModalVisible(false)}
+          postId={selectedPostId}
         />
 
         {/* Create Post Modal - Instagram Style */}
