@@ -1,0 +1,136 @@
+/**
+ * TypeScript types for MindLink
+ */
+
+export interface Interest {
+  id: string;
+  name: string;
+  emoji: string;
+  category: string;
+  color: string;
+}
+
+export interface User {
+  id: string;
+  email: string;
+  username: string;
+  bio: string;
+  avatar: string | null;
+  date_of_birth: string | null;
+  interests: Interest[];
+  latitude: number | null;
+  longitude: number | null;
+  is_discoverable: boolean;
+  discovery_radius: number;
+  show_online_status: boolean;
+  is_online: boolean;
+  last_seen: string | null;
+  is_verified: boolean;
+  created_at: string;
+}
+
+export interface PublicUser {
+  id: string;
+  username: string;
+  bio: string;
+  avatar: string | null;
+  interests: Interest[];
+  is_online: boolean;
+  last_seen: string | null;
+  is_verified: boolean;
+}
+
+export interface NearbyUser extends PublicUser {
+  distance: number;
+  match_percentage: number;
+  common_interests: string[];
+}
+
+export interface Message {
+  id: string;
+  conversation: string;
+  sender: PublicUser;
+  message_type: 'text' | 'image' | 'location' | 'emoji';
+  content: string;
+  image: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  is_read: boolean;
+  read_at: string | null;
+  reactions: { emoji: string; user_id: string }[];
+  created_at: string;
+}
+
+export interface Conversation {
+  id: string;
+  participants: PublicUser[];
+  other_participant: PublicUser | null;
+  last_message: Message | null;
+  unread_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Match {
+  id: string;
+  matched_user: PublicUser;
+  created_at: string;
+}
+
+export interface AuthTokens {
+  access: string;
+  refresh: string;
+}
+
+export interface AuthResponse {
+  user: User;
+  tokens: AuthTokens;
+}
+
+export interface NearbyResponse {
+  count: number;
+  radius: number;
+  users: NearbyUser[];
+}
+
+export interface LikeResponse {
+  message: string;
+  is_match: boolean;
+  match: Match | null;
+}
+
+export interface Post {
+  id: string;
+  author: {
+    id: string;
+    username: string;
+    avatar: string | null;
+  };
+  caption: string;
+  image: string | null;
+  image_url: string | null;
+  interests: Interest[];
+  location_name: string;
+  latitude: number | null;
+  longitude: number | null;
+  like_count: number;
+  comment_count: number;
+  is_liked: boolean;
+  recent_comments: Comment[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Comment {
+  id: string;
+  author: {
+    id: string;
+    username: string;
+    avatar: string | null;
+  };
+  text: string;
+  parent: string | null;
+  reply_count: number;
+  created_at: string;
+}
+
