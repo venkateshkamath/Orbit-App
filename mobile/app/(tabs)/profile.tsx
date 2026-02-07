@@ -41,23 +41,17 @@ export default function ProfileScreen() {
   };
 
   const handleChangeAvatar = async () => {
-    console.log('handleChangeAvatar called');
     try {
       setIsRequestingPermission(true);
       
       // Request permissions first
-      console.log('Requesting permissions...');
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      console.log('Permission status:', status);
       
       if (status !== 'granted') {
-        console.log('Permission denied');
         setIsRequestingPermission(false);
         setShowAvatarOptions(false);
         return;
       }
-
-      console.log('Opening image picker...');
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -65,9 +59,6 @@ export default function ProfileScreen() {
         quality: 0.8,
       });
 
-      console.log('Image picker result:', result);
-
-      // Close modal after selection
       setIsRequestingPermission(false);
       setShowAvatarOptions(false);
 
@@ -75,12 +66,8 @@ export default function ProfileScreen() {
         setIsUploadingAvatar(true);
         const uri = result.assets[0].uri;
         
-        console.log('Uploading avatar:', uri);
-        
         const { authApi } = await import('../../src/api');
         const updatedUser = await authApi.uploadAvatar(uri);
-        
-        console.log('Avatar uploaded successfully:', updatedUser.avatar);
         
         const { setUser } = useAuthStore.getState();
         setUser(updatedUser);
@@ -88,7 +75,7 @@ export default function ProfileScreen() {
         setIsUploadingAvatar(false);
       }
     } catch (error) {
-      console.error('Avatar upload error:', error);
+            console.error('Avatar upload error:', error);
       console.error('Error details:', JSON.stringify(error, null, 2));
       setIsRequestingPermission(false);
       setShowAvatarOptions(false);
@@ -109,7 +96,7 @@ export default function ProfileScreen() {
       
       setIsUploadingAvatar(false);
     } catch (error) {
-      console.error('Avatar remove error:', error);
+        console.error('Avatar remove error:', error);
       setIsUploadingAvatar(false);
     }
   };
@@ -144,19 +131,15 @@ export default function ProfileScreen() {
     try {
       await logout();
       
-      // Platform-specific navigation
       if (Platform.OS === 'web') {
-        // On web, use hard navigation to ensure clean state
         window.location.href = '/';
       } else {
-        // On native, use router with a small delay to ensure state updates
         setTimeout(() => {
           router.replace('/login');
         }, 100);
       }
     } catch (error) {
       console.error('Logout error:', error);
-      // Even if logout fails, navigate away
       if (Platform.OS === 'web') {
         window.location.href = '/';
       } else {
