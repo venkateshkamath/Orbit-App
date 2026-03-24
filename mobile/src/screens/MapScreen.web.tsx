@@ -20,7 +20,7 @@ import { useDiscoveryStore, useAuthStore } from '../stores';
 
 export default function MapScreen() {
   const { nearbyUsers, likeUser, passUser, fetchNearbyUsers } = useDiscoveryStore();
-  const { updateLocation } = useAuthStore();
+  const { user, updateLocation } = useAuthStore();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -29,6 +29,13 @@ export default function MapScreen() {
 
   const initializeLocation = async () => {
     try {
+      // Reuse stored location if we already have one.
+      if (user?.latitude != null && user?.longitude != null) {
+        await fetchNearbyUsers();
+        setLoading(false);
+        return;
+      }
+
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         setLoading(false);
@@ -43,7 +50,6 @@ export default function MapScreen() {
       await fetchNearbyUsers();
     } catch (error) {
       console.error('Location error:', error);
-    } finally {
       setLoading(false);
     }
   };

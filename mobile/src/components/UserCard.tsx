@@ -58,9 +58,9 @@ export const UserCard: React.FC<UserCardProps> = ({
     return `${(distance / 1000).toFixed(1)}km away`;
   };
 
-  const getMatchColor = (percentage: number) => {
-    if (percentage >= 70) return Colors.success;
-    if (percentage >= 40) return Colors.warning;
+  const getMatchColor = (score: number) => {
+    if (score >= 80) return Colors.success;
+    if (score >= 50) return Colors.warning;
     return Colors.text.tertiary;
   };
 
@@ -71,25 +71,22 @@ export const UserCard: React.FC<UserCardProps> = ({
       style={styles.cardContainer}
     >
       <View style={styles.card}>
-        {/* Profile Image */}
+        {/* Profile Image - intentionally blurred/hidden to encourage meeting offline */}
         <View style={styles.imageContainer}>
-          {user.avatar ? (
-            <Image source={{ uri: user.avatar }} style={styles.image} />
-          ) : (
-            <LinearGradient
-              colors={[Colors.primary.start, Colors.primary.end]}
-              style={styles.imagePlaceholder}
-            >
-              <Text style={styles.placeholderText}>
-                {user.username.charAt(0).toUpperCase()}
-              </Text>
-            </LinearGradient>
-          )}
+          <LinearGradient
+            colors={[Colors.background.tertiary, Colors.background.primary]}
+            style={styles.imagePlaceholder}
+          >
+            <Text style={styles.placeholderText}>
+              {user.username.charAt(0).toUpperCase()}
+            </Text>
+            <Text style={styles.hiddenPhotoLabel}>Photo unlocks on match</Text>
+          </LinearGradient>
           
-          {/* Match Percentage Badge */}
-          <View style={[styles.matchBadge, { backgroundColor: getMatchColor(user.match_percentage) }]}>
-            <Text style={styles.matchText}>{user.match_percentage}%</Text>
-            <Text style={styles.matchLabel}>Match</Text>
+          {/* Match Score Badge */}
+          <View style={[styles.matchBadge, { backgroundColor: getMatchColor(user.match_score) }]}>
+            <Text style={styles.matchText}>{user.match_score}</Text>
+            <Text style={styles.matchLabel}>Orbit score</Text>
           </View>
 
           {/* Online Status */}
@@ -215,6 +212,11 @@ const styles = StyleSheet.create({
     fontSize: 80,
     fontWeight: FontWeights.bold,
     color: Colors.text.primary,
+  },
+  hiddenPhotoLabel: {
+    marginTop: Spacing.md,
+    color: Colors.text.secondary,
+    fontSize: FontSizes.sm,
   },
   gradient: {
     position: 'absolute',

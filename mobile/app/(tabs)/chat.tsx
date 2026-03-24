@@ -20,7 +20,7 @@ import { ConversationItem, Avatar } from '../../src/components';
 import { useChatStore, useDiscoveryStore } from '../../src/stores';
 
 export default function ChatScreen() {
-  const { conversations, isLoading, fetchConversations } = useChatStore();
+  const { conversations, isLoading, fetchConversations, startConversation } = useChatStore();
   const { matches, fetchMatches } = useDiscoveryStore();
 
   useEffect(() => {
@@ -36,31 +36,41 @@ export default function ChatScreen() {
     router.push(`/chat/${conversationId}`);
   };
 
-  const renderMatchItem = ({ item }: { item: any }) => (
-    <TouchableOpacity
-      style={styles.matchItem}
-      onPress={() => {
-        // Start or open conversation with match
-      }}
-    >
-      <View style={styles.matchAvatarContainer}>
-        <Avatar
-          uri={item.matched_user?.avatar}
-          name={item.matched_user?.username || 'M'}
-          size={64}
-          showOnline
-          isOnline={item.matched_user?.is_online}
-        />
-        {/* New Match Badge */}
-        <View style={styles.newBadge}>
-          <Text style={styles.newBadgeText}>NEW</Text>
+  const renderMatchItem = ({ item }: { item: any }) => {
+    const matchedUserId = item.matched_user?.id;
+    return (
+      <TouchableOpacity
+        style={styles.matchItem}
+        onPress={async () => {
+          if (!matchedUserId) {
+            return;
+          }
+          try {
+            const conversation = await startConversation(matchedUserId);
+            router.push(`/chat/${conversation.id}`);
+          } catch (error) {
+            // If backend blocked this (e.g., no match), we rely on backend error message
+          }
+        }}
+      >
+        <View style={styles.matchAvatarContainer}>
+          <Avatar
+            uri={item.matched_user?.avatar}
+            name={item.matched_user?.username || 'M'}
+            size={64}
+            showOnline
+            isOnline={item.matched_user?.is_online}
+          />
+          <View style={styles.newBadge}>
+            <Text style={styles.newBadgeText}>NEW</Text>
+          </View>
         </View>
-      </View>
-      <Text style={styles.matchName} numberOfLines={1}>
-        {item.matched_user?.username}
-      </Text>
-    </TouchableOpacity>
-  );
+        <Text style={styles.matchName} numberOfLines={1}>
+          {item.matched_user?.username}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
 
   const renderHeader = () => (
     <View style={styles.matchesSection}>

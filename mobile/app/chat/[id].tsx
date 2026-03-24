@@ -92,7 +92,14 @@ export default function ChatDetailScreen() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.back()}
+            onPress={() => {
+              // Avoid 'GO_BACK was not handled' when there is no history
+              if (router.canGoBack && router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace('/(tabs)/chat');
+              }
+            }}
           >
             <Ionicons name="arrow-back" size={24} color={Colors.text.primary} />
           </TouchableOpacity>

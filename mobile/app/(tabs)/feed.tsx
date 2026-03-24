@@ -260,7 +260,7 @@ export default function FeedScreen() {
       <SafeAreaView style={styles.safeArea}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>MindLink</Text>
+          <Text style={styles.headerTitle}>ORBIT</Text>
           <View style={styles.headerActions}>
             <TouchableOpacity 
               style={styles.headerIcon}

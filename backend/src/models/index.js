@@ -1,0 +1,159 @@
+const mongoose = require('mongoose');
+
+const interestSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true, unique: true },
+    emoji: { type: String, required: true },
+    category: { type: String, required: true },
+    color: { type: String, required: true },
+  },
+  { timestamps: false }
+);
+
+const userSchema = new mongoose.Schema(
+  {
+    email: { type: String, required: true, unique: true, lowercase: true, index: true },
+    username: { type: String, required: true, unique: true, index: true },
+    password_hash: { type: String, required: true },
+    bio: { type: String, default: '' },
+    avatar: { type: String, default: null },
+    date_of_birth: { type: String, default: null },
+    latitude: { type: Number, default: null },
+    longitude: { type: Number, default: null },
+    location_updated_at: { type: Date, default: null },
+    is_discoverable: { type: Boolean, default: true },
+    discovery_radius: { type: Number, default: 10 },
+    show_online_status: { type: Boolean, default: true },
+    is_online: { type: Boolean, default: false },
+    last_seen: { type: Date, default: null },
+    is_verified: { type: Boolean, default: false },
+    interest_ids: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Interest' }],
+  },
+  { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
+);
+
+const sessionSchema = new mongoose.Schema(
+  {
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    refresh_token_id: { type: String, required: true },
+    expires_at: { type: Date, required: true },
+  },
+  { timestamps: { createdAt: 'created_at', updatedAt: false } }
+);
+
+const userBlockSchema = new mongoose.Schema(
+  {
+    blocker: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    blocked: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  },
+  { timestamps: { createdAt: 'created_at', updatedAt: false } }
+);
+userBlockSchema.index({ blocker: 1, blocked: 1 }, { unique: true });
+
+const likeSchema = new mongoose.Schema(
+  {
+    from_user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    to_user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  },
+  { timestamps: { createdAt: 'created_at', updatedAt: false } }
+);
+likeSchema.index({ from_user: 1, to_user: 1 }, { unique: true });
+
+const matchSchema = new mongoose.Schema(
+  {
+    user1: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    user2: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  },
+  { timestamps: { createdAt: 'created_at', updatedAt: false } }
+);
+matchSchema.index({ user1: 1, user2: 1 }, { unique: true });
+
+const passSchema = new mongoose.Schema(
+  {
+    from_user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    to_user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  },
+  { timestamps: { createdAt: 'created_at', updatedAt: false } }
+);
+passSchema.index({ from_user: 1, to_user: 1 }, { unique: true });
+
+const postSchema = new mongoose.Schema(
+  {
+    author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    caption: { type: String, default: '' },
+    image: { type: String, default: null },
+    location_name: { type: String, default: '' },
+    latitude: { type: Number, default: null },
+    longitude: { type: Number, default: null },
+    interest_ids: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Interest' }],
+  },
+  { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
+);
+
+const postLikeSchema = new mongoose.Schema(
+  {
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    post: { type: mongoose.Schema.Types.ObjectId, ref: 'Post', required: true },
+  },
+  { timestamps: { createdAt: 'created_at', updatedAt: false } }
+);
+postLikeSchema.index({ user: 1, post: 1 }, { unique: true });
+
+const commentSchema = new mongoose.Schema(
+  {
+    author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    post: { type: mongoose.Schema.Types.ObjectId, ref: 'Post', required: true },
+    text: { type: String, required: true },
+    parent: { type: mongoose.Schema.Types.ObjectId, ref: 'Comment', default: null },
+  },
+  { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
+);
+
+const conversationSchema = new mongoose.Schema(
+  {
+    participants: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }],
+  },
+  { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
+);
+
+const messageSchema = new mongoose.Schema(
+  {
+    conversation: { type: mongoose.Schema.Types.ObjectId, ref: 'Conversation', required: true },
+    sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    message_type: { type: String, default: 'text' },
+    content: { type: String, required: true },
+    image: { type: String, default: null },
+    latitude: { type: Number, default: null },
+    longitude: { type: Number, default: null },
+    is_read: { type: Boolean, default: false },
+    read_at: { type: Date, default: null },
+    is_deleted: { type: Boolean, default: false },
+  },
+  { timestamps: { createdAt: 'created_at', updatedAt: false } }
+);
+
+const messageReactionSchema = new mongoose.Schema(
+  {
+    message: { type: mongoose.Schema.Types.ObjectId, ref: 'Message', required: true },
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    emoji: { type: String, required: true },
+  },
+  { timestamps: { createdAt: 'created_at', updatedAt: false } }
+);
+messageReactionSchema.index({ message: 1, user: 1 }, { unique: true });
+
+module.exports = {
+  Interest: mongoose.model('Interest', interestSchema),
+  User: mongoose.model('User', userSchema),
+  Session: mongoose.model('Session', sessionSchema),
+  UserBlock: mongoose.model('UserBlock', userBlockSchema),
+  Like: mongoose.model('Like', likeSchema),
+  Match: mongoose.model('Match', matchSchema),
+  Pass: mongoose.model('Pass', passSchema),
+  Post: mongoose.model('Post', postSchema),
+  PostLike: mongoose.model('PostLike', postLikeSchema),
+  Comment: mongoose.model('Comment', commentSchema),
+  Conversation: mongoose.model('Conversation', conversationSchema),
+  Message: mongoose.model('Message', messageSchema),
+  MessageReaction: mongoose.model('MessageReaction', messageReactionSchema),
+};

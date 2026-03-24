@@ -5,9 +5,21 @@
 
 import axios from 'axios';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 
-// Fallback to local IP if no environment variable is provided
-const LOCAL_IP = '192.168.31.5';
+function resolveLocalIp() {
+  const hostUri = Constants.expoConfig?.hostUri || '';
+  if (hostUri) {
+    const [host] = hostUri.split(':');
+    if (host) {
+      return host;
+    }
+  }
+  return '127.0.0.1';
+}
+
+// Fallback to the active Expo host IP for native development.
+const LOCAL_IP = resolveLocalIp();
 const PROD_API_URL = process.env.EXPO_PUBLIC_API_URL;
 const PROD_WS_URL = process.env.EXPO_PUBLIC_WS_URL;
 

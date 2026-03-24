@@ -12,6 +12,7 @@ interface ChatState {
   messages: Message[];
   isLoading: boolean;
   isSending: boolean;
+  lastError?: string | null;
   
   // Actions
   fetchConversations: () => Promise<void>;
@@ -29,32 +30,33 @@ export const useChatStore = create<ChatState>((set, get) => ({
   messages: [],
   isLoading: false,
   isSending: false,
+  lastError: null,
 
   fetchConversations: async () => {
-    set({ isLoading: true });
+    set({ isLoading: true, lastError: null });
     try {
       const response = await chatApi.getConversations();
       set({ conversations: response.results || [], isLoading: false });
     } catch (error) {
       console.error('Failed to fetch conversations:', error);
-      set({ isLoading: false });
+      set({ isLoading: false, lastError: 'Failed to load conversations.' });
     }
   },
 
   fetchMessages: async (conversationId) => {
-    set({ isLoading: true });
+    set({ isLoading: true, lastError: null });
     try {
       const response = await chatApi.getMessages(conversationId);
       // Reverse to show oldest first in the chat
       set({ messages: (response.results || []).reverse(), isLoading: false });
     } catch (error) {
       console.error('Failed to fetch messages:', error);
-      set({ isLoading: false });
+      set({ isLoading: false, lastError: 'Failed to load messages.' });
     }
   },
 
   sendMessage: async (conversationId, content) => {
-    set({ isSending: true });
+    set({ isSending: true, lastError: null });
     try {
       const message = await chatApi.sendMessage(conversationId, content);
       set((state) => ({
@@ -63,7 +65,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }));
     } catch (error) {
       console.error('Failed to send message:', error);
-      set({ isSending: false });
+      set({ isSending: false, lastError: 'Failed to send message.' });
     }
   },
 
@@ -71,11 +73,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
     try {
       const conversation = await chatApi.startConversation(userId, message);
       set((state) => ({
-        conversations: [conversation, ...state.conversations.filter(c => c.id !== conversation.id)],
+        conversations: [conversation, ...state.conversations.filter((c) => c.id !== conversation.id)],
+        lastError: null,
       }));
       return conversation;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to start conversation:', error);
+      const apiMessage =
+        error?.response?.data?.detail ||
+        error?.response?.data?.error ||
+        'Unable to start conversation.';
+      set({ lastError: apiMessage });
       throw error;
     }
   },

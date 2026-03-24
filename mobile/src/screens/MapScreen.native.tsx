@@ -30,7 +30,7 @@ export default function MapScreen() {
   const [selectedUser, setSelectedUser] = useState<NearbyUser | null>(null);
 
   const { nearbyUsers, currentRadius, likeUser, fetchNearbyUsers } = useDiscoveryStore();
-  const { updateLocation } = useAuthStore();
+  const { user, updateLocation } = useAuthStore();
 
   useEffect(() => {
     initializeLocation();
@@ -38,6 +38,15 @@ export default function MapScreen() {
 
   const initializeLocation = async () => {
     try {
+      // If we already have a stored location for this user, reuse it without prompting again.
+      if (user?.latitude != null && user?.longitude != null) {
+        const coords = { latitude: user.latitude, longitude: user.longitude };
+        setUserLocation(coords);
+        await fetchNearbyUsers();
+        setLoading(false);
+        return;
+      }
+
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         setLocationError('Location permission required');
@@ -60,7 +69,6 @@ export default function MapScreen() {
     } catch (error) {
       console.error('Location error:', error);
       setLocationError('Could not get position');
-    } finally {
       setLoading(false);
     }
   };

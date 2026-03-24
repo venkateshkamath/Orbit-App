@@ -15,6 +15,7 @@ interface DiscoveryState {
   
   // Actions
   fetchNearbyUsers: (radius?: number) => Promise<void>;
+  getNextUser: (radius?: number) => Promise<NearbyUser | null>;
   fetchMatches: () => Promise<void>;
   likeUser: (userId: string) => Promise<{ isMatch: boolean; match?: Match }>;
   passUser: (userId: string) => Promise<void>;
@@ -44,6 +45,25 @@ export const useDiscoveryStore = create<DiscoveryState>((set, get) => ({
         error: error.response?.data?.error || 'Failed to fetch nearby users',
         isLoading: false,
       });
+    }
+  },
+
+  // Fetch a single best next candidate for discovery
+  getNextUser: async (radius) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await discoveryApi.getNextUser(radius || get().currentRadius);
+      set({
+        currentRadius: response.radius,
+        isLoading: false,
+      });
+      return response.user || null;
+    } catch (error: any) {
+      set({
+        error: error.response?.data?.error || 'Failed to fetch next user',
+        isLoading: false,
+      });
+      return null;
     }
   },
 

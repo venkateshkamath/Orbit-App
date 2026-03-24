@@ -27,12 +27,12 @@ export default function DiscoverScreen() {
   const [locationLoading, setLocationLoading] = useState(false);
   const [showMatchModal, setShowMatchModal] = useState(false);
   const [matchedUser, setMatchedUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<NearbyUser | null>(null);
 
   const { 
-    nearbyUsers, 
     isLoading, 
     error, 
-    fetchNearbyUsers, 
+    getNextUser, 
     likeUser, 
     passUser,
     currentRadius 
@@ -64,7 +64,8 @@ export default function DiscoverScreen() {
       });
 
       await updateLocation(location.coords.latitude, location.coords.longitude);
-      await fetchNearbyUsers();
+      const next = await getNextUser();
+      setCurrentUser(next);
     } catch (error) {
       console.error('Location error:', error);
       Alert.alert('Error', 'Failed to get your location. Please try again.');
@@ -85,10 +86,14 @@ export default function DiscoverScreen() {
       setMatchedUser(result.match.matched_user);
       setShowMatchModal(true);
     }
+    const next = await getNextUser();
+    setCurrentUser(next);
   };
 
   const handlePass = async (userId: string) => {
     await passUser(userId);
+    const next = await getNextUser();
+    setCurrentUser(next);
   };
 
   const handleMessage = async () => {
@@ -128,7 +133,7 @@ export default function DiscoverScreen() {
   const renderHeader = () => (
     <View style={styles.listHeader}>
       <Text style={styles.nearbyCount}>
-        {nearbyUsers.length} {nearbyUsers.length === 1 ? 'person' : 'people'} nearby
+        {currentUser ? 'We found someone nearby' : 'No one nearby for now'}
       </Text>
       <View style={styles.radiusBadge}>
         <Ionicons name="radio-outline" size={14} color={Colors.primary.default} />
@@ -137,7 +142,7 @@ export default function DiscoverScreen() {
     </View>
   );
 
-  if (locationLoading || (isLoading && nearbyUsers.length === 0)) {
+  if (locationLoading || (isLoading && !currentUser)) {
     return (
       <View style={styles.loadingContainer}>
         <LinearGradient
@@ -166,31 +171,19 @@ export default function DiscoverScreen() {
           </Text>
         </View>
 
-        {/* User List */}
-        <FlatList
-          data={nearbyUsers}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
+        {currentUser ? (
+          <View style={styles.listContent}>
+            {renderHeader()}
             <UserCard
-              user={item}
-              onLike={() => handleLike(item.id)}
-              onPass={() => handlePass(item.id)}
-              onPress={() => handleUserPress(item)}
+              user={currentUser}
+              onLike={() => handleLike(currentUser.id)}
+              onPass={() => handlePass(currentUser.id)}
+              onPress={() => handleUserPress(currentUser)}
             />
-          )}
-          contentContainerStyle={styles.listContent}
-          ListHeaderComponent={nearbyUsers.length > 0 ? renderHeader : null}
-          ListEmptyComponent={!isLoading ? renderEmptyState : null}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={Colors.primary.default}
-              colors={[Colors.primary.default]}
-            />
-          }
-        />
+          </View>
+        ) : (
+          renderEmptyState()
+        )}
       </SafeAreaView>
 
       {/* Match Modal */}

@@ -3,12 +3,18 @@
  */
 
 import api from './client';
-import { NearbyResponse, LikeResponse, Match } from '../types';
+import { NearbyResponse, LikeResponse, Match, NearbyUser } from '../types';
 
 export const discoveryApi = {
   getNearbyUsers: async (radius?: number): Promise<NearbyResponse> => {
     const params = radius ? { radius } : {};
     const response = await api.get('/discover/nearby/', { params });
+    return response.data;
+  },
+
+  getNextUser: async (radius?: number): Promise<{ user: NearbyUser | null; radius: number }> => {
+    const params = radius ? { radius } : {};
+    const response = await api.get('/discover/next/', { params });
     return response.data;
   },
 

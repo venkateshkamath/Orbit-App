@@ -1,195 +1,77 @@
-# MindLink 🔗
+# MindLink
 
-**Connect with like-minded people near you**
+MindLink is a proximity-based social app with an Expo mobile client and a Node.js backend.
 
-A premium proximity-based social networking app built with React Native (Expo) and Django.
+## Stack
 
-![MindLink](https://img.shields.io/badge/MindLink-v1.0.0-purple)
-![React Native](https://img.shields.io/badge/React%20Native-Expo%20SDK%2052-blue)
-![Django](https://img.shields.io/badge/Django-5.0-green)
+- Mobile: React Native with Expo
+- Backend: Node.js + Express
+- Database: MongoDB (local or hosted)
+- Auth: JWT access + refresh tokens
+- Storage: local media in development, object storage/CDN recommended for production
 
-## ✨ Features
+## Backend
 
-### 🗺️ Proximity Discovery
-- Find people within 10 meters (configurable up to 1km)
-- Real-time location tracking
-- Interactive map with user markers
-- Smart interest-based matching
+The backend lives in `backend` as an Express service backed by MongoDB. It preserves the existing `/api` contract used by the mobile app:
 
-### 🎯 Interest Matching
-- 30+ curated interests across 6 categories
-- Match percentage calculation based on common interests
-- Visual indicator of shared interests
+- `/api/auth/*`
+- `/api/users/*`
+- `/api/discover/*`
+- `/api/posts/*`
+- `/api/chat/*`
+- `/api/token/refresh/`
 
-### 💬 Real-Time Messaging
-- WebSocket-based instant messaging
-- Typing indicators
-- Read receipts
-- Message reactions
+It uses:
 
-### 🔐 Secure Authentication
-- JWT-based authentication
-- Secure token storage
-- Password encryption
+- `mongodb://localhost:27017/mindlink` for local development
+- Any MongoDB-compatible cloud database (MongoDB Atlas, Render, etc.) in production via `MONGODB_URI`
 
-### 🎨 Premium UI/UX
-- Dark theme with vibrant gradients
-- Glassmorphism design elements
-- Smooth animations with Reanimated
-- Beautiful user cards
+## Local Setup
 
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Node.js 18+
-- Python 3.11+
-- Expo CLI
-- iOS Simulator or Android Emulator (or physical device)
-
-### Backend Setup
+### Backend
 
 ```bash
 cd backend
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run migrations
-python manage.py migrate
-
-# Seed interests
-python manage.py seed_interests
-
-# Create superuser (optional)
-python manage.py createsuperuser
-
-# Run server
-python manage.py runserver
+cp .env.example .env
+npm install
+npm run dev
 ```
 
-### Mobile App Setup
+The API will start on `http://localhost:8000`.
+
+### Mobile
 
 ```bash
 cd mobile
-
-# Install dependencies
 npm install
-
-# Start Expo
 npx expo start
 ```
 
-### Running the App
+If you are testing on a physical device, set `EXPO_PUBLIC_API_URL` in [`mobile/.env.example`](./mobile/.env.example) to your machine IP or hosted API URL.
 
-1. Start the Django backend:
-   ```bash
-   cd backend && source venv/bin/activate && python manage.py runserver
-   ```
+## Cloud Recommendation
 
-2. Start Expo:
-   ```bash
-   cd mobile && npx expo start
-   ```
+For this app, the simplest efficient production shape is:
 
-3. Scan the QR code with Expo Go (iOS/Android) or press `i` for iOS Simulator / `a` for Android Emulator
+1. Node API on Render, Railway, or Fly.io
+2. Database on MongoDB Atlas (or another managed Mongo-compatible service)
+3. Media on S3-compatible object storage
 
-## 📁 Project Structure
-
-```
-├── backend/                 # Django Backend
-│   ├── core/               # Project settings
-│   ├── users/              # User authentication & profiles
-│   ├── chat/               # Messaging & WebSocket
-│   ├── discovery/          # Nearby users & matching
-│   └── requirements.txt
-│
-├── mobile/                  # React Native (Expo) App
-│   ├── app/                # Expo Router screens
-│   │   ├── (auth)/        # Login/Register
-│   │   ├── (onboarding)/  # Interests selection
-│   │   ├── (tabs)/        # Main app tabs
-│   │   └── chat/          # Chat screens
-│   ├── src/
-│   │   ├── api/           # API client & endpoints
-│   │   ├── components/    # Reusable UI components
-│   │   ├── stores/        # Zustand state management
-│   │   └── types/         # TypeScript definitions
-│   └── constants/          # Design system
-```
-
-## 🛠️ Tech Stack
-
-### Mobile
-- **Framework**: React Native with Expo SDK 52
-- **Navigation**: Expo Router (file-based)
-- **State**: Zustand
-- **Data Fetching**: React Query + Axios
-- **Maps**: react-native-maps
-- **Location**: expo-location
-- **Animations**: react-native-reanimated
-- **Styling**: StyleSheet with design tokens
-
-### Backend
-- **Framework**: Django 5 + Django REST Framework
-- **Auth**: Simple JWT
-- **WebSockets**: Django Channels
-- **Database**: SQLite (dev) / PostgreSQL (prod)
-- **CORS**: django-cors-headers
-
-## 🔧 Configuration
-
-### Backend Environment (.env)
+## Production Env
 
 ```env
-SECRET_KEY=your-secret-key
-DEBUG=True
-ALLOWED_HOSTS=localhost,127.0.0.1,10.0.2.2
-
-# JWT Settings
+PORT=8000
+NODE_ENV=production
+CORS_ALLOWED_ORIGINS=https://your-mobile-web-app.example.com
+MONGODB_URI=mongodb+srv://user:pass@cluster0.mongodb.net/mindlink
+JWT_SECRET=replace-this
 JWT_ACCESS_TOKEN_LIFETIME_MINUTES=60
 JWT_REFRESH_TOKEN_LIFETIME_DAYS=7
 ```
 
-### Mobile API Configuration
+## Notes
 
-Update `src/api/client.ts` with your backend URL:
+- The backend has been rebuilt from scratch on Node.js + MongoDB.
+- The service seeds a basic set of interests automatically on startup if none exist.
+- Chat is HTTP-based; there is no websocket dependency in this codebase.
 
-```typescript
-export const API_BASE_URL = 'http://YOUR_IP:8000/api';
-export const WS_BASE_URL = 'ws://YOUR_IP:8000/ws';
-```
-
-For physical devices, use your computer's local IP address.
-
-## 📱 Screenshots
-
-| Discover | Map | Chat | Profile |
-|----------|-----|------|---------|
-| User cards with match % | Interactive map | Conversations | Settings |
-
-## 🔒 Privacy & Security
-
-- Location data is only shared when the user enables discovery
-- Passwords are hashed using Django's PBKDF2
-- JWT tokens are stored securely using expo-secure-store
-- All API calls use HTTPS in production
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
-
-## 📄 License
-
-MIT License - see LICENSE file for details.
-
----
-
-**Made with ❤️ for human connections**
