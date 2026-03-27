@@ -1,72 +1,9 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const env = require('../config/env');
-const { User, Interest, Session } = require('../models');
+const { Interest, Session } = require('../models');
 const { passwordValidation } = require('../utils/validation');
-const { createSession, signAccessToken } = require('../utils/jwtSession');
-const { serializeUser } = require('../serializers/user');
-
-async function register(req, res) {
-  const { email = '', username = '', password = '', password_confirm = '' } = req.body || {};
-  const errors = {};
-
-  if (!email.trim()) {
-    errors.email = ['This field is required.'];
-  } else if (await User.findOne({ email: email.trim().toLowerCase() })) {
-    errors.email = ['A user with that email already exists.'];
-  }
-
-  if (!username.trim()) {
-    errors.username = ['This field is required.'];
-  } else if (await User.findOne({ username: new RegExp(`^${username.trim()}$`, 'i') })) {
-    errors.username = ['A user with that username already exists.'];
-  }
-
-  if (password !== password_confirm) {
-    errors.password = ["Passwords don't match"];
-  } else {
-    const passwordErrors = passwordValidation(password);
-    if (passwordErrors.length) {
-      errors.password = passwordErrors;
-    }
-  }
-
-  if (Object.keys(errors).length > 0) {
-    res.status(400).json(errors);
-    return;
-  }
-
-  const passwordHash = await bcrypt.hash(password, 10);
-  const user = await User.create({
-    email: email.trim().toLowerCase(),
-    username: username.trim(),
-    password_hash: passwordHash,
-  });
-  const tokens = await createSession(user._id);
-  res.status(201).json({
-    user: await serializeUser(user, req),
-    tokens,
-  });
-}
-
-async function login(req, res) {
-  const { email = '', password = '' } = req.body || {};
-  const user = await User.findOne({ email: email.trim().toLowerCase() });
-  if (!user || !(await bcrypt.compare(password, user.password_hash))) {
-    res.status(401).json({ error: 'Invalid credentials' });
-    return;
-  }
-
-  user.is_online = true;
-  user.updated_at = new Date();
-  await user.save();
-
-  const tokens = await createSession(user._id);
-  res.json({
-    user: await serializeUser(user, req),
-    tokens,
-  });
-}
+const { signAccessToken } = require('../utils/jwtSession');
 
 async function logout(req, res) {
   const refresh = req.body?.refresh;
@@ -119,6 +56,12 @@ async function refreshToken(req, res) {
 
 async function changePassword(req, res) {
   const { old_password = '', new_password = '' } = req.body || {};
+  if (!req.user.password_hash) {
+    res.status(400).json({
+      detail: 'This account uses email codes to sign in. Password change is not available.',
+    });
+    return;
+  }
   const matches = await bcrypt.compare(old_password, req.user.password_hash);
   if (!matches) {
     res.status(400).json({ old_password: ['Current password is incorrect'] });
@@ -150,8 +93,6 @@ async function listInterests(req, res) {
 }
 
 module.exports = {
-  register,
-  login,
   logout,
   refreshToken,
   changePassword,

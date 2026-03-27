@@ -1,13 +1,13 @@
-# MindLink
+# ORBIT
 
-MindLink is a proximity-based social app with an Expo mobile client and a Node.js backend.
+ORBIT is a proximity-based social app with an Expo mobile client and a Node.js backend.
 
 ## Stack
 
 - Mobile: React Native with Expo
 - Backend: Node.js + Express
 - Database: MongoDB (local or hosted)
-- Auth: JWT access + refresh tokens
+- Auth: JWT access + refresh tokens; sign-up / sign-in use **email OTP**
 - Storage: local media in development, object storage/CDN recommended for production
 
 ## Backend
@@ -39,6 +39,17 @@ npm run dev
 
 The API will start on `http://localhost:8000`.
 
+#### OTP email (real inboxes)
+
+OTP codes are emailed when you configure **either** [Resend](https://resend.com) **or** SMTP in `backend/.env` (see `backend/.env.example`).
+
+- **Resend (recommended):** set `RESEND_API_KEY`, verify domain `joinorbit.org` in the Resend dashboard, and optionally `MAIL_FROM=ORBIT <hello@joinorbit.org>` (this is the default if unset).
+- **SMTP:** set `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`, and matching `MAIL_FROM` / `SMTP_FROM`.
+
+If neither is configured, the server still issues OTPs but only logs them to the terminal (and in development may return `debug_otp` in the API).
+
+Check SMTP login without running the API: `cd backend && npm run test:smtp`.
+
 ### Mobile
 
 ```bash
@@ -67,6 +78,9 @@ MONGODB_URI=mongodb+srv://user:pass@cluster0.mongodb.net/mindlink
 JWT_SECRET=replace-this
 JWT_ACCESS_TOKEN_LIFETIME_MINUTES=60
 JWT_REFRESH_TOKEN_LIFETIME_DAYS=7
+RESEND_API_KEY=re_xxxx
+MAIL_FROM=ORBIT <hello@joinorbit.org>
+OTP_DEBUG_RESPONSE=false
 ```
 
 ## Notes

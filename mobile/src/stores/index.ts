@@ -1,3 +1,3 @@
 export { useAuthStore } from './authStore';
-export { useDiscoveryStore } from './discoveryStore';
-export { useChatStore } from './chatStore';
+/** @deprecated Stale-bundle fallback only — use `src/hooks/useOrbitApi`. */
+export { useDiscoveryStore } from './discoveryStoreStub';

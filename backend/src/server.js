@@ -9,7 +9,7 @@ async function start() {
     await ensureInterests();
     const app = createApp();
     app.listen(env.PORT, '0.0.0.0', () => {
-      console.log(`MindLink backend (Mongo) listening on http://0.0.0.0:${env.PORT}`);
+      console.log(`ORBIT backend (Mongo) listening on http://0.0.0.0:${env.PORT}`);
     });
   } catch (error) {
     console.error('Failed to start server', error);

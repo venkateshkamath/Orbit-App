@@ -16,12 +16,22 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { Colors, FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
 import { UserCard } from '../components';
-import { useDiscoveryStore, useAuthStore } from '../stores';
+import { useLikeUserMutation, useNearbyUsersQuery, usePassUserMutation } from '../hooks/useOrbitApi';
+import { useAuthStore } from '../stores';
 
 export default function MapScreen() {
-  const { nearbyUsers, likeUser, passUser, fetchNearbyUsers } = useDiscoveryStore();
   const { user, updateLocation } = useAuthStore();
+  const radius = user?.discovery_radius ?? 10;
   const [loading, setLoading] = useState(true);
+  const nearbyQuery = useNearbyUsersQuery(
+    radius,
+    user?.latitude,
+    user?.longitude,
+    !loading && user?.latitude != null && user?.longitude != null
+  );
+  const nearbyUsers = nearbyQuery.data?.users ?? [];
+  const likeMut = useLikeUserMutation();
+  const passMut = usePassUserMutation();
 
   useEffect(() => {
     initializeLocation();
@@ -31,7 +41,6 @@ export default function MapScreen() {
     try {
       // Reuse stored location if we already have one.
       if (user?.latitude != null && user?.longitude != null) {
-        await fetchNearbyUsers();
         setLoading(false);
         return;
       }
@@ -47,7 +56,7 @@ export default function MapScreen() {
       });
 
       await updateLocation(location.coords.latitude, location.coords.longitude);
-      await fetchNearbyUsers();
+      setLoading(false);
     } catch (error) {
       console.error('Location error:', error);
       setLoading(false);
@@ -81,8 +90,8 @@ export default function MapScreen() {
           renderItem={({ item }) => (
             <UserCard
               user={item}
-              onLike={() => likeUser(item.id)}
-              onPass={() => passUser(item.id)}
+              onLike={() => likeMut.mutate(item.id)}
+              onPass={() => passMut.mutate(item.id)}
               onPress={() => {}}
             />
           )}

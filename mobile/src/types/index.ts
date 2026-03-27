@@ -1,5 +1,5 @@
 /**
- * TypeScript types for MindLink
+ * TypeScript types for ORBIT
  */
 
 export interface Interest {

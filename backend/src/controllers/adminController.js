@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const env = require('../config/env');
 const {
   User,
+  OtpChallenge,
   Session,
   UserBlock,
   Like,
@@ -29,6 +30,7 @@ async function devReset(req, res) {
   try {
     await Promise.all([
       User.deleteMany({}),
+      OtpChallenge.deleteMany({}),
       Session.deleteMany({}),
       UserBlock.deleteMany({}),
       Like.deleteMany({}),

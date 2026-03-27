@@ -14,7 +14,7 @@ const userSchema = new mongoose.Schema(
   {
     email: { type: String, required: true, unique: true, lowercase: true, index: true },
     username: { type: String, required: true, unique: true, index: true },
-    password_hash: { type: String, required: true },
+    password_hash: { type: String, default: null },
     bio: { type: String, default: '' },
     avatar: { type: String, default: null },
     date_of_birth: { type: String, default: null },
@@ -31,6 +31,20 @@ const userSchema = new mongoose.Schema(
   },
   { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
 );
+
+const otpChallengeSchema = new mongoose.Schema(
+  {
+    email: { type: String, required: true, lowercase: true },
+    purpose: { type: String, enum: ['signup', 'login'], required: true },
+    code_hash: { type: String, required: true },
+    expires_at: { type: Date, required: true },
+    attempts: { type: Number, default: 0 },
+    username: { type: String, default: null },
+    date_of_birth: { type: String, default: null },
+  },
+  { timestamps: { createdAt: 'created_at', updatedAt: false } }
+);
+otpChallengeSchema.index({ email: 1, purpose: 1 });
 
 const sessionSchema = new mongoose.Schema(
   {
@@ -145,6 +159,7 @@ messageReactionSchema.index({ message: 1, user: 1 }, { unique: true });
 module.exports = {
   Interest: mongoose.model('Interest', interestSchema),
   User: mongoose.model('User', userSchema),
+  OtpChallenge: mongoose.model('OtpChallenge', otpChallengeSchema),
   Session: mongoose.model('Session', sessionSchema),
   UserBlock: mongoose.model('UserBlock', userBlockSchema),
   Like: mongoose.model('Like', likeSchema),

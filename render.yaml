@@ -23,3 +23,11 @@ services:
         value: 60
       - key: JWT_REFRESH_TOKEN_LIFETIME_DAYS
         value: 7
+      - key: MONGODB_URI
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: MAIL_FROM
+        value: ORBIT <hello@joinorbit.org>
+      - key: OTP_DEBUG_RESPONSE
+        value: false

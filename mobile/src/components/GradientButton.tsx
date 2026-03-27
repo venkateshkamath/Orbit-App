@@ -76,6 +76,8 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
     outline: ['transparent', 'transparent'] as const,
   };
 
+  const textIconSpacing = icon != null ? { marginLeft: Spacing.sm } : undefined;
+
   if (variant === 'outline') {
     return (
       <AnimatedTouchable
@@ -101,6 +103,7 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
               style={[
                 styles.outlineText,
                 { fontSize: textSizes[size] },
+                textIconSpacing,
                 textStyle,
               ]}
             >
@@ -136,7 +139,7 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
               style={[
                 styles.text,
                 { fontSize: textSizes[size] },
-                icon && { marginLeft: Spacing.sm },
+                textIconSpacing,
                 textStyle,
               ]}
             >

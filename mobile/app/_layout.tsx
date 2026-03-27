@@ -1,5 +1,5 @@
 /**
- * MindLink - Root Layout
+ * ORBIT - Root Layout
  * Handles authentication routing
  */
 
@@ -8,7 +8,9 @@ import { Slot, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAuthStore } from '../src/stores';
+import { OrbitQueryProvider } from '../src/lib/queryClient';
 import { Colors } from '../constants/Colors';
 
 function RootLayoutNav() {
@@ -58,29 +60,37 @@ function RootLayoutNav() {
       <View style={styles.loadingContainer}>
         <StatusBar style="light" />
         <ActivityIndicator size="large" color={Colors.primary.default} />
-        <Text style={styles.loadingText}>Loading MindLink...</Text>
+        <Text style={styles.loadingText}>Loading ORBIT...</Text>
       </View>
     );
   }
 
   return (
-    <>
+    <View style={styles.slotRoot}>
       <StatusBar style="light" />
       <Slot />
-    </>
+    </View>
   );
 }
 
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.container}>
-      <RootLayoutNav />
+      <SafeAreaProvider style={styles.container}>
+        <OrbitQueryProvider>
+          <RootLayoutNav />
+        </OrbitQueryProvider>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+    backgroundColor: Colors.background.primary,
+  },
+  slotRoot: {
     flex: 1,
     backgroundColor: Colors.background.primary,
   },

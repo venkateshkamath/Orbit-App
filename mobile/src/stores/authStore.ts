@@ -5,10 +5,10 @@
 
 import { create } from 'zustand';
 import { Platform } from 'react-native';
-import { User, AuthTokens } from '../types';
+import { User, AuthResponse } from '../types';
 import { authApi } from '../api';
+import { formatApiError } from '../utils/apiErrors';
 
-// Platform-compatible storage wrapper
 const storage = {
   async setItem(key: string, value: string): Promise<void> {
     if (Platform.OS === 'web') {
@@ -36,16 +36,30 @@ const storage = {
   },
 };
 
+async function persistSession(response: AuthResponse, onboardingCompleteOverride?: boolean) {
+  await storage.setItem('accessToken', response.tokens.access);
+  await storage.setItem('refreshToken', response.tokens.refresh);
+  const onboardingComplete =
+    onboardingCompleteOverride !== undefined
+      ? onboardingCompleteOverride
+      : response.user.interests.length > 0;
+  return { user: response.user, isAuthenticated: true as const, isOnboardingComplete: onboardingComplete };
+}
+
 interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   isOnboardingComplete: boolean;
-  
-  // Actions
+
   setUser: (user: User | null) => void;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, username: string, password: string) => Promise<void>;
+  requestSignupOtp: (email: string, name: string, dateOfBirth: string) => Promise<{
+    expires_in: number;
+    debug_otp?: string;
+  }>;
+  verifySignupOtp: (email: string, code: string) => Promise<void>;
+  requestLoginOtp: (email: string) => Promise<{ expires_in: number; debug_otp?: string }>;
+  verifyLoginOtp: (email: string, code: string) => Promise<void>;
   logout: () => Promise<void>;
   loadUser: () => Promise<void>;
   updateProfile: (data: Partial<User> & { interest_ids?: string[] }) => Promise<void>;
@@ -61,67 +75,59 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   setUser: (user) => set({ user, isAuthenticated: !!user }),
 
-  login: async (email, password) => {
+  requestSignupOtp: async (email, name, dateOfBirth) => {
     try {
-      const response = await authApi.login({ email, password });
-      
-      // Store tokens
-      await storage.setItem('accessToken', response.tokens.access);
-      await storage.setItem('refreshToken', response.tokens.refresh);
-      
-      set({
-        user: response.user,
-        isAuthenticated: true,
-        isOnboardingComplete: response.user.interests.length > 0,
+      return await authApi.requestOtp({
+        email,
+        purpose: 'signup',
+        username: name.trim(),
+        date_of_birth: dateOfBirth.trim(),
       });
-    } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Login failed');
+    } catch (error: unknown) {
+      throw new Error(formatApiError(error));
     }
   },
 
-  register: async (email, username, password) => {
+  verifySignupOtp: async (email, code) => {
     try {
-      const response = await authApi.register({
-        email,
-        username,
-        password,
-        password_confirm: password,
-      });
-      
-      // Store tokens
-      await storage.setItem('accessToken', response.tokens.access);
-      await storage.setItem('refreshToken', response.tokens.refresh);
-      
-      set({
-        user: response.user,
-        isAuthenticated: true,
-        isOnboardingComplete: false, // New users need to complete onboarding
-      });
-    } catch (error: any) {
-      const errorData = error.response?.data;
-      const message = errorData?.email?.[0] || 
-                      errorData?.username?.[0] || 
-                      errorData?.password?.[0] ||
-                      'Registration failed';
-      throw new Error(message);
+      const response = await authApi.verifyOtp({ email, code, purpose: 'signup' });
+      const next = await persistSession(response, false);
+      set(next);
+    } catch (error: unknown) {
+      throw new Error(formatApiError(error));
+    }
+  },
+
+  requestLoginOtp: async (email) => {
+    try {
+      return await authApi.requestOtp({ email, purpose: 'login' });
+    } catch (error: unknown) {
+      throw new Error(formatApiError(error));
+    }
+  },
+
+  verifyLoginOtp: async (email, code) => {
+    try {
+      const response = await authApi.verifyOtp({ email, code, purpose: 'login' });
+      const next = await persistSession(response);
+      set(next);
+    } catch (error: unknown) {
+      throw new Error(formatApiError(error));
     }
   },
 
   logout: async () => {
-    // Clear state IMMEDIATELY and SYNCHRONOUSLY before any async operations
-    set({ 
-      user: null, 
+    set({
+      user: null,
       isAuthenticated: false,
       isOnboardingComplete: false,
-      isLoading: false
+      isLoading: false,
     });
-    
-    // Then handle cleanup asynchronously
+
     try {
       const refreshToken = await storage.getItem('refreshToken');
       await authApi.logout(refreshToken || undefined);
     } catch (error) {
-      // Ignore logout errors
       console.log('Logout API error (ignored):', error);
     } finally {
       await storage.removeItem('accessToken');
@@ -132,12 +138,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   loadUser: async () => {
     try {
       const token = await storage.getItem('accessToken');
-      
+
       if (!token) {
         set({ isLoading: false, isAuthenticated: false });
         return;
       }
-      
+
       const user = await authApi.getProfile();
       set({
         user,

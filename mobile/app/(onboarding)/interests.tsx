@@ -16,31 +16,21 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
 import { InterestTag, GradientButton } from '../../src/components';
 import { useAuthStore } from '../../src/stores';
-import { authApi } from '../../src/api';
+import { useInterestsQuery } from '../../src/hooks/useOrbitApi';
 import { Interest } from '../../src/types';
 
 export default function InterestsScreen() {
-  const [interests, setInterests] = useState<Interest[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const { updateProfile, setOnboardingComplete } = useAuthStore();
+  const { data: interests = [], isLoading: loading, error: interestsError } = useInterestsQuery();
 
   useEffect(() => {
-    loadInterests();
-  }, []);
-
-  const loadInterests = async () => {
-    try {
-      const data = await authApi.getInterests();
-      setInterests(data);
-    } catch (error) {
+    if (interestsError) {
       Alert.alert('Error', 'Failed to load interests');
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [interestsError]);
 
   const toggleInterest = (id: string) => {
     setSelectedIds((prev) =>

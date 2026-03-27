@@ -2,14 +2,12 @@
  * Discovery Tab - Main discovery feed with nearby users
  */
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   SafeAreaView,
-  FlatList,
-  RefreshControl,
   ActivityIndicator,
   Alert,
 } from 'react-native';
@@ -19,88 +17,88 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
 import { UserCard, MatchModal, GradientButton } from '../../src/components';
-import { useDiscoveryStore, useAuthStore, useChatStore } from '../../src/stores';
-import { NearbyUser, Match } from '../../src/types';
+import {
+  useDiscoverNextQuery,
+  useLikeUserMutation,
+  usePassUserMutation,
+  useStartConversationMutation,
+} from '../../src/hooks/useOrbitApi';
+import { useLocationContext } from '../../src/context/LocationContext';
+import { useAuthStore } from '../../src/stores';
+import { NearbyUser } from '../../src/types';
 
 export default function DiscoverScreen() {
-  const [refreshing, setRefreshing] = useState(false);
-  const [locationLoading, setLocationLoading] = useState(false);
+  const [locationRefreshing, setLocationRefreshing] = useState(false);
   const [showMatchModal, setShowMatchModal] = useState(false);
   const [matchedUser, setMatchedUser] = useState<any>(null);
-  const [currentUser, setCurrentUser] = useState<NearbyUser | null>(null);
 
-  const { 
-    isLoading, 
-    error, 
-    getNextUser, 
-    likeUser, 
-    passUser,
-    currentRadius 
-  } = useDiscoveryStore();
+  const { permissionDenied } = useLocationContext();
   const { updateLocation, user } = useAuthStore();
-  const { startConversation } = useChatStore();
+  const radius = user?.discovery_radius ?? 10;
+  const discover = useDiscoverNextQuery(radius, user?.latitude, user?.longitude);
+  const likeMut = useLikeUserMutation();
+  const passMut = usePassUserMutation();
+  const startConversationMut = useStartConversationMutation();
 
-  useEffect(() => {
-    requestLocationAndFetch();
-  }, []);
+  const currentUser = discover.data?.user ?? null;
+  const isLoadingDiscover =
+    discover.isPending && discover.fetchStatus !== 'idle';
 
-  const requestLocationAndFetch = async () => {
-    setLocationLoading(true);
+  const refreshLocationNow = async () => {
+    setLocationRefreshing(true);
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      
+      const { status } = await Location.getForegroundPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert(
           'Location Required',
-          'MindLink needs your location to find people near you. Please enable location access in settings.',
+          'Allow location in the bar above, or enable it in system settings.',
           [{ text: 'OK' }]
         );
-        setLocationLoading(false);
         return;
       }
-
       const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
+        accuracy: Location.Accuracy.Highest,
       });
-
       await updateLocation(location.coords.latitude, location.coords.longitude);
-      const next = await getNextUser();
-      setCurrentUser(next);
     } catch (error) {
       console.error('Location error:', error);
       Alert.alert('Error', 'Failed to get your location. Please try again.');
     } finally {
-      setLocationLoading(false);
+      setLocationRefreshing(false);
     }
   };
 
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await requestLocationAndFetch();
-    setRefreshing(false);
-  }, []);
+  const onRefresh = async () => {
+    await refreshLocationNow();
+  };
 
   const handleLike = async (userId: string) => {
-    const result = await likeUser(userId);
-    if (result.isMatch && result.match) {
-      setMatchedUser(result.match.matched_user);
-      setShowMatchModal(true);
+    try {
+      const result = await likeMut.mutateAsync(userId);
+      if (result.is_match && result.match) {
+        setMatchedUser(result.match.matched_user);
+        setShowMatchModal(true);
+      }
+    } catch {
+      Alert.alert('Error', 'Could not send like');
     }
-    const next = await getNextUser();
-    setCurrentUser(next);
   };
 
   const handlePass = async (userId: string) => {
-    await passUser(userId);
-    const next = await getNextUser();
-    setCurrentUser(next);
+    try {
+      await passMut.mutateAsync(userId);
+    } catch {
+      Alert.alert('Error', 'Could not pass');
+    }
   };
 
   const handleMessage = async () => {
     if (!matchedUser) return;
     
     try {
-      const conversation = await startConversation(matchedUser.id);
+      const conversation = await startConversationMut.mutateAsync({
+        userId: matchedUser.id,
+      });
       setShowMatchModal(false);
       router.push(`/chat/${conversation.id}`);
     } catch (error) {
@@ -119,13 +117,14 @@ export default function DiscoverScreen() {
       </View>
       <Text style={styles.emptyTitle}>No one nearby yet</Text>
       <Text style={styles.emptySubtitle}>
-        There are no people with matching interests within {currentRadius}m of you right now.
+        There are no people with matching interests within {radius}m of you right now.
         {'\n'}Try expanding your radius or check back later!
       </Text>
       <GradientButton
-        title="Refresh"
+        title={locationRefreshing ? 'Updating…' : 'Refresh location'}
         onPress={onRefresh}
         style={styles.refreshButton}
+        loading={locationRefreshing}
       />
     </View>
   );
@@ -137,12 +136,41 @@ export default function DiscoverScreen() {
       </Text>
       <View style={styles.radiusBadge}>
         <Ionicons name="radio-outline" size={14} color={Colors.primary.default} />
-        <Text style={styles.radiusText}>{currentRadius}m radius</Text>
+        <Text style={styles.radiusText}>{radius}m radius</Text>
       </View>
     </View>
   );
 
-  if (locationLoading || (isLoading && !currentUser)) {
+  const noCoords = user?.latitude == null || user?.longitude == null;
+
+  if (permissionDenied && noCoords) {
+    return (
+      <View style={styles.container}>
+        <LinearGradient
+          colors={[Colors.background.primary, Colors.background.secondary]}
+          style={StyleSheet.absoluteFillObject}
+        />
+        <SafeAreaView style={styles.safeArea}>
+          <View style={styles.header}>
+            <Text style={styles.title}>Discover</Text>
+            <Text style={styles.subtitle}>People with similar interests near you</Text>
+          </View>
+          <View style={styles.emptyContainer}>
+            <Ionicons name="location-outline" size={56} color={Colors.text.tertiary} />
+            <Text style={styles.emptyTitle}>Location is off</Text>
+            <Text style={styles.emptySubtitle}>
+              Allow location at the top of the screen so we can find people near you.
+            </Text>
+          </View>
+        </SafeAreaView>
+      </View>
+    );
+  }
+
+  if (
+    noCoords ||
+    (user?.latitude != null && isLoadingDiscover && !discover.data && !discover.error)
+  ) {
     return (
       <View style={styles.loadingContainer}>
         <LinearGradient
@@ -150,7 +178,9 @@ export default function DiscoverScreen() {
           style={StyleSheet.absoluteFillObject}
         />
         <ActivityIndicator size="large" color={Colors.primary.default} />
-        <Text style={styles.loadingText}>Finding people near you...</Text>
+        <Text style={styles.loadingText}>
+          {noCoords ? 'Locking in your precise location…' : 'Finding people near you…'}
+        </Text>
       </View>
     );
   }

@@ -2,7 +2,7 @@
  * Chat Tab - Conversations list
  */
 
-import React, { useEffect, useCallback } from 'react';
+import React, { useCallback } from 'react';
 import {
   View,
   Text,
@@ -17,20 +17,25 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
 import { ConversationItem, Avatar } from '../../src/components';
-import { useChatStore, useDiscoveryStore } from '../../src/stores';
+import {
+  useConversationsQuery,
+  useMatchesQuery,
+  useStartConversationMutation,
+} from '../../src/hooks/useOrbitApi';
 
 export default function ChatScreen() {
-  const { conversations, isLoading, fetchConversations, startConversation } = useChatStore();
-  const { matches, fetchMatches } = useDiscoveryStore();
-
-  useEffect(() => {
-    fetchConversations();
-    fetchMatches();
-  }, []);
+  const {
+    data: conversations = [],
+    isLoading,
+    isRefetching,
+    refetch: refetchConversations,
+  } = useConversationsQuery();
+  const { data: matches = [], refetch: refetchMatches } = useMatchesQuery();
+  const startConversationMut = useStartConversationMutation();
 
   const onRefresh = useCallback(async () => {
-    await Promise.all([fetchConversations(), fetchMatches()]);
-  }, []);
+    await Promise.all([refetchConversations(), refetchMatches()]);
+  }, [refetchConversations, refetchMatches]);
 
   const handleConversationPress = (conversationId: string) => {
     router.push(`/chat/${conversationId}`);
@@ -46,7 +51,9 @@ export default function ChatScreen() {
             return;
           }
           try {
-            const conversation = await startConversation(matchedUserId);
+            const conversation = await startConversationMut.mutateAsync({
+              userId: matchedUserId,
+            });
             router.push(`/chat/${conversation.id}`);
           } catch (error) {
             // If backend blocked this (e.g., no match), we rely on backend error message
@@ -137,7 +144,7 @@ export default function ChatScreen() {
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
-              refreshing={isLoading}
+              refreshing={isRefetching}
               onRefresh={onRefresh}
               tintColor={Colors.primary.default}
             />
