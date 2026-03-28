@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "MindLink",
+    "name": "ORBIT",
     "slug": "mindlink",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -17,10 +17,10 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.mindlink.app",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "MindLink needs your location to find people with similar interests near you.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "MindLink works best with location access to continuously find nearby connections.",
-        "NSCameraUsageDescription": "MindLink needs camera access to update your profile photo.",
-        "NSPhotoLibraryUsageDescription": "MindLink needs photo library access to update your profile photo."
+        "NSLocationWhenInUseUsageDescription": "ORBIT shows your live position while you use the app and finds people with similar interests near you.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "ORBIT works best with location access to continuously find nearby connections.",
+        "NSCameraUsageDescription": "ORBIT needs camera access to update your profile photo.",
+        "NSPhotoLibraryUsageDescription": "ORBIT needs photo library access to update your profile photo."
       }
     },
     "android": {
@@ -53,15 +53,16 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow MindLink to use your location to find nearby connections."
+          "locationAlwaysAndWhenInUsePermission": "Allow ORBIT to use your location to find nearby connections."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow MindLink to access your photos for profile pictures."
+          "photosPermission": "Allow ORBIT to access your photos for profile pictures."
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true

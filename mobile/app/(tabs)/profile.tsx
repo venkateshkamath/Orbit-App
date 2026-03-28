@@ -22,11 +22,12 @@ import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { Colors, FontSizes, FontWeights, Spacing, BorderRadius, Shadows } from '../../constants/Colors';
 import { Avatar, GlassCard, InterestTag, GradientButton } from '../../src/components';
-import { useAuthStore, useDiscoveryStore } from '../../src/stores';
+import { useMatchesQuery } from '../../src/hooks/useOrbitApi';
+import { useAuthStore } from '../../src/stores';
 
 export default function ProfileScreen() {
   const { user, logout, updateProfile } = useAuthStore();
-  const { matches } = useDiscoveryStore();
+  const { data: matches = [] } = useMatchesQuery();
   const router = useRouter();
   const [isDiscoverable, setIsDiscoverable] = useState(user?.is_discoverable ?? true);
   const [showOnlineStatus, setShowOnlineStatus] = useState(user?.show_online_status ?? true);
@@ -357,7 +358,7 @@ export default function ProfileScreen() {
 
           {/* App Info */}
           <View style={styles.appInfo}>
-            <Text style={styles.appVersion}>MindLink v1.0.0</Text>
+            <Text style={styles.appVersion}>ORBIT v1.0.0</Text>
             <Text style={styles.copyright}>Made with ❤️ for connections</Text>
           </View>
         </ScrollView>

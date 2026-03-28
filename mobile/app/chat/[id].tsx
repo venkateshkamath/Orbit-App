@@ -21,7 +21,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, FontSizes, FontWeights, Spacing, BorderRadius, Shadows } from '../../constants/Colors';
 import { Avatar, MessageBubble } from '../../src/components';
-import { useChatStore, useAuthStore } from '../../src/stores';
+import {
+  useConversationQuery,
+  useMarkReadMutation,
+  useMessagesQuery,
+  useSendMessageMutation,
+} from '../../src/hooks/useOrbitApi';
+import { useAuthStore } from '../../src/stores';
 
 export default function ChatDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -29,29 +35,17 @@ export default function ChatDetailScreen() {
   const flatListRef = useRef<FlatList>(null);
   
   const [message, setMessage] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  
-  const { 
-    messages, 
-    currentConversation, 
-    isLoading, 
-    isSending,
-    fetchMessages, 
-    sendMessage,
-    markAsRead,
-    setCurrentConversation 
-  } = useChatStore();
+
+  const { data: conversation } = useConversationQuery(id);
+  const { data: messages = [], isLoading } = useMessagesQuery(id);
+  const sendMut = useSendMessageMutation();
+  const markRead = useMarkReadMutation();
   const { user } = useAuthStore();
 
   useEffect(() => {
     if (id) {
-      fetchMessages(id);
-      markAsRead(id);
+      markRead.mutate(id);
     }
-    
-    return () => {
-      setCurrentConversation(null);
-    };
   }, [id]);
 
   const handleSend = async () => {
@@ -60,15 +54,14 @@ export default function ChatDetailScreen() {
     const messageText = message.trim();
     setMessage('');
     
-    await sendMessage(id, messageText);
+    await sendMut.mutateAsync({ conversationId: id, content: messageText });
     
-    // Scroll to bottom
     setTimeout(() => {
       flatListRef.current?.scrollToEnd({ animated: true });
     }, 100);
   };
 
-  const otherUser = currentConversation?.other_participant;
+  const otherUser = conversation?.other_participant;
 
   const renderMessage = useCallback(({ item, index }: { item: any; index: number }) => {
     const isOwn = item.sender.id === user?.id;
@@ -92,7 +85,14 @@ export default function ChatDetailScreen() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.back()}
+            onPress={() => {
+              // Avoid 'GO_BACK was not handled' when there is no history
+              if (router.canGoBack && router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace('/(tabs)/chat');
+              }
+            }}
           >
             <Ionicons name="arrow-back" size={24} color={Colors.text.primary} />
           </TouchableOpacity>
@@ -110,7 +110,6 @@ export default function ChatDetailScreen() {
                 <Text style={styles.username}>{otherUser.username}</Text>
                 <Text style={styles.status}>
                   {otherUser.is_online ? 'Online' : 'Offline'}
-                  {isTyping && ' • Typing...'}
                 </Text>
               </View>
             </TouchableOpacity>
@@ -181,9 +180,9 @@ export default function ChatDetailScreen() {
                 !message.trim() && styles.sendButtonDisabled,
               ]}
               onPress={handleSend}
-              disabled={!message.trim() || isSending}
+              disabled={!message.trim() || sendMut.isPending}
             >
-              {isSending ? (
+              {sendMut.isPending ? (
                 <ActivityIndicator size="small" color={Colors.text.primary} />
               ) : (
                 <LinearGradient

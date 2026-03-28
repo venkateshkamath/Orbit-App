@@ -27,7 +27,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { formatDistanceToNow } from 'date-fns';
 import { Colors, FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
 import { Avatar, CommentsModal } from '../../src/components';
-import { postApi } from '../../src/api/posts';
+import { useCreatePostMutation, useFeedQuery, useToggleLikeMutation } from '../../src/hooks/useOrbitApi';
 import { Post } from '../../src/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -39,17 +39,28 @@ function PostItem({
   onShare
 }: { 
   post: Post; 
-  onLike: () => void;
+  onLike: () => Promise<unknown>;
   onComment: () => void;
   onShare: () => void;
 }) {
   const [isLiked, setIsLiked] = useState(post.is_liked);
   const [likeCount, setLikeCount] = useState(post.like_count);
 
-  const handleLike = () => {
-    onLike();
-    setIsLiked(!isLiked);
-    setLikeCount(isLiked ? likeCount - 1 : likeCount + 1);
+  useEffect(() => {
+    setIsLiked(post.is_liked);
+    setLikeCount(post.like_count);
+  }, [post.id, post.is_liked, post.like_count]);
+
+  const handleLike = async () => {
+    const nextLiked = !isLiked;
+    setIsLiked(nextLiked);
+    setLikeCount((c) => (nextLiked ? c + 1 : Math.max(0, c - 1)));
+    try {
+      await onLike();
+    } catch {
+      setIsLiked(post.is_liked);
+      setLikeCount(post.like_count);
+    }
   };
 
   return (
@@ -134,45 +145,23 @@ function PostItem({
 }
 
 export default function FeedScreen() {
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [caption, setCaption] = useState('');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [commentsModalVisible, setCommentsModalVisible] = useState(false);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+
+  const { data: posts = [], isLoading, isRefetching, refetch } = useFeedQuery();
+  const toggleLike = useToggleLikeMutation();
+  const createPostMutation = useCreatePostMutation();
 
   const handleOpenComments = (postId: string) => {
     setSelectedPostId(postId);
     setCommentsModalVisible(true);
   };
 
-  const fetchFeed = async () => {
-    try {
-      console.log('Fetching feed...');
-      const data = await postApi.getFeed();
-      console.log('Feed data received:', data?.length || 0, 'posts');
-      setPosts(data || []);
-    } catch (error: any) {
-      console.error('Error fetching feed:', error);
-      console.error('Error details:', error.response?.data || error.message);
-      // Show empty array on error so user sees "No posts yet" instead of loading forever
-      setPosts([]);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchFeed();
-  }, []);
-
   const handleRefresh = () => {
-    setRefreshing(true);
-    fetchFeed();
+    refetch();
   };
 
   const pickImage = async () => {
@@ -200,7 +189,6 @@ export default function FeedScreen() {
       return;
     }
 
-    setIsSubmitting(true);
     try {
       const formData = new FormData();
       formData.append('caption', caption);
@@ -216,23 +204,20 @@ export default function FeedScreen() {
         } as any);
       }
       
-      await postApi.createPost(formData);
+      await createPostMutation.mutateAsync(formData);
       
       setCreateModalVisible(false);
       setCaption('');
       setSelectedImage(null);
-      fetchFeed();
     } catch (error) {
       console.error('Error creating post:', error);
       Alert.alert('Error', 'Failed to create post. Please try again.');
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
   const handleShare = async (post: Post) => {
     try {
-      const message = `${post.caption ? post.caption + '\n\n' : ''}Check out this post on MindLink by ${post.author.username}!`;
+      const message = `${post.caption ? post.caption + '\n\n' : ''}Check out this post on ORBIT by ${post.author.username}!`;
       const url = post.image_url || ''; // You could also use a deep link here if available
       
       await Share.share({
@@ -245,7 +230,7 @@ export default function FeedScreen() {
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={Colors.primary.default} />
@@ -260,7 +245,7 @@ export default function FeedScreen() {
       <SafeAreaView style={styles.safeArea}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>MindLink</Text>
+          <Text style={styles.headerTitle}>ORBIT</Text>
           <View style={styles.headerActions}>
             <TouchableOpacity 
               style={styles.headerIcon}
@@ -280,7 +265,7 @@ export default function FeedScreen() {
           renderItem={({ item }) => (
             <PostItem
               post={item}
-              onLike={() => postApi.likePost(item.id)}
+              onLike={() => toggleLike.mutateAsync(item.id)}
               onComment={() => handleOpenComments(item.id)}
               onShare={() => handleShare(item)}
             />
@@ -288,7 +273,7 @@ export default function FeedScreen() {
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
-              refreshing={refreshing}
+              refreshing={isRefetching}
               onRefresh={handleRefresh}
               tintColor={Colors.primary.default}
             />
@@ -344,19 +329,19 @@ export default function FeedScreen() {
                 <Text style={styles.modalTitle}>New Post</Text>
                 <TouchableOpacity 
                   onPress={handleCreatePost}
-                  disabled={isSubmitting || (!caption.trim() && !selectedImage)}
+                  disabled={createPostMutation.isPending || (!caption.trim() && !selectedImage)}
                 >
                   <LinearGradient
                     colors={[Colors.primary.start, Colors.primary.end]}
                     style={[
                       styles.shareButton,
-                      (isSubmitting || (!caption.trim() && !selectedImage)) && styles.shareButtonDisabled
+                      (createPostMutation.isPending || (!caption.trim() && !selectedImage)) && styles.shareButtonDisabled
                     ]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                   >
                     <Text style={styles.shareText}>
-                      {isSubmitting ? 'Posting...' : 'Share'}
+                      {createPostMutation.isPending ? 'Posting...' : 'Share'}
                     </Text>
                   </LinearGradient>
                 </TouchableOpacity>

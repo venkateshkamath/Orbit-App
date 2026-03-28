@@ -1,8 +1,8 @@
 /**
- * Login Screen - Clean, user-friendly design
+ * Sign in — email, then email OTP
  */
 
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,168 +11,231 @@ import {
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
-  StatusBar,
+  TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
+import { StatusBar } from 'expo-status-bar';
+import { BackHandler } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
 import { Input, GradientButton } from '../../src/components';
 import { useAuthStore } from '../../src/stores';
+import { leaveAuthScreen } from '../../src/utils/authNavigation';
+import { formatApiError } from '../../src/utils/apiErrors';
+
+type Step = 'email' | 'otp';
 
 export default function LoginScreen() {
+  const [step, setStep] = useState<Step>('email');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [otp, setOtp] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [sending, setSending] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [resendIn, setResendIn] = useState(0);
+  const [devHint, setDevHint] = useState<string | null>(null);
 
-  const { login } = useAuthStore();
+  const { requestLoginOtp, verifyLoginOtp } = useAuthStore();
 
-  const validate = () => {
-    const newErrors: typeof errors = {};
-    
-    if (!email) {
-      newErrors.email = 'Please enter your email address';
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = 'Please enter a valid email address';
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const t = setInterval(() => setResendIn((s) => (s <= 1 ? 0 : s - 1)), 1000);
+    return () => clearInterval(t);
+  }, [resendIn]);
+
+  const goBack = useCallback(() => {
+    if (step === 'otp') {
+      setStep('email');
+      setOtp('');
+      setErrorMessage('');
+      setDevHint(null);
+      return;
     }
-    
-    if (!password) {
-      newErrors.password = 'Please enter your password';
+    leaveAuthScreen();
+  }, [step]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        goBack();
+        return true;
+      });
+      return () => sub.remove();
+    }, [goBack])
+  );
+
+  const handleSendCode = async () => {
+    setErrorMessage('');
+    setDevHint(null);
+    if (!/\S+@\S+\.\S+/.test(email.trim())) {
+      setErrorMessage('Please enter a valid email address.');
+      return;
     }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+
+    setSending(true);
+    try {
+      const res = await requestLoginOtp(email.trim());
+      setStep('otp');
+      setResendIn(60);
+      if (res.debug_otp) {
+        setDevHint(`Dev build: code is ${res.debug_otp}`);
+      }
+    } catch (e: unknown) {
+      setErrorMessage(formatApiError(e));
+    } finally {
+      setSending(false);
+    }
   };
 
-  const handleLogin = async () => {
+  const handleResend = async () => {
+    if (resendIn > 0 || sending) return;
     setErrorMessage('');
-    if (!validate()) return;
-
-    setLoading(true);
+    setDevHint(null);
+    setSending(true);
     try {
-      await login(email, password);
-      // Navigation happens automatically via root layout
-    } catch (error: any) {
-      // Provide clear, actionable error messages
-      const message = error.message || '';
-      
-      if (message.toLowerCase().includes('credential') || message.toLowerCase().includes('invalid')) {
-        setErrorMessage('Incorrect email or password. Please try again.');
-      } else if (message.toLowerCase().includes('network')) {
-        setErrorMessage('Unable to connect. Please check your internet connection.');
-      } else if (message.toLowerCase().includes('not found') || message.toLowerCase().includes('does not exist')) {
-        setErrorMessage('No account found with this email. Please sign up first.');
-      } else {
-        setErrorMessage('Login failed. Please check your credentials and try again.');
+      const res = await requestLoginOtp(email.trim());
+      setResendIn(60);
+      if (res.debug_otp) {
+        setDevHint(`Dev build: code is ${res.debug_otp}`);
       }
-      console.error('Login error:', error);
+    } catch (e: unknown) {
+      setErrorMessage(formatApiError(e));
     } finally {
-      setLoading(false);
+      setSending(false);
+    }
+  };
+
+  const handleVerify = async () => {
+    setErrorMessage('');
+    const code = otp.replace(/\s/g, '');
+    if (!/^\d{6}$/.test(code)) {
+      setErrorMessage('Enter the 6-digit code from your email.');
+      return;
+    }
+    setVerifying(true);
+    try {
+      await verifyLoginOtp(email.trim(), code);
+    } catch (e: unknown) {
+      setErrorMessage(formatApiError(e));
+    } finally {
+      setVerifying(false);
     }
   };
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" />
-      
+      <StatusBar style="light" />
+
       <SafeAreaView style={styles.safeArea}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardView}
         >
           <View style={styles.content}>
-            {/* Back Button */}
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={styles.backButton}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
+            <TouchableOpacity onPress={goBack} style={styles.backButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Ionicons name="arrow-back" size={24} color={Colors.text.primary} />
             </TouchableOpacity>
 
-            {/* Header */}
-            <View style={styles.header}>
-              <Text style={styles.title}>Welcome back</Text>
-              <Text style={styles.subtitle}>
-                Sign in to continue your journey
-              </Text>
-            </View>
+            {step === 'email' ? (
+              <>
+                <View style={styles.header}>
+                  <Text style={styles.title}>Welcome back</Text>
+                  <Text style={styles.subtitle}>We’ll email you a one-time code to sign in.</Text>
+                </View>
 
-            {/* Error Message */}
-            {errorMessage ? (
-              <View style={styles.errorContainer}>
-                <Ionicons name="alert-circle" size={20} color={Colors.error} />
-                <Text style={styles.errorText}>{errorMessage}</Text>
-              </View>
-            ) : null}
+                {errorMessage ? (
+                  <View style={styles.errorContainer}>
+                    <Ionicons name="alert-circle" size={20} color={Colors.error} />
+                    <Text style={styles.errorText}>{errorMessage}</Text>
+                  </View>
+                ) : null}
 
-            {/* Form */}
-            <View style={styles.form}>
-              <Input
-                label="Email"
-                icon="mail-outline"
-                value={email}
-                onChangeText={(text) => {
-                  setEmail(text);
-                  setErrorMessage('');
-                }}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                error={errors.email}
-                placeholder="your.email@example.com"
-              />
+                <View style={styles.form}>
+                  <Input
+                    label="Email"
+                    icon="mail-outline"
+                    value={email}
+                    onChangeText={(t) => {
+                      setEmail(t);
+                      setErrorMessage('');
+                    }}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    placeholder="you@example.com"
+                  />
 
-              <Input
-                label="Password"
-                icon="lock-closed-outline"
-                value={password}
-                onChangeText={(text) => {
-                  setPassword(text);
-                  setErrorMessage('');
-                }}
-                isPassword
-                error={errors.password}
-                placeholder="Enter your password"
-              />
+                  <GradientButton
+                    title={sending ? 'Sending…' : 'Send sign-in code'}
+                    onPress={handleSendCode}
+                    loading={sending}
+                    size="lg"
+                    style={styles.primaryBtn}
+                  />
+                </View>
+              </>
+            ) : (
+              <>
+                <View style={styles.header}>
+                  <Text style={styles.title}>Check your email</Text>
+                  <Text style={styles.subtitle}>
+                    Enter the code we sent to{' '}
+                    <Text style={styles.emailEmphasis}>{email.trim()}</Text>
+                  </Text>
+                </View>
 
-              <TouchableOpacity style={styles.forgotPassword}>
-                <Text style={styles.forgotPasswordText}>Forgot password?</Text>
-              </TouchableOpacity>
+                {devHint ? <Text style={styles.devHint}>{devHint}</Text> : null}
 
-              <GradientButton
-                title="Sign In"
-                onPress={handleLogin}
-                loading={loading}
-                size="lg"
-                style={styles.loginButton}
-              />
-            </View>
+                {errorMessage ? (
+                  <View style={styles.errorContainer}>
+                    <Ionicons name="alert-circle" size={20} color={Colors.error} />
+                    <Text style={styles.errorText}>{errorMessage}</Text>
+                  </View>
+                ) : null}
 
-            {/* Divider */}
-            <View style={styles.divider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or</Text>
-              <View style={styles.dividerLine} />
-            </View>
+                <Text style={styles.otpLabel}>Sign-in code</Text>
+                <TextInput
+                  style={styles.otpInput}
+                  value={otp}
+                  onChangeText={(t) => {
+                    setOtp(t.replace(/[^\d]/g, '').slice(0, 6));
+                    setErrorMessage('');
+                  }}
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  placeholder="000000"
+                  placeholderTextColor={Colors.text.muted}
+                />
 
-            {/* Social Login */}
-            <View style={styles.socialButtons}>
-              <TouchableOpacity style={styles.socialButton}>
-                <Ionicons name="logo-google" size={22} color={Colors.text.primary} />
-                <Text style={styles.socialButtonText}>Google</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.socialButton}>
-                <Ionicons name="logo-apple" size={22} color={Colors.text.primary} />
-                <Text style={styles.socialButtonText}>Apple</Text>
-              </TouchableOpacity>
-            </View>
+                <GradientButton
+                  title={verifying ? 'Signing in…' : 'Sign in'}
+                  onPress={handleVerify}
+                  loading={verifying}
+                  size="lg"
+                  style={styles.primaryBtn}
+                />
 
-            {/* Sign Up Link */}
-            <View style={styles.signUpContainer}>
-              <Text style={styles.signUpText}>Don't have an account? </Text>
+                <TouchableOpacity
+                  style={[styles.resendBtn, resendIn > 0 && styles.resendDisabled]}
+                  onPress={handleResend}
+                  disabled={resendIn > 0 || sending}
+                >
+                  {sending ? (
+                    <ActivityIndicator color={Colors.primary.light} />
+                  ) : (
+                    <Text style={styles.resendText}>
+                      {resendIn > 0 ? `Resend code in ${resendIn}s` : 'Resend code'}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </>
+            )}
+
+            <View style={styles.footer}>
+              <Text style={styles.footerMuted}>New here? </Text>
               <TouchableOpacity onPress={() => router.replace('/(auth)/register')}>
-                <Text style={styles.signUpLink}>Sign up</Text>
+                <Text style={styles.footerLink}>Create an account</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -224,85 +287,87 @@ const styles = StyleSheet.create({
     color: Colors.text.secondary,
     lineHeight: 22,
   },
+  emailEmphasis: {
+    color: Colors.text.accent,
+    fontWeight: FontWeights.semibold,
+  },
+  devHint: {
+    fontSize: FontSizes.sm,
+    color: Colors.secondary.default,
+    marginBottom: Spacing.md,
+    padding: Spacing.sm,
+    backgroundColor: Colors.background.card,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEE2E2',
+    backgroundColor: 'rgba(249, 115, 115, 0.12)',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.md,
     marginBottom: Spacing.md,
     gap: Spacing.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(249, 115, 115, 0.35)',
   },
   errorText: {
     flex: 1,
-    color: '#991B1B',
+    color: Colors.error,
     fontSize: FontSizes.sm,
     lineHeight: 18,
   },
   form: {
     marginBottom: Spacing.md,
   },
-  forgotPassword: {
-    alignSelf: 'flex-end',
-    marginTop: Spacing.sm,
-    marginBottom: Spacing.md,
+  primaryBtn: {
+    marginTop: Spacing.lg,
   },
-  forgotPasswordText: {
-    color: Colors.primary.default,
+  otpLabel: {
     fontSize: FontSizes.sm,
-    fontWeight: FontWeights.medium,
+    fontWeight: FontWeights.semibold,
+    color: Colors.text.secondary,
+    marginBottom: Spacing.sm,
   },
-  loginButton: {
-    marginTop: Spacing.sm,
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: Spacing.lg,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: Colors.border,
-  },
-  dividerText: {
-    color: Colors.text.tertiary,
-    fontSize: FontSizes.sm,
-    marginHorizontal: Spacing.md,
-  },
-  socialButtons: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-    marginBottom: Spacing.lg,
-  },
-  socialButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 52,
-    borderRadius: BorderRadius.md,
+  otpInput: {
+    fontSize: 32,
+    fontWeight: '700',
+    letterSpacing: 8,
+    color: Colors.text.primary,
     backgroundColor: Colors.background.card,
     borderWidth: 1,
     borderColor: Colors.border,
-    gap: Spacing.sm,
+    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    marginBottom: Spacing.lg,
+    textAlign: 'center',
   },
-  socialButtonText: {
-    color: Colors.text.primary,
+  resendBtn: {
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+  },
+  resendDisabled: {
+    opacity: 0.5,
+  },
+  resendText: {
+    color: Colors.primary.light,
     fontSize: FontSizes.md,
-    fontWeight: FontWeights.medium,
+    fontWeight: FontWeights.semibold,
   },
-  signUpContainer: {
+  footer: {
     flexDirection: 'row',
     justifyContent: 'center',
     marginTop: 'auto',
+    paddingTop: Spacing.xl,
   },
-  signUpText: {
+  footerMuted: {
     color: Colors.text.secondary,
     fontSize: FontSizes.md,
   },
-  signUpLink: {
+  footerLink: {
     color: Colors.primary.default,
     fontSize: FontSizes.md,
     fontWeight: FontWeights.semibold,

@@ -1,5 +1,5 @@
 /**
- * TypeScript types for MindLink
+ * TypeScript types for ORBIT
  */
 
 export interface Interest {
@@ -44,6 +44,7 @@ export interface NearbyUser extends PublicUser {
   distance: number;
   match_percentage: number;
   common_interests: string[];
+  match_score: number;
 }
 
 export interface Message {

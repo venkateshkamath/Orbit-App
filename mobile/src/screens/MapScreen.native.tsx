@@ -19,7 +19,8 @@ import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
 import { Avatar } from '../components';
-import { useDiscoveryStore, useAuthStore } from '../stores';
+import { useNearbyUsersQuery } from '../hooks/useOrbitApi';
+import { useAuthStore } from '../stores';
 import { NearbyUser } from '../types';
 
 export default function MapScreen() {
@@ -29,8 +30,15 @@ export default function MapScreen() {
   const [locationError, setLocationError] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<NearbyUser | null>(null);
 
-  const { nearbyUsers, currentRadius, likeUser, fetchNearbyUsers } = useDiscoveryStore();
-  const { updateLocation } = useAuthStore();
+  const { user, updateLocation } = useAuthStore();
+  const radius = user?.discovery_radius ?? 10;
+  const nearbyQuery = useNearbyUsersQuery(
+    radius,
+    user?.latitude,
+    user?.longitude,
+    !loading && user?.latitude != null && user?.longitude != null
+  );
+  const nearbyUsers = nearbyQuery.data?.users ?? [];
 
   useEffect(() => {
     initializeLocation();
@@ -38,6 +46,14 @@ export default function MapScreen() {
 
   const initializeLocation = async () => {
     try {
+      // If we already have a stored location for this user, reuse it without prompting again.
+      if (user?.latitude != null && user?.longitude != null) {
+        const coords = { latitude: user.latitude, longitude: user.longitude };
+        setUserLocation(coords);
+        setLoading(false);
+        return;
+      }
+
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         setLocationError('Location permission required');
@@ -56,11 +72,10 @@ export default function MapScreen() {
 
       setUserLocation(coords);
       await updateLocation(coords.latitude, coords.longitude);
-      await fetchNearbyUsers();
+      setLoading(false);
     } catch (error) {
       console.error('Location error:', error);
       setLocationError('Could not get position');
-    } finally {
       setLoading(false);
     }
   };
@@ -107,7 +122,7 @@ export default function MapScreen() {
         {userLocation && (
           <Circle
             center={userLocation}
-            radius={currentRadius * 1000}
+            radius={radius * 1000}
             fillColor="rgba(139, 92, 246, 0.1)"
             strokeColor="rgba(139, 92, 246, 0.3)"
           />

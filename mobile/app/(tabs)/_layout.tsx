@@ -8,7 +8,9 @@ import { View, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing } from '../../constants/Colors';
-import { useChatStore } from '../../src/stores';
+import { LocationStatusBar } from '../../src/components/LocationStatusBar';
+import { LocationProvider } from '../../src/context/LocationContext';
+import { useConversationsQuery } from '../../src/hooks/useOrbitApi';
 
 type TabIconName = 'compass' | 'newspaper' | 'map' | 'chatbubbles' | 'person';
 
@@ -44,8 +46,8 @@ function TabBarIcon({
 }
 
 function ChatTabIcon({ focused }: { focused: boolean }) {
-  const { conversations } = useChatStore();
-  const unreadCount = conversations.reduce((sum, c) => sum + c.unread_count, 0);
+  const { data: conversations = [] } = useConversationsQuery();
+  const unreadCount = conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0);
 
   return (
     <View>
@@ -61,56 +63,63 @@ function ChatTabIcon({ focused }: { focused: boolean }) {
 
 export default function TabsLayout() {
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: styles.tabBar,
-        tabBarShowLabel: true,
-        tabBarLabelStyle: styles.tabBarLabel,
-        tabBarActiveTintColor: Colors.primary.default,
-        tabBarInactiveTintColor: Colors.text.tertiary,
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Discover',
-          tabBarIcon: ({ focused }) => <TabBarIcon name="compass" focused={focused} />,
-        }}
-      />
-      <Tabs.Screen
-        name="feed"
-        options={{
-          title: 'Feed',
-          tabBarIcon: ({ focused }) => <TabBarIcon name="newspaper" focused={focused} />,
-        }}
-      />
-      <Tabs.Screen
-        name="map"
-        options={{
-          title: 'Map',
-          tabBarIcon: ({ focused }) => <TabBarIcon name="map" focused={focused} />,
-        }}
-      />
-      <Tabs.Screen
-        name="chat"
-        options={{
-          title: 'Messages',
-          tabBarIcon: ({ focused }) => <ChatTabIcon focused={focused} />,
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: 'Profile',
-          tabBarIcon: ({ focused }) => <TabBarIcon name="person" focused={focused} />,
-        }}
-      />
-    </Tabs>
+    <LocationProvider>
+      <View style={styles.tabsRoot}>
+        <LocationStatusBar />
+        <View style={styles.tabsNavigatorFill}>
+          <Tabs
+            screenOptions={{
+              headerShown: false,
+              tabBarStyle: styles.tabBar,
+              tabBarShowLabel: true,
+              tabBarLabelStyle: styles.tabBarLabel,
+              tabBarActiveTintColor: Colors.primary.default,
+              tabBarInactiveTintColor: Colors.text.tertiary,
+            }}
+          >
+            <Tabs.Screen
+              name="index"
+              options={{
+                title: 'Discover',
+                tabBarIcon: ({ focused }) => <TabBarIcon name="compass" focused={focused} />,
+              }}
+            />
+            <Tabs.Screen
+              name="feed"
+              options={{
+                title: 'Feed',
+                tabBarIcon: ({ focused }) => <TabBarIcon name="newspaper" focused={focused} />,
+              }}
+            />
+            <Tabs.Screen
+              name="chat"
+              options={{
+                title: 'Messages',
+                tabBarIcon: ({ focused }) => <ChatTabIcon focused={focused} />,
+              }}
+            />
+            <Tabs.Screen
+              name="profile"
+              options={{
+                title: 'Profile',
+                tabBarIcon: ({ focused }) => <TabBarIcon name="person" focused={focused} />,
+              }}
+            />
+          </Tabs>
+        </View>
+      </View>
+    </LocationProvider>
   );
 }
 
 const styles = StyleSheet.create({
+  tabsRoot: {
+    flex: 1,
+  },
+  /** Bottom tabs must sit in a flex:1 sibling or scene area collapses (blank white content). */
+  tabsNavigatorFill: {
+    flex: 1,
+  },
   tabBar: {
     backgroundColor: Colors.background.secondary,
     borderTopColor: Colors.border,

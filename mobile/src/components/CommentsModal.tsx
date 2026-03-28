@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { formatDistanceToNow } from 'date-fns';
 import { Colors, FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
 import { Avatar } from './Avatar';
-import { postApi } from '../api/posts';
+import { useAddCommentMutation, usePostCommentsQuery } from '../hooks/useOrbitApi';
 import { Comment } from '../types';
 
 interface CommentsModalProps {
@@ -26,42 +26,18 @@ interface CommentsModalProps {
 }
 
 export const CommentsModal: React.FC<CommentsModalProps> = ({ visible, onClose, postId }) => {
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [loading, setLoading] = useState(false);
   const [newComment, setNewComment] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  useEffect(() => {
-    if (visible && postId) {
-      loadComments();
-    }
-  }, [visible, postId]);
-
-  const loadComments = async () => {
-    if (!postId) return;
-    setLoading(true);
-    try {
-      const data = await postApi.getComments(postId);
-      setComments(data);
-    } catch (error) {
-      console.error('Error loading comments:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: comments = [], isLoading: loading } = usePostCommentsQuery(postId, visible);
+  const addComment = useAddCommentMutation();
 
   const handleAddComment = async () => {
-    if (!postId || !newComment.trim() || isSubmitting) return;
+    if (!postId || !newComment.trim() || addComment.isPending) return;
 
-    setIsSubmitting(true);
     try {
-      const addedComment = await postApi.addComment(postId, newComment.trim());
-      setComments([addedComment, ...comments]);
+      await addComment.mutateAsync({ postId, text: newComment.trim() });
       setNewComment('');
     } catch (error) {
       console.error('Error adding comment:', error);
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -132,13 +108,13 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({ visible, onClose, 
             />
             <TouchableOpacity
               onPress={handleAddComment}
-              disabled={!newComment.trim() || isSubmitting}
+              disabled={!newComment.trim() || addComment.isPending}
               style={[
                 styles.postButton,
-                (!newComment.trim() || isSubmitting) && styles.postButtonDisabled
+                (!newComment.trim() || addComment.isPending) && styles.postButtonDisabled
               ]}
             >
-              {isSubmitting ? (
+              {addComment.isPending ? (
                 <ActivityIndicator size="small" color={Colors.primary.default} />
               ) : (
                 <Text style={styles.postButtonText}>Post</Text>

@@ -5,9 +5,36 @@
 
 import axios from 'axios';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 
-// Fallback to local IP if no environment variable is provided
-const LOCAL_IP = '192.168.31.5';
+/**
+ * Metro / Expo exposes the machine LAN IP in a few places; physical devices need it (not 127.0.0.1).
+ */
+function resolveLocalIp(): string {
+  const tryHost = (raw: string | undefined) => {
+    if (!raw) return null;
+    const host = raw.split(':')[0]?.trim();
+    if (host && host !== 'localhost' && host !== '127.0.0.1') return host;
+    return null;
+  };
+
+  const fromHostUri = tryHost(Constants.expoConfig?.hostUri);
+  if (fromHostUri) return fromHostUri;
+
+  const manifest = Constants.manifest as Record<string, unknown> | null;
+  const debuggerHost =
+    (manifest?.debuggerHost as string) ||
+    (Constants.manifest2 as { extra?: { expoClient?: { debuggerHost?: string } } } | null)?.extra?.expoClient
+      ?.debuggerHost;
+
+  const fromDebugger = tryHost(debuggerHost);
+  if (fromDebugger) return fromDebugger;
+
+  return '127.0.0.1';
+}
+
+// Fallback to the active Expo host IP for native development.
+const LOCAL_IP = resolveLocalIp();
 const PROD_API_URL = process.env.EXPO_PUBLIC_API_URL;
 const PROD_WS_URL = process.env.EXPO_PUBLIC_WS_URL;
 

@@ -1,8 +1,8 @@
 /**
- * Register Screen - Clean, user-friendly design
+ * Sign up — name, email, date of birth, then email OTP
  */
 
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,199 +11,391 @@ import {
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
-  StatusBar,
+  TextInput,
+  ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { router } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
+import { StatusBar } from 'expo-status-bar';
+import { BackHandler } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { format, parse, isValid } from 'date-fns';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
 import { Input, GradientButton } from '../../src/components';
 import { useAuthStore } from '../../src/stores';
+import { leaveAuthScreen } from '../../src/utils/authNavigation';
+import { formatApiError } from '../../src/utils/apiErrors';
+
+type Step = 'details' | 'otp';
+
+function defaultDobDate(): Date {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - 25);
+  d.setHours(12, 0, 0, 0);
+  return d;
+}
+
+function minDobDate(): Date {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - 120);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
 
 export default function RegisterScreen() {
-  const [username, setUsername] = useState('');
+  const [step, setStep] = useState<Step>('details');
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [dobDate, setDobDate] = useState(defaultDobDate);
+  const [dobText, setDobText] = useState(() => format(defaultDobDate(), 'yyyy-MM-dd'));
+  const [otp, setOtp] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
-  const [errors, setErrors] = useState<{
-    username?: string;
-    email?: string;
-    password?: string;
-  }>({});
+  const [sending, setSending] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [resendIn, setResendIn] = useState(0);
+  const [devHint, setDevHint] = useState<string | null>(null);
+  const [androidPickerOpen, setAndroidPickerOpen] = useState(false);
+  const [iosPickerOpen, setIosPickerOpen] = useState(false);
 
-  const { register } = useAuthStore();
+  const { requestSignupOtp, verifySignupOtp } = useAuthStore();
 
-  const validate = () => {
-    const newErrors: typeof errors = {};
-    
-    if (!username) {
-      newErrors.username = 'Please choose a username';
-    } else if (username.length < 3) {
-      newErrors.username = 'Username must be at least 3 characters';
-    }
-    
-    if (!email) {
-      newErrors.email = 'Please enter your email address';
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = 'Please enter a valid email address';
-    }
-    
-    if (!password) {
-      newErrors.password = 'Please create a password';
-    } else if (password.length < 8) {
-      newErrors.password = 'Password must be at least 8 characters';
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+  const maxDob = new Date();
+  const minDob = minDobDate();
+
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const t = setInterval(() => setResendIn((s) => (s <= 1 ? 0 : s - 1)), 1000);
+    return () => clearInterval(t);
+  }, [resendIn]);
+
+  const syncDobTextFromDate = (d: Date) => {
+    setDobDate(d);
+    setDobText(format(d, 'yyyy-MM-dd'));
   };
 
-  const handleRegister = async () => {
-    setErrorMessage('');
-    if (!validate()) return;
-
-    setLoading(true);
-    try {
-      await register(email, username, password);
-      // Navigation happens automatically via root layout
-    } catch (error: any) {
-      // Provide clear, actionable error messages
-      const message = error.message || '';
-      
-      if (message.toLowerCase().includes('email') && message.toLowerCase().includes('already')) {
-        setErrorMessage('This email is already registered. Please sign in instead.');
-      } else if (message.toLowerCase().includes('username') && message.toLowerCase().includes('already')) {
-        setErrorMessage('This username is taken. Please choose another one.');
-      } else if (message.toLowerCase().includes('network')) {
-        setErrorMessage('Unable to connect. Please check your internet connection.');
-      } else if (message.toLowerCase().includes('password')) {
-        setErrorMessage(message);
-      } else {
-        setErrorMessage('Registration failed. Please check your details and try again.');
-      }
-      console.error('Registration error:', error);
-    } finally {
-      setLoading(false);
+  const goBack = useCallback(() => {
+    if (step === 'otp') {
+      setStep('details');
+      setOtp('');
+      setErrorMessage('');
+      setDevHint(null);
+      return;
     }
+    leaveAuthScreen();
+  }, [step]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        goBack();
+        return true;
+      });
+      return () => sub.remove();
+    }, [goBack])
+  );
+
+  const parseDobStrict = (): Date | null => {
+    const parsed = parse(dobText.trim(), 'yyyy-MM-dd', new Date());
+    if (!isValid(parsed)) return null;
+    const day = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+    const maxDay = new Date(maxDob.getFullYear(), maxDob.getMonth(), maxDob.getDate());
+    const minDay = new Date(minDob.getFullYear(), minDob.getMonth(), minDob.getDate());
+    if (day > maxDay || day < minDay) return null;
+    return day;
+  };
+
+  const validateDetails = () => {
+    if (fullName.trim().length < 2) {
+      setErrorMessage('Please enter your name (at least 2 characters).');
+      return false;
+    }
+    if (!/\S+@\S+\.\S+/.test(email.trim())) {
+      setErrorMessage('Please enter a valid email address.');
+      return false;
+    }
+    const dob = parseDobStrict();
+    if (!dob) {
+      setErrorMessage('Please choose a valid date of birth.');
+      return false;
+    }
+    setDobDate(dob);
+    setDobText(format(dob, 'yyyy-MM-dd'));
+    return true;
+  };
+
+  const dobForApi = () => format(parseDobStrict() || dobDate, 'yyyy-MM-dd');
+
+  const openNativeDatePicker = () => {
+    setErrorMessage('');
+    if (Platform.OS === 'android') {
+      setAndroidPickerOpen(true);
+    } else if (Platform.OS === 'ios') {
+      setIosPickerOpen(true);
+    }
+  };
+
+  const handleSendCode = async () => {
+    setErrorMessage('');
+    setDevHint(null);
+    if (!validateDetails()) return;
+
+    setSending(true);
+    try {
+      const res = await requestSignupOtp(email.trim(), fullName.trim(), dobForApi());
+      setStep('otp');
+      setResendIn(60);
+      if (res.debug_otp) {
+        setDevHint(`Dev build: code is ${res.debug_otp}`);
+      }
+    } catch (e: unknown) {
+      setErrorMessage(formatApiError(e));
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (resendIn > 0 || sending) return;
+    setErrorMessage('');
+    setDevHint(null);
+    setSending(true);
+    try {
+      const res = await requestSignupOtp(email.trim(), fullName.trim(), dobForApi());
+      setResendIn(60);
+      if (res.debug_otp) {
+        setDevHint(`Dev build: code is ${res.debug_otp}`);
+      }
+    } catch (e: unknown) {
+      setErrorMessage(formatApiError(e));
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleVerify = async () => {
+    setErrorMessage('');
+    const code = otp.replace(/\s/g, '');
+    if (!/^\d{6}$/.test(code)) {
+      setErrorMessage('Enter the 6-digit code from your email.');
+      return;
+    }
+    setVerifying(true);
+    try {
+      await verifySignupOtp(email.trim(), code);
+    } catch (e: unknown) {
+      setErrorMessage(formatApiError(e));
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const renderDobField = () => {
+    if (Platform.OS === 'web') {
+      return (
+        <View style={styles.dobBlock}>
+          <Text style={styles.dobLabel}>Date of birth</Text>
+          <View style={styles.dobRow}>
+            <Ionicons name="calendar-outline" size={20} color={Colors.text.tertiary} style={styles.dobIcon} />
+            <TextInput
+              style={styles.dobWebInput}
+              value={dobText}
+              onChangeText={(t) => {
+                setDobText(t);
+                setErrorMessage('');
+              }}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor={Colors.text.muted}
+              autoCapitalize="none"
+            />
+          </View>
+          <Text style={styles.dobHint}>Use format YYYY-MM-DD</Text>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.dobBlock}>
+        <Text style={styles.dobLabel}>Date of birth</Text>
+        <TouchableOpacity
+          style={styles.dobRow}
+          onPress={openNativeDatePicker}
+          activeOpacity={0.75}
+        >
+          <Ionicons name="calendar-outline" size={20} color={Colors.text.tertiary} style={styles.dobIcon} />
+          <Text style={styles.dobValue}>{format(dobDate, 'MMMM d, yyyy')}</Text>
+          <Ionicons name="chevron-down" size={20} color={Colors.text.tertiary} />
+        </TouchableOpacity>
+
+        {androidPickerOpen ? (
+          <DateTimePicker
+            value={dobDate}
+            mode="date"
+            display="default"
+            maximumDate={maxDob}
+            minimumDate={minDob}
+            onChange={(event, date) => {
+              setAndroidPickerOpen(false);
+              if (event.type === 'set' && date) {
+                syncDobTextFromDate(date);
+              }
+            }}
+          />
+        ) : null}
+
+        <Modal visible={iosPickerOpen} transparent animationType="slide" onRequestClose={() => setIosPickerOpen(false)}>
+          <TouchableOpacity style={styles.iosModalBackdrop} activeOpacity={1} onPress={() => setIosPickerOpen(false)}>
+            <TouchableOpacity activeOpacity={1} style={styles.iosModalCard} onPress={(e) => e.stopPropagation()}>
+              <View style={styles.iosModalHeader}>
+                <Text style={styles.iosModalTitle}>Date of birth</Text>
+                <TouchableOpacity onPress={() => setIosPickerOpen(false)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+                  <Text style={styles.iosModalDone}>Done</Text>
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={dobDate}
+                mode="date"
+                display="spinner"
+                themeVariant="dark"
+                maximumDate={maxDob}
+                minimumDate={minDob}
+                onChange={(_, date) => {
+                  if (date) syncDobTextFromDate(date);
+                }}
+                style={styles.iosPicker}
+              />
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </Modal>
+      </View>
+    );
   };
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" />
-      
+      <StatusBar style="light" />
+
       <SafeAreaView style={styles.safeArea}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardView}
         >
           <View style={styles.content}>
-            {/* Back Button */}
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={styles.backButton}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
+            <TouchableOpacity onPress={goBack} style={styles.backButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Ionicons name="arrow-back" size={24} color={Colors.text.primary} />
             </TouchableOpacity>
 
-            {/* Header */}
-            <View style={styles.header}>
-              <Text style={styles.title}>Create account</Text>
-              <Text style={styles.subtitle}>
-                Join MindLink and start connecting
-              </Text>
-            </View>
+            {step === 'details' ? (
+              <>
+                <View style={styles.header}>
+                  <Text style={styles.title}>Create account</Text>
+                  <Text style={styles.subtitle}>We’ll email you a code to verify it’s you.</Text>
+                </View>
 
-            {/* Error Message */}
-            {errorMessage ? (
-              <View style={styles.errorContainer}>
-                <Ionicons name="alert-circle" size={20} color={Colors.error} />
-                <Text style={styles.errorText}>{errorMessage}</Text>
-              </View>
-            ) : null}
+                {errorMessage ? (
+                  <View style={styles.errorContainer}>
+                    <Ionicons name="alert-circle" size={20} color={Colors.error} />
+                    <Text style={styles.errorText}>{errorMessage}</Text>
+                  </View>
+                ) : null}
 
-            {/* Form */}
-            <View style={styles.form}>
-              <Input
-                label="Username"
-                icon="person-outline"
-                value={username}
-                onChangeText={(text) => {
-                  setUsername(text);
-                  setErrorMessage('');
-                }}
-                autoCapitalize="none"
-                error={errors.username}
-                placeholder="Choose a username"
-              />
+                <View style={styles.form}>
+                  <Input
+                    label="Full name"
+                    icon="person-outline"
+                    value={fullName}
+                    onChangeText={(t) => {
+                      setFullName(t);
+                      setErrorMessage('');
+                    }}
+                    autoCapitalize="words"
+                    placeholder="Your name"
+                  />
+                  <Input
+                    label="Email"
+                    icon="mail-outline"
+                    value={email}
+                    onChangeText={(t) => {
+                      setEmail(t);
+                      setErrorMessage('');
+                    }}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    placeholder="you@example.com"
+                  />
+                  {renderDobField()}
 
-              <Input
-                label="Email"
-                icon="mail-outline"
-                value={email}
-                onChangeText={(text) => {
-                  setEmail(text);
-                  setErrorMessage('');
-                }}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                error={errors.email}
-                placeholder="your.email@example.com"
-              />
+                  <GradientButton
+                    title={sending ? 'Sending…' : 'Send verification code'}
+                    onPress={handleSendCode}
+                    loading={sending}
+                    size="lg"
+                    style={styles.primaryBtn}
+                  />
+                </View>
+              </>
+            ) : (
+              <>
+                <View style={styles.header}>
+                  <Text style={styles.title}>Check your email</Text>
+                  <Text style={styles.subtitle}>
+                    Enter the 6-digit code we sent to{' '}
+                    <Text style={styles.emailEmphasis}>{email.trim()}</Text>
+                  </Text>
+                </View>
 
-              <Input
-                label="Password"
-                icon="lock-closed-outline"
-                value={password}
-                onChangeText={(text) => {
-                  setPassword(text);
-                  setErrorMessage('');
-                }}
-                isPassword
-                error={errors.password}
-                placeholder="At least 8 characters"
-              />
+                {devHint ? <Text style={styles.devHint}>{devHint}</Text> : null}
 
-              <GradientButton
-                title="Create Account"
-                onPress={handleRegister}
-                loading={loading}
-                size="lg"
-                style={styles.registerButton}
-              />
+                {errorMessage ? (
+                  <View style={styles.errorContainer}>
+                    <Ionicons name="alert-circle" size={20} color={Colors.error} />
+                    <Text style={styles.errorText}>{errorMessage}</Text>
+                  </View>
+                ) : null}
 
-              {/* Terms */}
-              <Text style={styles.terms}>
-                By creating an account, you agree to our{' '}
-                <Text style={styles.termsLink}>Terms</Text> and{' '}
-                <Text style={styles.termsLink}>Privacy Policy</Text>
-              </Text>
-            </View>
+                <Text style={styles.otpLabel}>Verification code</Text>
+                <TextInput
+                  style={styles.otpInput}
+                  value={otp}
+                  onChangeText={(t) => {
+                    setOtp(t.replace(/[^\d]/g, '').slice(0, 6));
+                    setErrorMessage('');
+                  }}
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  placeholder="000000"
+                  placeholderTextColor={Colors.text.muted}
+                />
 
-            {/* Divider */}
-            <View style={styles.divider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or</Text>
-              <View style={styles.dividerLine} />
-            </View>
+                <GradientButton
+                  title={verifying ? 'Verifying…' : 'Continue'}
+                  onPress={handleVerify}
+                  loading={verifying}
+                  size="lg"
+                  style={styles.primaryBtn}
+                />
 
-            {/* Social Login */}
-            <View style={styles.socialButtons}>
-              <TouchableOpacity style={styles.socialButton}>
-                <Ionicons name="logo-google" size={22} color={Colors.text.primary} />
-                <Text style={styles.socialButtonText}>Google</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.socialButton}>
-                <Ionicons name="logo-apple" size={22} color={Colors.text.primary} />
-                <Text style={styles.socialButtonText}>Apple</Text>
-              </TouchableOpacity>
-            </View>
+                <TouchableOpacity
+                  style={[styles.resendBtn, resendIn > 0 && styles.resendDisabled]}
+                  onPress={handleResend}
+                  disabled={resendIn > 0 || sending}
+                >
+                  {sending ? (
+                    <ActivityIndicator color={Colors.primary.light} />
+                  ) : (
+                    <Text style={styles.resendText}>
+                      {resendIn > 0 ? `Resend code in ${resendIn}s` : 'Resend code'}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </>
+            )}
 
-            {/* Sign In Link */}
-            <View style={styles.signInContainer}>
-              <Text style={styles.signInText}>Already have an account? </Text>
+            <View style={styles.footer}>
+              <Text style={styles.footerMuted}>Already have an account? </Text>
               <TouchableOpacity onPress={() => router.replace('/(auth)/login')}>
-                <Text style={styles.signInLink}>Sign in</Text>
+                <Text style={styles.footerLink}>Sign in</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -255,86 +447,161 @@ const styles = StyleSheet.create({
     color: Colors.text.secondary,
     lineHeight: 22,
   },
+  emailEmphasis: {
+    color: Colors.text.accent,
+    fontWeight: FontWeights.semibold,
+  },
+  devHint: {
+    fontSize: FontSizes.sm,
+    color: Colors.secondary.default,
+    marginBottom: Spacing.md,
+    padding: Spacing.sm,
+    backgroundColor: Colors.background.card,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEE2E2',
+    backgroundColor: 'rgba(249, 115, 115, 0.12)',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.md,
     marginBottom: Spacing.md,
     gap: Spacing.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(249, 115, 115, 0.35)',
   },
   errorText: {
     flex: 1,
-    color: '#991B1B',
+    color: Colors.error,
     fontSize: FontSizes.sm,
     lineHeight: 18,
   },
   form: {
     marginBottom: Spacing.md,
   },
-  registerButton: {
-    marginTop: Spacing.lg,
+  dobBlock: {
+    marginBottom: Spacing.md,
   },
-  terms: {
-    fontSize: 12,
-    color: Colors.text.tertiary,
-    textAlign: 'center',
-    marginTop: Spacing.md,
-    lineHeight: 18,
-  },
-  termsLink: {
-    color: Colors.primary.default,
-    fontWeight: FontWeights.medium,
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: Spacing.lg,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: Colors.border,
-  },
-  dividerText: {
-    color: Colors.text.tertiary,
+  dobLabel: {
     fontSize: FontSizes.sm,
-    marginHorizontal: Spacing.md,
+    fontWeight: FontWeights.semibold,
+    color: Colors.text.secondary,
+    marginBottom: Spacing.xs,
   },
-  socialButtons: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-    marginBottom: Spacing.lg,
-  },
-  socialButton: {
-    flex: 1,
+  dobRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    height: 52,
-    borderRadius: BorderRadius.md,
     backgroundColor: Colors.background.card,
     borderWidth: 1,
     borderColor: Colors.border,
-    gap: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 14,
+    minHeight: 52,
   },
-  socialButtonText: {
-    color: Colors.text.primary,
+  dobIcon: {
+    marginRight: Spacing.sm,
+  },
+  dobValue: {
+    flex: 1,
     fontSize: FontSizes.md,
+    color: Colors.text.primary,
     fontWeight: FontWeights.medium,
   },
-  signInContainer: {
+  dobWebInput: {
+    flex: 1,
+    fontSize: FontSizes.md,
+    color: Colors.text.primary,
+    paddingVertical: 0,
+  },
+  dobHint: {
+    fontSize: FontSizes.xs,
+    color: Colors.text.muted,
+    marginTop: Spacing.xs,
+  },
+  iosModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'flex-end',
+  },
+  iosModalCard: {
+    backgroundColor: Colors.background.elevated,
+    borderTopLeftRadius: BorderRadius.xl,
+    borderTopRightRadius: BorderRadius.xl,
+    paddingBottom: Spacing.xl,
+  },
+  iosModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  iosModalTitle: {
+    fontSize: FontSizes.lg,
+    fontWeight: FontWeights.semibold,
+    color: Colors.text.primary,
+  },
+  iosModalDone: {
+    fontSize: FontSizes.md,
+    fontWeight: FontWeights.bold,
+    color: Colors.primary.default,
+  },
+  iosPicker: {
+    height: 216,
+    alignSelf: 'stretch',
+  },
+  primaryBtn: {
+    marginTop: Spacing.lg,
+  },
+  otpLabel: {
+    fontSize: FontSizes.sm,
+    fontWeight: FontWeights.semibold,
+    color: Colors.text.secondary,
+    marginBottom: Spacing.sm,
+  },
+  otpInput: {
+    fontSize: 32,
+    fontWeight: '700',
+    letterSpacing: 8,
+    color: Colors.text.primary,
+    backgroundColor: Colors.background.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    marginBottom: Spacing.lg,
+    textAlign: 'center',
+  },
+  resendBtn: {
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+  },
+  resendDisabled: {
+    opacity: 0.5,
+  },
+  resendText: {
+    color: Colors.primary.light,
+    fontSize: FontSizes.md,
+    fontWeight: FontWeights.semibold,
+  },
+  footer: {
     flexDirection: 'row',
     justifyContent: 'center',
     marginTop: 'auto',
+    paddingTop: Spacing.xl,
   },
-  signInText: {
+  footerMuted: {
     color: Colors.text.secondary,
     fontSize: FontSizes.md,
   },
-  signInLink: {
+  footerLink: {
     color: Colors.primary.default,
     fontSize: FontSizes.md,
     fontWeight: FontWeights.semibold,

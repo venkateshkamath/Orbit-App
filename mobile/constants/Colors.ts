@@ -1,63 +1,63 @@
 /**
- * MindLink Design System
- * Premium dark theme with vibrant accents
+ * ORBIT Design System
+ * Human, ambient dark theme with soft aurora accents
  */
 
 export const Colors = {
-  // Primary gradient colors - Sophisticated sage/mint green
+  // Primary gradient colors - violet → soft teal
   primary: {
-    start: '#34D399', // Soft emerald
-    end: '#10B981',   // Rich emerald
-    default: '#22C55E',
-    light: '#6EE7B7',
-    dark: '#059669',
+    start: '#8B5CF6', // Soft violet
+    end: '#22C1C3',   // Teal
+    default: '#A855F7',
+    light: '#D8B4FE',
+    dark: '#4C1D95',
   },
-  
-  // Secondary accent - Complementary teal
+
+  // Secondary accent - warm orbit orange
   secondary: {
-    start: '#5EEAD4',
-    end: '#2DD4BF',
-    default: '#14B8A6',
+    start: '#F97316',
+    end: '#FACC15',
+    default: '#FB923C',
   },
-  
-  // Background colors (warm whites with subtle green tint)
+
+  // Background colors - soft charcoal, not pure black
   background: {
-    primary: '#FDFFFE',      // Slightly warm white
-    secondary: '#F8FAF9',    // Very subtle green tint
-    tertiary: '#F0F4F3',     // Soft sage background
-    card: '#FFFFFF',
-    elevated: '#FFFFFF',
+    primary: '#050816',   // Charcoal with slight blue
+    secondary: '#050816',
+    tertiary: '#0B1120',  // Deep navy
+    card: '#0F172A',
+    elevated: '#111827',  // Slightly lifted
   },
-  
-  // Text colors (warm grays that complement green)
+
+  // Text colors - high contrast but gentle
   text: {
-    primary: '#1F2937',      // Warm dark gray
-    secondary: '#6B7280',    // Medium gray
-    tertiary: '#9CA3AF',     // Light gray
-    muted: '#D1D5DB',        // Very light gray
-    accent: '#059669',       // Green for emphasis
+    primary: '#F9FAFB',      // Almost white
+    secondary: '#D1D5DB',    // Mid gray
+    tertiary: '#9CA3AF',     // Muted gray
+    muted: '#6B7280',        // Very muted
+    accent: '#22C1C3',       // Teal accent
   },
-  
+
   // Status colors
-  success: '#22C55E',
-  warning: '#F59E0B',
-  error: '#EF4444',
-  info: '#3B82F6',
-  
+  success: '#4ADE80',
+  warning: '#FACC15',
+  error: '#F97373',
+  info:   '#38BDF8',
+
   // UI elements
-  border: '#E5E7EB',
-  borderLight: '#F3F4F6',
-  overlay: 'rgba(0, 0, 0, 0.4)',
-  
+  border: '#1F2937',
+  borderLight: '#111827',
+  overlay: 'rgba(15, 23, 42, 0.85)',
+
   // Glass effect
   glass: {
-    background: 'rgba(255, 255, 255, 0.95)',
-    border: 'rgba(16, 185, 129, 0.1)',
+    background: 'rgba(15, 23, 42, 0.7)',
+    border: 'rgba(148, 163, 184, 0.4)',
   },
-  
+
   // Online status
   online: '#22C55E',
-  offline: '#9CA3AF',
+  offline: '#6B7280',
 };
 
 export const Spacing = {
