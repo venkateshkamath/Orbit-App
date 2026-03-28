@@ -11,7 +11,6 @@ import {
   Dimensions,
   TouchableOpacity,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -73,15 +72,12 @@ export const UserCard: React.FC<UserCardProps> = ({
       <View style={styles.card}>
         {/* Profile Image - intentionally blurred/hidden to encourage meeting offline */}
         <View style={styles.imageContainer}>
-          <LinearGradient
-            colors={[Colors.background.tertiary, Colors.background.primary]}
-            style={styles.imagePlaceholder}
-          >
+          <View style={styles.imagePlaceholder}>
             <Text style={styles.placeholderText}>
               {user.username.charAt(0).toUpperCase()}
             </Text>
             <Text style={styles.hiddenPhotoLabel}>Photo unlocks on match</Text>
-          </LinearGradient>
+          </View>
           
           {/* Match Score Badge */}
           <View style={[styles.matchBadge, { backgroundColor: getMatchColor(user.match_score) }]}>
@@ -97,11 +93,7 @@ export const UserCard: React.FC<UserCardProps> = ({
             </View>
           )}
 
-          {/* Gradient Overlay */}
-          <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.8)']}
-            style={styles.gradient}
-          />
+          <View style={styles.imageFade} />
 
           {/* User Info Overlay */}
           <View style={styles.userInfoOverlay}>
@@ -167,12 +159,7 @@ export const UserCard: React.FC<UserCardProps> = ({
               onPressOut={() => (likeScale.value = withSpring(1))}
               style={[styles.actionButton, styles.likeButton]}
             >
-              <LinearGradient
-                colors={[Colors.primary.start, Colors.primary.end]}
-                style={styles.likeGradient}
-              >
-                <Ionicons name="heart" size={32} color={Colors.text.primary} />
-              </LinearGradient>
+              <Ionicons name="heart" size={28} color={Colors.text.primary} />
             </TouchableOpacity>
           </Animated.View>
         </View>
@@ -191,7 +178,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background.card,
     borderRadius: BorderRadius.xl,
     overflow: 'hidden',
-    ...Shadows.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    ...Shadows.sm,
   },
   imageContainer: {
     height: 320,
@@ -207,6 +196,7 @@ const styles = StyleSheet.create({
     height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: Colors.background.tertiary,
   },
   placeholderText: {
     fontSize: 80,
@@ -218,12 +208,13 @@ const styles = StyleSheet.create({
     color: Colors.text.secondary,
     fontSize: FontSizes.sm,
   },
-  gradient: {
+  imageFade: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    height: 150,
+    height: 100,
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   matchBadge: {
     position: 'absolute',
@@ -349,13 +340,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.error,
   },
   likeButton: {
-    overflow: 'hidden',
-  },
-  likeGradient: {
-    width: 64,
-    height: 64,
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: Colors.primary.default,
   },
 });
 

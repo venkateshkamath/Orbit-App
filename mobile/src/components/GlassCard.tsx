@@ -32,8 +32,8 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.lg,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: Colors.glass.border,
-    ...Shadows.md,
+    borderColor: Colors.border,
+    ...Shadows.sm,
   },
   background: {
     ...StyleSheet.absoluteFillObject,

@@ -40,6 +40,7 @@ export interface PublicUser {
   is_verified: boolean;
 }
 
+/** distance is meters from the viewer (server haversine). */
 export interface NearbyUser extends PublicUser {
   distance: number;
   match_percentage: number;
@@ -98,6 +99,36 @@ export interface LikeResponse {
   message: string;
   is_match: boolean;
   match: Match | null;
+}
+
+export interface OrbitState {
+  you_sent_join: boolean;
+  they_sent_join: boolean;
+  matched: boolean;
+  match_id: string | null;
+}
+
+export interface PublicProfileResponse {
+  user: PublicUser;
+  distance_m: number | null;
+  is_self: boolean;
+  orbit: OrbitState;
+}
+
+export interface LikeReceivedItem {
+  id: string;
+  from_user: PublicUser;
+  created_at: string;
+}
+
+export interface AppNotification {
+  id: string;
+  type: 'orbit_join' | 'message' | 'match';
+  title: string;
+  body: string;
+  payload: Record<string, unknown>;
+  read_at: string | null;
+  created_at: string;
 }
 
 export interface Post {

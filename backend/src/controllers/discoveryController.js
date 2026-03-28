@@ -1,6 +1,7 @@
 const { User, Like, Match, Pass } = require('../models');
 const { serializePublicUser } = require('../serializers/user');
 const { getSortedDiscoveryCandidates } = require('../services/discoveryService');
+const { notifyOrbitJoinRecipient } = require('../services/notificationService');
 
 async function nearby(req, res) {
   const currentUser = await User.findById(req.user._id);
@@ -56,10 +57,16 @@ async function likeUser(req, res) {
     to_user: toUser._id,
   });
 
+  const actorUser = await User.findById(req.user._id);
+
   const mutualLike = await Like.findOne({
     from_user: toUser._id,
     to_user: req.user._id,
   });
+
+  if (!mutualLike && actorUser) {
+    await notifyOrbitJoinRecipient(toUser._id, actorUser);
+  }
 
   let match = null;
   if (mutualLike) {
@@ -154,10 +161,24 @@ async function likesReceived(req, res) {
   const results = [];
   for (const likeRow of likeRows) {
     const fromUser = await User.findById(likeRow.from_user);
+    if (!fromUser) continue;
+
+    const iLikedThem = await Like.findOne({
+      from_user: req.user._id,
+      to_user: fromUser._id,
+    });
+    if (iLikedThem) continue;
+
+    const sortedIds = [String(req.user._id), String(fromUser._id)].sort();
+    const matchExists = await Match.findOne({
+      user1: sortedIds[0],
+      user2: sortedIds[1],
+    });
+    if (matchExists) continue;
+
     results.push({
       id: String(likeRow._id),
-      to_user: String(likeRow.to_user),
-      to_user_detail: await serializePublicUser(fromUser, req),
+      from_user: await serializePublicUser(fromUser, req),
       created_at: likeRow.created_at.toISOString(),
     });
   }

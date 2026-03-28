@@ -3,6 +3,9 @@ import { authApi } from '../api/auth';
 import { chatApi } from '../api/chat';
 import { discoveryApi } from '../api/discovery';
 import { postApi } from '../api/posts';
+import { notificationsApi } from '../api/notifications';
+import type { Message } from '../types';
+import { useAuthStore } from '../stores';
 import { locationKeyPart, orbitKeys } from './orbitKeys';
 
 export function useFeedQuery(interestId?: string) {
@@ -100,6 +103,44 @@ export function useMatchesQuery() {
   });
 }
 
+export function usePublicProfileQuery(userId: string | undefined) {
+  return useQuery({
+    queryKey: userId ? orbitKeys.publicProfile(userId) : ['orbit', 'users', 'profile', 'none'],
+    queryFn: () => authApi.getPublicProfile(userId!),
+    enabled: Boolean(userId),
+    staleTime: 15 * 1000,
+  });
+}
+
+export function useLikesReceivedQuery() {
+  return useQuery({
+    queryKey: orbitKeys.likesReceived(),
+    queryFn: async () => {
+      const res = await discoveryApi.getLikesReceived();
+      return res.results ?? [];
+    },
+    staleTime: 20 * 1000,
+  });
+}
+
+export function useNotificationsQuery() {
+  return useQuery({
+    queryKey: orbitKeys.notifications(),
+    queryFn: () => notificationsApi.list(),
+    staleTime: 20 * 1000,
+  });
+}
+
+export function useMarkNotificationReadMutation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => notificationsApi.markRead(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: orbitKeys.notifications() });
+    },
+  });
+}
+
 export function useLikeUserMutation() {
   const qc = useQueryClient();
   return useMutation({
@@ -107,6 +148,9 @@ export function useLikeUserMutation() {
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ['orbit', 'discover'] });
       qc.invalidateQueries({ queryKey: orbitKeys.matches() });
+      qc.invalidateQueries({ queryKey: orbitKeys.likesReceived() });
+      qc.invalidateQueries({ queryKey: orbitKeys.notifications() });
+      qc.invalidateQueries({ queryKey: ['orbit', 'users', 'profile'] });
     },
   });
 }
@@ -139,6 +183,7 @@ export function useConversationsQuery() {
       return res.results ?? [];
     },
     staleTime: 20 * 1000,
+    refetchInterval: 8000,
   });
 }
 
@@ -160,16 +205,66 @@ export function useMessagesQuery(conversationId: string | undefined) {
     },
     enabled: Boolean(conversationId),
     staleTime: 10 * 1000,
+    refetchInterval: conversationId ? 90_000 : false,
   });
 }
 
+type SendMsgCtx = { previous?: Message[]; tempId?: string };
+
 export function useSendMessageMutation() {
   const qc = useQueryClient();
+  const user = useAuthStore((s) => s.user);
+
   return useMutation({
     mutationFn: ({ conversationId, content }: { conversationId: string; content: string }) =>
       chatApi.sendMessage(conversationId, content),
-    onSuccess: (_, { conversationId }) => {
-      qc.invalidateQueries({ queryKey: orbitKeys.messages(conversationId) });
+    onMutate: async ({ conversationId, content }): Promise<SendMsgCtx> => {
+      if (!user) return {};
+      await qc.cancelQueries({ queryKey: orbitKeys.messages(conversationId) });
+      const previous = qc.getQueryData<Message[]>(orbitKeys.messages(conversationId));
+      const tempId = `pending:${Date.now()}:${Math.random().toString(36).slice(2, 9)}`;
+      const optimistic: Message = {
+        id: tempId,
+        conversation: conversationId,
+        sender: {
+          id: user.id,
+          username: user.username,
+          bio: user.bio,
+          avatar: user.avatar,
+          interests: user.interests,
+          is_online: user.is_online,
+          last_seen: user.last_seen,
+          is_verified: user.is_verified,
+        },
+        message_type: 'text',
+        content,
+        image: null,
+        latitude: null,
+        longitude: null,
+        is_read: true,
+        read_at: null,
+        reactions: [],
+        created_at: new Date().toISOString(),
+      };
+      qc.setQueryData<Message[]>(orbitKeys.messages(conversationId), (old) => [
+        ...(old ?? []),
+        optimistic,
+      ]);
+      return { previous, tempId };
+    },
+    onError: (_err, { conversationId }, ctx) => {
+      if (ctx?.previous !== undefined) {
+        qc.setQueryData(orbitKeys.messages(conversationId), ctx.previous);
+      }
+    },
+    onSuccess: (serverMessage, { conversationId }, ctx) => {
+      if (ctx?.tempId) {
+        qc.setQueryData<Message[]>(orbitKeys.messages(conversationId), (old) =>
+          (old ?? []).map((m) => (m.id === ctx.tempId ? serverMessage : m))
+        );
+      } else {
+        qc.invalidateQueries({ queryKey: orbitKeys.messages(conversationId) });
+      }
       qc.invalidateQueries({ queryKey: orbitKeys.conversations() });
     },
   });

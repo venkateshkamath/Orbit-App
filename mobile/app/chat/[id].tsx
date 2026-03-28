@@ -7,7 +7,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   FlatList,
   TextInput,
   TouchableOpacity,
@@ -15,11 +14,10 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, FontSizes, FontWeights, Spacing, BorderRadius, Shadows } from '../../constants/Colors';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Colors, FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
 import { Avatar, MessageBubble } from '../../src/components';
 import {
   useConversationQuery,
@@ -30,7 +28,8 @@ import {
 import { useAuthStore } from '../../src/stores';
 
 export default function ChatDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams<{ id?: string | string[] }>();
+  const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const insets = useSafeAreaInsets();
   const flatListRef = useRef<FlatList>(null);
   
@@ -74,14 +73,8 @@ export default function ChatDetailScreen() {
   }, [user?.id]);
 
   return (
-    <View style={styles.container}>
-      <LinearGradient
-        colors={[Colors.background.primary, Colors.background.secondary]}
-        style={StyleSheet.absoluteFillObject}
-      />
-
-      <SafeAreaView style={styles.safeArea}>
-        {/* Header */}
+    <View style={[styles.container, { backgroundColor: Colors.background.primary }]}>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
@@ -175,30 +168,25 @@ export default function ChatDetailScreen() {
             </View>
 
             <TouchableOpacity
-              style={[
-                styles.sendButton,
-                !message.trim() && styles.sendButtonDisabled,
-              ]}
+              style={styles.sendButton}
               onPress={handleSend}
               disabled={!message.trim() || sendMut.isPending}
             >
               {sendMut.isPending ? (
                 <ActivityIndicator size="small" color={Colors.text.primary} />
               ) : (
-                <LinearGradient
-                  colors={
-                    message.trim()
-                      ? [Colors.primary.start, Colors.primary.end]
-                      : [Colors.background.tertiary, Colors.background.tertiary]
-                  }
-                  style={styles.sendGradient}
+                <View
+                  style={[
+                    styles.sendCircle,
+                    !message.trim() && styles.sendCircleDisabled,
+                  ]}
                 >
                   <Ionicons
                     name="send"
                     size={20}
                     color={message.trim() ? Colors.text.primary : Colors.text.muted}
                   />
-                </LinearGradient>
+                </View>
               )}
             </TouchableOpacity>
           </View>
@@ -322,17 +310,18 @@ const styles = StyleSheet.create({
   sendButton: {
     width: 44,
     height: 44,
-    borderRadius: 22,
-    overflow: 'hidden',
-    ...Shadows.sm,
-  },
-  sendButtonDisabled: {
-    opacity: 0.5,
-  },
-  sendGradient: {
-    width: 44,
-    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  sendCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primary.default,
+  },
+  sendCircleDisabled: {
+    backgroundColor: Colors.background.tertiary,
   },
 });

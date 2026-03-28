@@ -72,10 +72,10 @@ export const InterestTag: React.FC<InterestTagProps> = ({
           paddingVertical: sizeStyles[size].paddingVertical,
           paddingHorizontal: sizeStyles[size].paddingHorizontal,
           backgroundColor: selected ? interest.color + '30' : Colors.background.tertiary,
-          borderColor: selected ? interest.color : Colors.border,
+          borderColor: selected ? interest.color + '80' : Colors.border,
         },
       ]}
-      activeOpacity={0.8}
+      activeOpacity={0.85}
     >
       <Text style={styles.emoji}>{interest.emoji}</Text>
       <Text
@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: BorderRadius.full,
-    borderWidth: 1.5,
+    borderWidth: 1,
     marginRight: Spacing.sm,
     marginBottom: Spacing.sm,
   },

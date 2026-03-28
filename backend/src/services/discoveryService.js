@@ -9,6 +9,8 @@ const { haversineDistance, matchPercentage } = require('../utils/geo');
 const { serializePublicUser } = require('../serializers/user');
 
 const LOCATION_STALE_MS = 60 * 60 * 1000;
+const DEFAULT_DISCOVERY_RADIUS_M = 1000;
+const MAX_DISCOVERY_RADIUS_M = 10000;
 
 /**
  * Returns sorted discovery candidates (highest match_score first, then nearest).
@@ -16,7 +18,10 @@ const LOCATION_STALE_MS = 60 * 60 * 1000;
  * @param {import('express').Request} req
  */
 async function getSortedDiscoveryCandidates(currentUser, req) {
-  const radius = Math.min(Number(req.query.radius || currentUser.discovery_radius || 10), 1000);
+  const radius = Math.min(
+    Number(req.query.radius || currentUser.discovery_radius || DEFAULT_DISCOVERY_RADIUS_M),
+    MAX_DISCOVERY_RADIUS_M
+  );
   const threshold = Date.now() - LOCATION_STALE_MS;
 
   const allUsers = await User.find({

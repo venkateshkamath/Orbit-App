@@ -7,7 +7,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
   Switch,
@@ -16,7 +15,7 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
@@ -24,6 +23,12 @@ import { Colors, FontSizes, FontWeights, Spacing, BorderRadius, Shadows } from '
 import { Avatar, GlassCard, InterestTag, GradientButton } from '../../src/components';
 import { useMatchesQuery } from '../../src/hooks/useOrbitApi';
 import { useAuthStore } from '../../src/stores';
+
+function formatDiscoveryRadiusMeters(m?: number | null) {
+  const r = m ?? 1000;
+  if (r >= 1000) return `${r / 1000} km`;
+  return `${r} m`;
+}
 
 export default function ProfileScreen() {
   const { user, logout, updateProfile } = useAuthStore();
@@ -199,13 +204,8 @@ export default function ProfileScreen() {
   );
 
   return (
-    <View style={styles.container}>
-      <LinearGradient
-        colors={[Colors.background.primary, Colors.background.secondary]}
-        style={StyleSheet.absoluteFillObject}
-      />
-
-      <SafeAreaView style={styles.safeArea}>
+    <View style={[styles.container, { backgroundColor: Colors.background.primary }]}>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
@@ -258,7 +258,7 @@ export default function ProfileScreen() {
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{user?.discovery_radius || 10}m</Text>
+                <Text style={styles.statNumber}>{formatDiscoveryRadiusMeters(user?.discovery_radius)}</Text>
                 <Text style={styles.statLabel}>Radius</Text>
               </View>
             </View>
@@ -305,7 +305,7 @@ export default function ProfileScreen() {
               <SettingItem
                 icon="radio"
                 title="Discovery Radius"
-                subtitle={`${user?.discovery_radius || 10} meters`}
+                subtitle={formatDiscoveryRadiusMeters(user?.discovery_radius)}
                 onPress={() => {}}
               />
               <View style={styles.separator} />
@@ -375,14 +375,9 @@ export default function ProfileScreen() {
           <View style={styles.modalContainer}>
             <View style={styles.modalContent}>
               <View style={styles.modalIconContainer}>
-                <LinearGradient
-                  colors={[Colors.primary.start, Colors.primary.end]}
-                  style={styles.modalIconGradient}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                >
-                  <Ionicons name="image-outline" size={48} color="#FFFFFF" />
-                </LinearGradient>
+                <View style={styles.modalIconCircle}>
+                  <Ionicons name="image-outline" size={40} color={Colors.text.primary} />
+                </View>
               </View>
               <Text style={styles.modalTitle}>Profile Photo</Text>
               <Text style={styles.modalMessage}>
@@ -390,25 +385,18 @@ export default function ProfileScreen() {
               </Text>
               <View style={styles.avatarOptionsButtons}>
                 <TouchableOpacity
-                  style={styles.avatarOptionButton}
+                  style={[styles.avatarOptionButton, styles.avatarOptionPrimary]}
                   onPress={handleChangeAvatar}
                   disabled={isRequestingPermission}
                 >
-                  <LinearGradient
-                    colors={[Colors.primary.start, Colors.primary.end]}
-                    style={styles.avatarOptionGradient}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                  >
-                    {isRequestingPermission ? (
-                      <ActivityIndicator size="small" color="#FFFFFF" />
-                    ) : (
-                      <Ionicons name="camera-outline" size={20} color="#FFFFFF" />
-                    )}
-                    <Text style={styles.avatarOptionText}>
-                      {isRequestingPermission ? 'Opening...' : 'Change Photo'}
-                    </Text>
-                  </LinearGradient>
+                  {isRequestingPermission ? (
+                    <ActivityIndicator size="small" color={Colors.text.primary} />
+                  ) : (
+                    <Ionicons name="camera-outline" size={20} color={Colors.text.primary} />
+                  )}
+                  <Text style={styles.avatarOptionText}>
+                    {isRequestingPermission ? 'Opening…' : 'Change photo'}
+                  </Text>
                 </TouchableOpacity>
                 {user?.avatar && (
                   <TouchableOpacity
@@ -444,18 +432,13 @@ export default function ProfileScreen() {
           <View style={styles.modalContainer}>
             <View style={styles.modalContent}>
               <View style={styles.modalIconContainer}>
-                <LinearGradient
-                  colors={[Colors.primary.start, Colors.primary.end]}
-                  style={styles.modalIconGradient}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                >
+                <View style={styles.modalIconCircle}>
                   {isLoggingOut ? (
-                    <ActivityIndicator size="large" color="#FFFFFF" />
+                    <ActivityIndicator size="large" color={Colors.text.primary} />
                   ) : (
-                    <Ionicons name="log-out-outline" size={48} color="#FFFFFF" />
+                    <Ionicons name="log-out-outline" size={40} color={Colors.text.primary} />
                   )}
-                </LinearGradient>
+                </View>
               </View>
               <Text style={styles.modalTitle}>
                 {isLoggingOut ? 'Logging Out' : 'Log Out'}
@@ -477,14 +460,7 @@ export default function ProfileScreen() {
                     style={[styles.modalButton, styles.logoutButton]}
                     onPress={confirmLogout}
                   >
-                    <LinearGradient
-                      colors={[Colors.primary.start, Colors.primary.end]}
-                      style={styles.logoutButtonGradient}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                    >
-                      <Text style={styles.logoutButtonText}>Log Out</Text>
-                    </LinearGradient>
+                    <Text style={styles.logoutButtonText}>Log out</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -511,7 +487,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: Spacing.md,
+    paddingTop: Platform.OS === 'android' ? Spacing.sm : Spacing.md,
     marginBottom: Spacing.lg,
   },
   title: {
@@ -687,17 +663,15 @@ const styles = StyleSheet.create({
     ...Shadows.lg,
   },
   modalIconContainer: {
+    marginBottom: Spacing.lg,
+  },
+  modalIconCircle: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    overflow: 'hidden',
-    marginBottom: Spacing.lg,
-  },
-  modalIconGradient: {
-    width: '100%',
-    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: Colors.primary.default,
   },
   modalTitle: {
     fontSize: FontSizes.xxl,
@@ -734,18 +708,14 @@ const styles = StyleSheet.create({
     color: Colors.text.primary,
   },
   logoutButton: {
-    overflow: 'hidden',
-  },
-  logoutButtonGradient: {
-    flex: 1,
+    backgroundColor: Colors.primary.default,
     alignItems: 'center',
     justifyContent: 'center',
-    height: '100%',
   },
   logoutButtonText: {
     fontSize: FontSizes.md,
     fontWeight: FontWeights.semibold,
-    color: '#FFFFFF',
+    color: Colors.text.primary,
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -774,19 +744,19 @@ const styles = StyleSheet.create({
   avatarOptionButton: {
     width: '100%',
     borderRadius: BorderRadius.lg,
-    overflow: 'hidden',
   },
-  avatarOptionGradient: {
+  avatarOptionPrimary: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: Spacing.md,
     gap: Spacing.sm,
+    backgroundColor: Colors.primary.default,
   },
   avatarOptionText: {
     fontSize: FontSizes.md,
     fontWeight: FontWeights.semibold,
-    color: '#FFFFFF',
+    color: Colors.text.primary,
   },
   removeOptionButton: {
     flexDirection: 'row',

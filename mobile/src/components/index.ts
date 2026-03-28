@@ -8,4 +8,3 @@ export { default as ConversationItem } from './ConversationItem';
 export { default as MessageBubble } from './MessageBubble';
 export { default as MatchModal } from './MatchModal';
 export { CommentsModal } from './CommentsModal';
-export { LocationStatusBar } from './LocationStatusBar';

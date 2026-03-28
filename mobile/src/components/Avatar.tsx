@@ -4,8 +4,7 @@
 
 import React from 'react';
 import { View, Image, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Colors, BorderRadius, FontSizes, FontWeights } from '../../constants/Colors';
+import { Colors, FontWeights } from '../../constants/Colors';
 
 interface AvatarProps {
   uri?: string | null;
@@ -35,12 +34,14 @@ export const Avatar: React.FC<AvatarProps> = ({
           style={[styles.image, { width: size, height: size, borderRadius: size / 2 }]}
         />
       ) : (
-        <LinearGradient
-          colors={[Colors.primary.start, Colors.primary.end]}
-          style={[styles.placeholder, { width: size, height: size, borderRadius: size / 2 }]}
+        <View
+          style={[
+            styles.placeholder,
+            { width: size, height: size, borderRadius: size / 2 },
+          ]}
         >
           <Text style={[styles.initials, { fontSize: size * 0.4 }]}>{initials}</Text>
-        </LinearGradient>
+        </View>
       )}
       
       {showOnline && (
@@ -81,6 +82,9 @@ const styles = StyleSheet.create({
   placeholder: {
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: Colors.background.elevated,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   initials: {
     color: Colors.text.primary,

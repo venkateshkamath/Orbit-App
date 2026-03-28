@@ -12,6 +12,9 @@ export const orbitKeys = {
   conversations: () => ['orbit', 'chat', 'conversations'] as const,
   conversation: (id: string) => ['orbit', 'chat', 'conversation', id] as const,
   messages: (id: string) => ['orbit', 'chat', 'messages', id] as const,
+  publicProfile: (userId: string) => ['orbit', 'users', 'profile', userId] as const,
+  likesReceived: () => ['orbit', 'discover', 'likes-received'] as const,
+  notifications: () => ['orbit', 'notifications'] as const,
 };
 
 export function locationKeyPart(lat: number | null | undefined, lng: number | null | undefined) {

@@ -11,7 +11,6 @@ import {
   Dimensions,
   TouchableOpacity,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -26,7 +25,7 @@ import { PublicUser } from '../types';
 import Avatar from './Avatar';
 import GradientButton from './GradientButton';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface MatchModalProps {
   visible: boolean;
@@ -91,54 +90,44 @@ export const MatchModal: React.FC<MatchModalProps> = ({
     >
       <View style={styles.overlay}>
         <Animated.View style={[styles.container, containerStyle]}>
-          <LinearGradient
-            colors={[Colors.primary.start + '20', Colors.primary.end + '20']}
-            style={styles.gradient}
-          >
-            {/* Close Button */}
+          <View style={styles.sheet}>
             <TouchableOpacity style={styles.closeButton} onPress={onClose}>
               <Ionicons name="close" size={24} color={Colors.text.secondary} />
             </TouchableOpacity>
 
-            {/* Hearts Animation */}
             <View style={styles.heartsContainer}>
               <Animated.View style={avatar1Style}>
                 <Avatar uri={null} name="You" size={80} />
               </Animated.View>
-              
+
               <Animated.View style={[styles.heartIcon, heartStyle]}>
-                <LinearGradient
-                  colors={[Colors.primary.start, Colors.primary.end]}
-                  style={styles.heartGradient}
-                >
-                  <Ionicons name="heart" size={32} color={Colors.text.primary} />
-                </LinearGradient>
+                <View style={styles.heartCircle}>
+                  <Ionicons name="heart" size={28} color={Colors.text.primary} />
+                </View>
               </Animated.View>
-              
+
               <Animated.View style={avatar2Style}>
                 <Avatar uri={user.avatar} name={user.username} size={80} />
               </Animated.View>
             </View>
 
-            {/* Match Text */}
-            <Text style={styles.title}>It's a Match! 🎉</Text>
+            <Text style={styles.title}>It's a match</Text>
             <Text style={styles.subtitle}>
               You and {user.username} liked each other
             </Text>
 
-            {/* Action Buttons */}
             <View style={styles.actions}>
               <GradientButton
-                title="Send a Message"
+                title="Send a message"
                 onPress={onMessage}
                 size="lg"
                 style={styles.messageButton}
               />
               <TouchableOpacity onPress={onClose} style={styles.keepBrowsingButton}>
-                <Text style={styles.keepBrowsingText}>Keep Browsing</Text>
+                <Text style={styles.keepBrowsingText}>Keep browsing</Text>
               </TouchableOpacity>
             </View>
-          </LinearGradient>
+          </View>
         </Animated.View>
       </View>
     </Modal>
@@ -156,9 +145,11 @@ const styles = StyleSheet.create({
     width: SCREEN_WIDTH - Spacing.xl * 2,
     borderRadius: BorderRadius.xl,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: Colors.border,
     ...Shadows.lg,
   },
-  gradient: {
+  sheet: {
     padding: Spacing.xl,
     alignItems: 'center',
     backgroundColor: Colors.background.card,
@@ -180,16 +171,16 @@ const styles = StyleSheet.create({
     marginHorizontal: -Spacing.md,
     zIndex: 1,
   },
-  heartGradient: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+  heartCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
-    ...Shadows.glow,
+    backgroundColor: Colors.primary.default,
   },
   title: {
-    fontSize: FontSizes.xxxl,
+    fontSize: FontSizes.xxl,
     fontWeight: FontWeights.bold,
     color: Colors.text.primary,
     marginBottom: Spacing.sm,

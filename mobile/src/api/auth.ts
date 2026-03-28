@@ -3,7 +3,7 @@
  */
 
 import api from './client';
-import { AuthResponse, User, Interest } from '../types';
+import { AuthResponse, User, Interest, PublicProfileResponse } from '../types';
 
 export interface OtpSendResponse {
   message: string;
@@ -47,6 +47,15 @@ export const authApi = {
 
   updateLocation: async (latitude: number, longitude: number): Promise<void> => {
     await api.post('/users/me/location/', { latitude, longitude });
+  },
+
+  registerExpoPushToken: async (token: string): Promise<void> => {
+    await api.post('/users/me/expo-push-token/', { token });
+  },
+
+  getPublicProfile: async (userId: string): Promise<PublicProfileResponse> => {
+    const response = await api.get(`/users/${userId}/profile/`);
+    return response.data;
   },
 
   changePassword: async (oldPassword: string, newPassword: string): Promise<void> => {

@@ -19,7 +19,9 @@ The backend lives in `backend` as an Express service backed by MongoDB. It prese
 - `/api/discover/*`
 - `/api/posts/*`
 - `/api/chat/*`
+- `/api/notifications/*`
 - `/api/token/refresh/`
+- WebSocket `GET /ws?token=<JWT>` (same host/port as HTTP) for realtime chat events
 
 It uses:
 
@@ -58,7 +60,17 @@ npm install
 npx expo start
 ```
 
-If you are testing on a physical device, set `EXPO_PUBLIC_API_URL` in [`mobile/.env.example`](./mobile/.env.example) to your machine IP or hosted API URL.
+If you are testing on a physical device, set `EXPO_PUBLIC_API_URL` in [`mobile/.env.example`](./mobile/.env.example) to your machine IP or hosted API URL. For production HTTPS APIs, set **`EXPO_PUBLIC_WS_URL`** to the matching secure WebSocket URL (e.g. `wss://api.example.com/ws`) so chat updates arrive in realtime.
+
+#### No Expo account required
+
+You can develop and run the app **without** signing up for Expo or linking the project anywhere:
+
+- Run `npx expo start` and use **Expo Go** (you can proceed anonymously when prompted) or an emulator.
+- **Chat in realtime** uses your backend **WebSocket** (`/ws`), not Expo’s servers.
+- **Local notifications** (e.g. new message while you’re on another screen) can still work if the user allows notifications; the app **does not crash** if remote push is unavailable.
+
+**Optional later:** If you create an Expo account and want push delivered through Expo’s service, you can set `EAS_PROJECT_ID` in `mobile/.env` (see `.env.example`) and use EAS builds. That is **not** required for local development or for WebSocket chat.
 
 ## Cloud Recommendation
 
@@ -87,5 +99,6 @@ OTP_DEBUG_RESPONSE=false
 
 - The backend has been rebuilt from scratch on Node.js + MongoDB.
 - The service seeds a basic set of interests automatically on startup if none exist.
-- Chat is HTTP-based; there is no websocket dependency in this codebase.
+- Chat uses **HTTP** for send/history and a **WebSocket** (`/ws`) to deliver new messages to connected clients; optional **Expo push** (`EXPO_ACCESS_TOKEN` on the server) notifies recipients when the app is not in the foreground.
+- **Push:** Without an Expo account / EAS project id, **remote** push via Expo is skipped by design; the app still runs. **Local** notifications for new chat (while the app is open) can work with OS permission. For store builds you can use `npx expo prebuild` and open the native projects locally, or adopt EAS later if you want Expo-hosted builds and push.
 

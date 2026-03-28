@@ -1,7 +1,8 @@
-const { User, Interest } = require('../models');
-const { serializeUser } = require('../serializers/user');
+const { User, Interest, Like, Match } = require('../models');
+const { serializeUser, serializePublicUser } = require('../serializers/user');
 const { deleteFile } = require('../utils/media');
 const { asNumber, parseIdList } = require('../utils/validation');
+const { haversineDistance } = require('../utils/geo');
 
 async function getMe(req, res) {
   const user = await User.findById(req.user._id);
@@ -22,8 +23,17 @@ async function patchMe(req, res) {
     updates.is_discoverable !== undefined
       ? updates.is_discoverable === 'true' || updates.is_discoverable === true
       : user.is_discoverable;
-  const nextDiscoveryRadius =
-    updates.discovery_radius !== undefined ? Number(updates.discovery_radius) : user.discovery_radius;
+  const MIN_RADIUS = 100;
+  const MAX_RADIUS = 10000;
+  let nextDiscoveryRadius = user.discovery_radius;
+  if (updates.discovery_radius !== undefined) {
+    const raw = Number(updates.discovery_radius);
+    if (!Number.isFinite(raw)) {
+      res.status(400).json({ discovery_radius: ['Invalid number.'] });
+      return;
+    }
+    nextDiscoveryRadius = Math.min(Math.max(Math.round(raw), MIN_RADIUS), MAX_RADIUS);
+  }
   const nextShowOnlineStatus =
     updates.show_online_status !== undefined
       ? updates.show_online_status === 'true' || updates.show_online_status === true
@@ -105,16 +115,75 @@ async function updateLocation(req, res) {
 }
 
 async function getUserById(req, res) {
+  if (String(req.params.id) !== String(req.user._id)) {
+    res.status(403).json({ detail: 'Use GET /api/users/:id/profile/ for other users.' });
+    return;
+  }
   const user = await User.findById(req.params.id);
   if (!user) {
     res.status(404).json({ detail: 'User not found.' });
     return;
   }
-  const payload = await serializeUser(user, req);
-  if (String(user._id) !== String(req.user._id)) {
-    payload.email = null;
+  res.json(await serializeUser(user, req));
+}
+
+/** Public profile + distance + Join orbit state (no target lat/lng exposed). */
+async function getPublicProfile(req, res) {
+  const viewer = await User.findById(req.user._id);
+  const target = await User.findById(req.params.id);
+  if (!target) {
+    res.status(404).json({ detail: 'User not found.' });
+    return;
   }
-  res.json(payload);
+
+  const publicUser = await serializePublicUser(target, req);
+  const self = String(target._id) === String(viewer._id);
+
+  let distance_m = null;
+  if (
+    !self &&
+    viewer.latitude != null &&
+    viewer.longitude != null &&
+    target.latitude != null &&
+    target.longitude != null
+  ) {
+    distance_m =
+      Math.round(
+        haversineDistance(
+          Number(viewer.latitude),
+          Number(viewer.longitude),
+          Number(target.latitude),
+          Number(target.longitude)
+        ) * 10
+      ) / 10;
+  }
+
+  const likeFromMe = await Like.findOne({ from_user: viewer._id, to_user: target._id });
+  const likeFromThem = await Like.findOne({ from_user: target._id, to_user: viewer._id });
+  const sortedIds = [String(viewer._id), String(target._id)].sort();
+  const matchRow = await Match.findOne({ user1: sortedIds[0], user2: sortedIds[1] });
+
+  res.json({
+    user: publicUser,
+    distance_m: self ? 0 : distance_m,
+    is_self: self,
+    orbit: {
+      you_sent_join: !!likeFromMe,
+      they_sent_join: !!likeFromThem,
+      matched: !!matchRow,
+      match_id: matchRow ? String(matchRow._id) : null,
+    },
+  });
+}
+
+async function registerExpoPushToken(req, res) {
+  const { token } = req.body || {};
+  if (!token || typeof token !== 'string') {
+    res.status(400).json({ detail: 'token is required.' });
+    return;
+  }
+  await User.updateOne({ _id: req.user._id }, { $set: { expo_push_token: token } });
+  res.json({ ok: true });
 }
 
 module.exports = {
@@ -123,4 +192,6 @@ module.exports = {
   deleteAvatar,
   updateLocation,
   getUserById,
+  getPublicProfile,
+  registerExpoPushToken,
 };

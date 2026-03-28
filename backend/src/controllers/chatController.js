@@ -4,8 +4,35 @@ const {
   isConversationParticipant,
   findConversationBetweenUsers,
   serializeMessage,
+  serializeMessagesList,
   serializeConversation,
 } = require('../serializers/chat');
+const { broadcastToUser } = require('../realtime/chatWsHub');
+const { notifyChatMessageRecipient } = require('../services/notificationService');
+
+/**
+ * @param {import('mongoose').Types.ObjectId|string} conversationId
+ * @param {import('mongoose').Document} messageDoc
+ * @param {import('mongoose').Document} senderUser
+ */
+async function relayNewMessageToParticipants(conversationId, messageDoc, senderUser) {
+  const conv = await Conversation.findById(conversationId).exec();
+  if (!conv) return;
+  const preview = String(messageDoc.content || '').slice(0, 200);
+  const payload = {
+    type: 'new_message',
+    conversation_id: String(conversationId),
+    message_id: String(messageDoc._id),
+    sender_id: String(senderUser._id),
+    sender_username: senderUser.username,
+    preview,
+  };
+  for (const pid of conv.participants) {
+    if (String(pid) === String(senderUser._id)) continue;
+    broadcastToUser(String(pid), payload);
+    await notifyChatMessageRecipient(pid, senderUser, String(conversationId), preview);
+  }
+}
 
 async function listConversations(req, res) {
   const conversationRows = await Conversation.find({
@@ -75,6 +102,10 @@ async function startConversation(req, res) {
     });
     conversation.updated_at = message.created_at;
     await conversation.save();
+    const senderUser = await User.findById(req.user._id);
+    if (senderUser) {
+      await relayNewMessageToParticipants(conversation._id, message, senderUser);
+    }
   }
 
   res
@@ -92,11 +123,12 @@ async function listMessages(req, res) {
     is_deleted: false,
   })
     .sort({ created_at: -1 })
-    .exec();
-  const results = [];
-  for (const message of messageRows) {
-    results.push(await serializeMessage(message, req));
-  }
+    .populate({
+      path: 'sender',
+      populate: { path: 'interest_ids', model: 'Interest' },
+    })
+    .lean();
+  const results = await serializeMessagesList(messageRows, req);
   res.json({
     count: results.length,
     next: null,
@@ -127,6 +159,10 @@ async function sendMessage(req, res) {
     { _id: req.params.id },
     { $set: { updated_at: message.created_at } }
   );
+  const senderUser = await User.findById(req.user._id);
+  if (senderUser) {
+    await relayNewMessageToParticipants(req.params.id, message, senderUser);
+  }
   res.status(201).json(await serializeMessage(message, req));
 }
 

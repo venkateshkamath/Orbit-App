@@ -1,6 +1,9 @@
 /**
- * Map Screen Entry Point
+ * Legacy map route — Discover is the map tab; send users to tabs root.
  */
 
-import MapScreen from '../../src/screens/MapScreen';
-export default MapScreen;
+import { Redirect } from 'expo-router';
+
+export default function MapTabRedirect() {
+  return <Redirect href="/(tabs)" />;
+}

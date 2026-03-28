@@ -4,7 +4,6 @@
 
 import React from 'react';
 import { View, Text, StyleSheet, Image } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, BorderRadius, FontSizes, Spacing } from '../../constants/Colors';
 import { Message } from '../types';
@@ -30,12 +29,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   return (
     <View style={[styles.container, isOwn && styles.ownContainer]}>
       {isOwn ? (
-        <LinearGradient
-          colors={[Colors.primary.start, Colors.primary.end]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={[styles.bubble, styles.ownBubble]}
-        >
+        <View style={[styles.bubble, styles.ownBubble]}>
           <Text style={[styles.text, styles.ownText]}>{message.content}</Text>
           <View style={styles.meta}>
             <Text style={[styles.time, styles.ownTime]}>
@@ -44,11 +38,11 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
             <Ionicons
               name={message.is_read ? 'checkmark-done' : 'checkmark'}
               size={14}
-              color={message.is_read ? Colors.secondary.default : 'rgba(255,255,255,0.6)'}
+              color={message.is_read ? Colors.text.accent : 'rgba(255,255,255,0.55)'}
               style={styles.readIcon}
             />
           </View>
-        </LinearGradient>
+        </View>
       ) : (
         <View style={[styles.bubble, styles.otherBubble]}>
           <Text style={[styles.text, styles.otherText]}>{message.content}</Text>
@@ -78,6 +72,7 @@ const styles = StyleSheet.create({
   },
   ownBubble: {
     borderBottomRightRadius: Spacing.xs,
+    backgroundColor: Colors.primary.default,
   },
   otherBubble: {
     backgroundColor: Colors.background.elevated,

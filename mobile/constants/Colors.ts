@@ -1,63 +1,54 @@
 /**
- * ORBIT Design System
- * Human, ambient dark theme with soft aurora accents
+ * ORBIT — modern dark UI: neutral surfaces, single accent
  */
 
 export const Colors = {
-  // Primary gradient colors - violet → soft teal
   primary: {
-    start: '#8B5CF6', // Soft violet
-    end: '#22C1C3',   // Teal
-    default: '#A855F7',
-    light: '#D8B4FE',
-    dark: '#4C1D95',
+    start: '#6D5AE6',
+    end: '#6D5AE6',
+    default: '#6D5AE6',
+    light: '#A5A0F5',
+    dark: '#4B3DB8',
   },
 
-  // Secondary accent - warm orbit orange
   secondary: {
-    start: '#F97316',
-    end: '#FACC15',
-    default: '#FB923C',
+    start: '#3B82F6',
+    end: '#3B82F6',
+    default: '#60A5FA',
   },
 
-  // Background colors - soft charcoal, not pure black
   background: {
-    primary: '#050816',   // Charcoal with slight blue
-    secondary: '#050816',
-    tertiary: '#0B1120',  // Deep navy
-    card: '#0F172A',
-    elevated: '#111827',  // Slightly lifted
+    primary: '#0A0A0B',
+    secondary: '#0A0A0B',
+    tertiary: '#18181B',
+    card: '#141416',
+    elevated: '#1C1C1F',
   },
 
-  // Text colors - high contrast but gentle
   text: {
-    primary: '#F9FAFB',      // Almost white
-    secondary: '#D1D5DB',    // Mid gray
-    tertiary: '#9CA3AF',     // Muted gray
-    muted: '#6B7280',        // Very muted
-    accent: '#22C1C3',       // Teal accent
+    primary: '#FAFAFA',
+    secondary: '#A1A1AA',
+    tertiary: '#71717A',
+    muted: '#52525B',
+    accent: '#A5A0F5',
   },
 
-  // Status colors
   success: '#4ADE80',
-  warning: '#FACC15',
-  error: '#F97373',
-  info:   '#38BDF8',
+  warning: '#FBBF24',
+  error: '#F87171',
+  info: '#38BDF8',
 
-  // UI elements
-  border: '#1F2937',
-  borderLight: '#111827',
-  overlay: 'rgba(15, 23, 42, 0.85)',
+  border: 'rgba(255,255,255,0.08)',
+  borderLight: 'rgba(255,255,255,0.12)',
+  overlay: 'rgba(10, 10, 11, 0.92)',
 
-  // Glass effect
   glass: {
-    background: 'rgba(15, 23, 42, 0.7)',
-    border: 'rgba(148, 163, 184, 0.4)',
+    background: 'rgba(28, 28, 31, 0.72)',
+    border: 'rgba(255,255,255,0.1)',
   },
 
-  // Online status
-  online: '#22C55E',
-  offline: '#6B7280',
+  online: '#4ADE80',
+  offline: '#71717A',
 };
 
 export const Spacing = {
@@ -73,7 +64,7 @@ export const BorderRadius = {
   sm: 8,
   md: 12,
   lg: 16,
-  xl: 24,
+  xl: 20,
   full: 9999,
 };
 
@@ -84,8 +75,8 @@ export const FontSizes = {
   lg: 18,
   xl: 20,
   xxl: 24,
-  xxxl: 32,
-  display: 40,
+  xxxl: 30,
+  display: 36,
 };
 
 export const FontWeights = {
@@ -99,31 +90,31 @@ export const FontWeights = {
 export const Shadows = {
   sm: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 1,
   },
   md: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4.65,
-    elevation: 4,
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 3,
   },
   lg: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 6,
   },
   glow: {
-    shadowColor: '#A855F7',
+    shadowColor: '#6D5AE6',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 10,
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 4,
   },
 };
 

@@ -11,7 +11,14 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAuthStore } from '../src/stores';
 import { OrbitQueryProvider } from '../src/lib/queryClient';
+import { ChatRealtimeBridge } from '../src/components/ChatRealtimeBridge';
+import {
+  installNotificationHandlerSafe,
+  prepareNotificationEnvironment,
+  tryRegisterExpoPushToken,
+} from '../src/lib/notificationsSafe';
 import { Colors } from '../constants/Colors';
+import { authApi } from '../src/api/auth';
 
 function RootLayoutNav() {
   const { isLoading, loadUser, isAuthenticated, isOnboardingComplete } = useAuthStore();
@@ -22,6 +29,7 @@ function RootLayoutNav() {
   useEffect(() => {
     setMounted(true);
     loadUser();
+    installNotificationHandlerSafe();
   }, []);
 
   useEffect(() => {
@@ -30,30 +38,51 @@ function RootLayoutNav() {
     const inAuthGroup = segments[0] === '(auth)';
     const inOnboardingGroup = segments[0] === '(onboarding)';
     const inTabsGroup = segments[0] === '(tabs)';
-
-    console.log('Auth state:', { isAuthenticated, isOnboardingComplete, segments });
+    const inChatStack = segments[0] === 'chat';
+    const inUserStack = segments[0] === 'user';
+    const inMainApp = inTabsGroup || inChatStack || inUserStack;
 
     // Redirect logic
     if (!isAuthenticated) {
       // Not authenticated - should be on welcome or auth screens
       if (inTabsGroup || inOnboardingGroup) {
-        console.log('Redirecting to welcome');
         router.replace('/');
       }
     } else if (!isOnboardingComplete) {
       // Authenticated but needs onboarding
       if (!inOnboardingGroup) {
-        console.log('Redirecting to onboarding');
         router.replace('/(onboarding)/interests');
       }
     } else {
-      // Fully authenticated - go to main app
-      if (!inTabsGroup) {
-        console.log('Redirecting to main app');
+      // Fully authenticated — tabs, chat thread, or user profile
+      if (!inMainApp) {
         router.replace('/(tabs)');
       }
     }
   }, [isAuthenticated, isOnboardingComplete, isLoading, mounted, segments, router]);
+
+  useEffect(() => {
+    if (!mounted || isLoading || !isAuthenticated || !isOnboardingComplete) return undefined;
+
+    void prepareNotificationEnvironment();
+
+    let cancelled = false;
+    void tryRegisterExpoPushToken(
+      async (token) => {
+        if (cancelled) return;
+        try {
+          await authApi.registerExpoPushToken(token);
+        } catch (e) {
+          console.warn('[notifications] registerExpoPushToken API failed:', e);
+        }
+      },
+      { isCancelled: () => cancelled }
+    );
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mounted, isLoading, isAuthenticated, isOnboardingComplete]);
 
   if (isLoading || !mounted) {
     return (
@@ -78,6 +107,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={styles.container}>
       <SafeAreaProvider style={styles.container}>
         <OrbitQueryProvider>
+          <ChatRealtimeBridge />
           <RootLayoutNav />
         </OrbitQueryProvider>
       </SafeAreaProvider>

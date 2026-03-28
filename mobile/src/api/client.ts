@@ -35,17 +35,39 @@ function resolveLocalIp(): string {
 
 // Fallback to the active Expo host IP for native development.
 const LOCAL_IP = resolveLocalIp();
-const PROD_API_URL = process.env.EXPO_PUBLIC_API_URL;
-const PROD_WS_URL = process.env.EXPO_PUBLIC_WS_URL;
+const PROD_API_URL = process.env.EXPO_PUBLIC_API_URL?.trim();
+const PROD_WS_URL = process.env.EXPO_PUBLIC_WS_URL?.trim();
+
+/**
+ * WebSocket must hit the same host:port as the REST API. If only EXPO_PUBLIC_API_URL is set
+ * (common on physical devices), derive ws:// or wss:// from it instead of using Metro's IP
+ * (which often mismatches and breaks realtime chat).
+ */
+function deriveWsBaseUrl(): string {
+  if (PROD_WS_URL) {
+    return PROD_WS_URL.replace(/\/$/, '');
+  }
+  if (PROD_API_URL) {
+    try {
+      const u = new URL(PROD_API_URL);
+      const wsScheme = u.protocol === 'https:' ? 'wss:' : 'ws:';
+      return `${wsScheme}//${u.host}/ws`;
+    } catch {
+      /* fall through */
+    }
+  }
+  if (Platform.OS === 'web') {
+    return 'ws://localhost:8000/ws';
+  }
+  return `ws://${LOCAL_IP}:8000/ws`;
+}
 
 // API URLs
-export const API_BASE_URL = PROD_API_URL || (Platform.OS === 'web' 
-  ? 'http://localhost:8000/api' 
-  : `http://${LOCAL_IP}:8000/api`);
-  
-export const WS_BASE_URL = PROD_WS_URL || (Platform.OS === 'web' 
-  ? 'ws://localhost:8000/ws' 
-  : `ws://${LOCAL_IP}:8000/ws`);
+export const API_BASE_URL =
+  PROD_API_URL ||
+  (Platform.OS === 'web' ? 'http://localhost:8000/api' : `http://${LOCAL_IP}:8000/api`);
+
+export const WS_BASE_URL = deriveWsBaseUrl();
 
 // Platform-compatible storage wrapper
 const storage = {
@@ -131,5 +153,14 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+/** Access token for WebSocket auth (same store as axios interceptor). */
+export async function getStoredAccessToken(): Promise<string | null> {
+  try {
+    return await storage.getItem('accessToken');
+  } catch {
+    return null;
+  }
+}
 
 export default api;

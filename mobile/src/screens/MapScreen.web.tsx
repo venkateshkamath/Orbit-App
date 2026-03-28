@@ -11,17 +11,21 @@ import {
   FlatList,
   ActivityIndicator,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
+import { router } from 'expo-router';
 import { Colors, FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
 import { UserCard } from '../components';
 import { useLikeUserMutation, useNearbyUsersQuery, usePassUserMutation } from '../hooks/useOrbitApi';
 import { useAuthStore } from '../stores';
 
-export default function MapScreen() {
+export type MapScreenProps = {
+  variant?: 'discover' | 'map';
+};
+
+export default function MapScreen({ variant = 'discover' }: MapScreenProps) {
   const { user, updateLocation } = useAuthStore();
-  const radius = user?.discovery_radius ?? 10;
+  const radius = user?.discovery_radius ?? 1000;
   const [loading, setLoading] = useState(true);
   const nearbyQuery = useNearbyUsersQuery(
     radius,
@@ -75,7 +79,7 @@ export default function MapScreen() {
     <View style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
-          <Text style={styles.title}>Map</Text>
+          <Text style={styles.title}>{variant === 'discover' ? 'Discover' : 'Map'}</Text>
         </View>
 
         <View style={styles.webNotice}>
@@ -92,7 +96,7 @@ export default function MapScreen() {
               user={item}
               onLike={() => likeMut.mutate(item.id)}
               onPass={() => passMut.mutate(item.id)}
-              onPress={() => {}}
+              onPress={() => router.push(`/user/${item.id}`)}
             />
           )}
           contentContainerStyle={{ padding: Spacing.lg }}

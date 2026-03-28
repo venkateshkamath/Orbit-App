@@ -6,18 +6,18 @@ import React from 'react';
 import {
   TouchableOpacity,
   Text,
+  View,
   StyleSheet,
   ActivityIndicator,
   ViewStyle,
   TextStyle,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
-import { Colors, BorderRadius, FontSizes, FontWeights, Spacing, Shadows } from '../../constants/Colors';
+import { Colors, BorderRadius, FontSizes, FontWeights, Spacing } from '../../constants/Colors';
 
 interface GradientButtonProps {
   title: string;
@@ -70,12 +70,6 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
     lg: FontSizes.lg,
   };
 
-  const gradientColors = {
-    primary: [Colors.primary.start, Colors.primary.end] as const,
-    secondary: [Colors.secondary.start, Colors.secondary.end] as const,
-    outline: ['transparent', 'transparent'] as const,
-  };
-
   const textIconSpacing = icon != null ? { marginLeft: Spacing.sm } : undefined;
 
   if (variant === 'outline') {
@@ -115,6 +109,11 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
     );
   }
 
+  const fillStyles =
+    variant === 'secondary'
+      ? { backgroundColor: Colors.background.elevated, borderWidth: 1, borderColor: Colors.border }
+      : { backgroundColor: Colors.primary.default };
+
   return (
     <AnimatedTouchable
       onPress={onPress}
@@ -124,12 +123,7 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
       style={[animatedStyle, disabled && styles.disabled, style]}
       activeOpacity={0.9}
     >
-      <LinearGradient
-        colors={gradientColors[variant]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={[styles.gradient, sizeStyles[size]]}
-      >
+      <View style={[styles.solidFill, fillStyles, sizeStyles[size]]}>
         {loading ? (
           <ActivityIndicator color={Colors.text.primary} />
         ) : (
@@ -138,6 +132,7 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
             <Text
               style={[
                 styles.text,
+                variant === 'secondary' && styles.secondaryText,
                 { fontSize: textSizes[size] },
                 textIconSpacing,
                 textStyle,
@@ -147,23 +142,25 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
             </Text>
           </>
         )}
-      </LinearGradient>
+      </View>
     </AnimatedTouchable>
   );
 };
 
 const styles = StyleSheet.create({
-  gradient: {
+  solidFill: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: BorderRadius.lg,
-    ...Shadows.md,
   },
   text: {
     color: Colors.text.primary,
     fontWeight: FontWeights.semibold,
     textAlign: 'center',
+  },
+  secondaryText: {
+    color: Colors.text.primary,
   },
   outlineButton: {
     flexDirection: 'row',

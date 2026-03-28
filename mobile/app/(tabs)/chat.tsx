@@ -2,17 +2,18 @@
  * Chat Tab - Conversations list
  */
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   FlatList,
+  ScrollView,
   RefreshControl,
   TouchableOpacity,
+  Platform,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
@@ -21,7 +22,11 @@ import {
   useConversationsQuery,
   useMatchesQuery,
   useStartConversationMutation,
+  useLikeUserMutation,
+  useMarkNotificationReadMutation,
 } from '../../src/hooks/useOrbitApi';
+import { useLikesReceivedForTab, useNotificationsForTab } from '../../src/hooks/useChatTabQueries';
+import type { LikeReceivedItem } from '../../src/types';
 
 export default function ChatScreen() {
   const {
@@ -31,11 +36,30 @@ export default function ChatScreen() {
     refetch: refetchConversations,
   } = useConversationsQuery();
   const { data: matches = [], refetch: refetchMatches } = useMatchesQuery();
+  const { data: pendingOrbits = [], refetch: refetchLikes } = useLikesReceivedForTab();
+  const { data: notifPack, refetch: refetchNotifs } = useNotificationsForTab();
   const startConversationMut = useStartConversationMutation();
+  const likeMut = useLikeUserMutation();
+  const markNotifRead = useMarkNotificationReadMutation();
 
   const onRefresh = useCallback(async () => {
-    await Promise.all([refetchConversations(), refetchMatches()]);
-  }, [refetchConversations, refetchMatches]);
+    await Promise.all([
+      refetchConversations(),
+      refetchMatches(),
+      refetchLikes(),
+      refetchNotifs(),
+    ]);
+  }, [refetchConversations, refetchMatches, refetchLikes, refetchNotifs]);
+
+  const notificationRows = useMemo(
+    () => (Array.isArray(notifPack?.results) ? notifPack!.results : []),
+    [notifPack?.results]
+  );
+
+  const conversationsWithOther = useMemo(
+    () => conversations.filter((c) => c.other_participant),
+    [conversations]
+  );
 
   const handleConversationPress = (conversationId: string) => {
     router.push(`/chat/${conversationId}`);
@@ -79,22 +103,99 @@ export default function ChatScreen() {
     );
   };
 
+  const renderPendingOrbitCard = (item: LikeReceivedItem) => {
+    const from = item.from_user;
+    if (!from?.id) return null;
+    return (
+      <View style={styles.requestItem}>
+        <Avatar uri={from.avatar} name={from.username} size={56} showOnline isOnline={from.is_online} />
+        <Text style={styles.requestName} numberOfLines={1}>
+          {from.username}
+        </Text>
+        <TouchableOpacity
+          style={styles.acceptBtn}
+          onPress={() => likeMut.mutate(from.id)}
+          disabled={likeMut.isPending}
+        >
+          <Text style={styles.acceptBtnText}>Accept</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
   const renderHeader = () => (
     <View style={styles.matchesSection}>
+      <Text style={styles.sectionTitle}>Join orbit requests</Text>
+      {pendingOrbits.length > 0 ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.requestsList}
+          keyboardShouldPersistTaps="handled"
+        >
+          {pendingOrbits.map((item) => (
+            <React.Fragment key={item.id}>{renderPendingOrbitCard(item)}</React.Fragment>
+          ))}
+        </ScrollView>
+      ) : (
+        <View style={styles.emptyMatches}>
+          <Text style={styles.emptyMatchesText}>No pending requests right now.</Text>
+        </View>
+      )}
+
+      {notificationRows.length > 0 && (
+        <>
+          <Text style={[styles.sectionTitle, styles.messagesTitle]}>Activity</Text>
+          <View style={styles.notifBlock}>
+            {notificationRows.slice(0, 8).map((n) => (
+              <TouchableOpacity
+                key={n.id}
+                style={[styles.notifRow, !n.read_at && styles.notifRowUnread]}
+                onPress={async () => {
+                  if (!n.read_at) {
+                    try {
+                      await markNotifRead.mutateAsync(n.id);
+                    } catch {
+                      /* ignore */
+                    }
+                  }
+                  const convId = n.payload?.conversation_id;
+                  if (typeof convId === 'string') {
+                    router.push(`/chat/${convId}`);
+                    return;
+                  }
+                  const actorId = n.payload?.actor_id;
+                  if (typeof actorId === 'string') {
+                    router.push(`/user/${actorId}`);
+                  }
+                }}
+              >
+                <Text style={styles.notifTitle}>{n.title}</Text>
+                <Text style={styles.notifBody} numberOfLines={2}>
+                  {n.body}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </>
+      )}
+
       <Text style={styles.sectionTitle}>New Matches</Text>
       {matches.length > 0 ? (
-        <FlatList
+        <ScrollView
           horizontal
-          data={matches}
-          keyExtractor={(item) => item.id}
-          renderItem={renderMatchItem}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.matchesList}
-        />
+          keyboardShouldPersistTaps="handled"
+        >
+          {matches.map((item) => (
+            <View key={item.id}>{renderMatchItem({ item })}</View>
+          ))}
+        </ScrollView>
       ) : (
         <View style={styles.emptyMatches}>
           <Text style={styles.emptyMatchesText}>
-            Keep swiping to find your matches! 💫
+            Explore Discover on the map to meet people nearby.
           </Text>
         </View>
       )}
@@ -116,21 +217,15 @@ export default function ChatScreen() {
   );
 
   return (
-    <View style={styles.container}>
-      <LinearGradient
-        colors={[Colors.background.primary, Colors.background.secondary]}
-        style={StyleSheet.absoluteFillObject}
-      />
-
-      <SafeAreaView style={styles.safeArea}>
-        {/* Header */}
+    <View style={[styles.container, { backgroundColor: Colors.background.primary }]}>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
         <View style={styles.header}>
           <Text style={styles.title}>Messages</Text>
         </View>
 
         {/* Conversations List */}
         <FlatList
-          data={conversations}
+          data={conversationsWithOther}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <ConversationItem
@@ -147,6 +242,7 @@ export default function ChatScreen() {
               refreshing={isRefetching}
               onRefresh={onRefresh}
               tintColor={Colors.primary.default}
+              colors={[Colors.primary.default]}
             />
           }
         />
@@ -164,7 +260,7 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
+    paddingTop: Platform.OS === 'android' ? Spacing.sm : Spacing.md,
     paddingBottom: Spacing.sm,
   },
   title: {
@@ -231,6 +327,58 @@ const styles = StyleSheet.create({
     color: Colors.text.tertiary,
     fontSize: FontSizes.sm,
     textAlign: 'center',
+  },
+  requestsList: {
+    paddingRight: Spacing.md,
+    paddingBottom: Spacing.sm,
+  },
+  requestItem: {
+    width: 100,
+    marginRight: Spacing.md,
+    alignItems: 'center',
+  },
+  requestName: {
+    fontSize: FontSizes.sm,
+    color: Colors.text.secondary,
+    marginTop: Spacing.xs,
+    textAlign: 'center',
+    width: '100%',
+  },
+  acceptBtn: {
+    marginTop: Spacing.sm,
+    backgroundColor: Colors.primary.default,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.full,
+  },
+  acceptBtnText: {
+    color: Colors.text.primary,
+    fontSize: FontSizes.xs,
+    fontWeight: FontWeights.semibold,
+  },
+  notifBlock: {
+    marginBottom: Spacing.md,
+    gap: Spacing.xs,
+  },
+  notifRow: {
+    backgroundColor: Colors.background.tertiary,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.xs,
+  },
+  notifRowUnread: {
+    borderWidth: 1,
+    borderColor: Colors.primary.default + '55',
+  },
+  notifTitle: {
+    fontSize: FontSizes.sm,
+    fontWeight: FontWeights.semibold,
+    color: Colors.text.primary,
+  },
+  notifBody: {
+    marginTop: 4,
+    fontSize: FontSizes.xs,
+    color: Colors.text.secondary,
   },
   emptyContainer: {
     alignItems: 'center',

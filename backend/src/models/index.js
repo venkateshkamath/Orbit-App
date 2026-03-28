@@ -22,12 +22,14 @@ const userSchema = new mongoose.Schema(
     longitude: { type: Number, default: null },
     location_updated_at: { type: Date, default: null },
     is_discoverable: { type: Boolean, default: true },
-    discovery_radius: { type: Number, default: 10 },
+    discovery_radius: { type: Number, default: 1000 },
     show_online_status: { type: Boolean, default: true },
     is_online: { type: Boolean, default: false },
     last_seen: { type: Date, default: null },
     is_verified: { type: Boolean, default: false },
     interest_ids: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Interest' }],
+    /** Expo push token for remote notifications (optional). */
+    expo_push_token: { type: String, default: null },
   },
   { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
 );
@@ -156,6 +158,23 @@ const messageReactionSchema = new mongoose.Schema(
 );
 messageReactionSchema.index({ message: 1, user: 1 }, { unique: true });
 
+const notificationSchema = new mongoose.Schema(
+  {
+    recipient: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    type: {
+      type: String,
+      enum: ['orbit_join', 'message', 'match'],
+      required: true,
+    },
+    title: { type: String, required: true },
+    body: { type: String, default: '' },
+    payload: { type: mongoose.Schema.Types.Mixed, default: {} },
+    read_at: { type: Date, default: null },
+  },
+  { timestamps: { createdAt: 'created_at', updatedAt: false } }
+);
+notificationSchema.index({ recipient: 1, created_at: -1 });
+
 module.exports = {
   Interest: mongoose.model('Interest', interestSchema),
   User: mongoose.model('User', userSchema),
@@ -171,4 +190,5 @@ module.exports = {
   Conversation: mongoose.model('Conversation', conversationSchema),
   Message: mongoose.model('Message', messageSchema),
   MessageReaction: mongoose.model('MessageReaction', messageReactionSchema),
+  Notification: mongoose.model('Notification', notificationSchema),
 };

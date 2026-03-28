@@ -1,6 +1,6 @@
 const { Conversation, Message, MessageReaction } = require('../models');
 const { fullMediaUrl } = require('../utils/media');
-const { serializePublicUser } = require('./user');
+const { serializePublicUser, serializePublicUserSync } = require('./user');
 
 async function isConversationParticipant(conversationId, userId) {
   const conversation = await Conversation.findOne({
@@ -36,6 +36,36 @@ async function serializeMessage(message, req) {
     })),
     created_at: message.created_at.toISOString(),
   };
+}
+
+/**
+ * Batch-serialize many messages: one reaction query + senders pre-populated (e.g. lean + populate).
+ */
+async function serializeMessagesList(messageRows, req) {
+  if (!messageRows.length) return [];
+  const ids = messageRows.map((m) => m._id);
+  const reactionRows = await MessageReaction.find({ message: { $in: ids } }).lean();
+  /** @type {Map<string, { emoji: string, user_id: string }[]>} */
+  const byMsg = new Map();
+  for (const row of reactionRows) {
+    const mid = String(row.message);
+    if (!byMsg.has(mid)) byMsg.set(mid, []);
+    byMsg.get(mid).push({ emoji: row.emoji, user_id: String(row.user) });
+  }
+  return messageRows.map((m) => ({
+    id: String(m._id),
+    conversation: String(m.conversation),
+    sender: serializePublicUserSync(m.sender, req),
+    message_type: m.message_type,
+    content: m.content,
+    image: fullMediaUrl(req, m.image),
+    latitude: m.latitude ?? null,
+    longitude: m.longitude ?? null,
+    is_read: !!m.is_read,
+    read_at: m.read_at ? new Date(m.read_at).toISOString() : null,
+    reactions: byMsg.get(String(m._id)) || [],
+    created_at: new Date(m.created_at).toISOString(),
+  }));
 }
 
 async function serializeConversation(conversation, currentUserId, req) {
@@ -75,5 +105,6 @@ module.exports = {
   isConversationParticipant,
   findConversationBetweenUsers,
   serializeMessage,
+  serializeMessagesList,
   serializeConversation,
 };
