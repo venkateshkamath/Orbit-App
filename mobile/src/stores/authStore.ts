@@ -161,9 +161,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   updateProfile: async (data) => {
     try {
       const updatedUser = await authApi.updateProfile(data);
-      set({ user: updatedUser });
-    } catch (error: any) {
-      throw new Error(error.response?.data?.detail || 'Update failed');
+      const interestsDone = updatedUser.interests?.length > 0;
+      set({
+        user: updatedUser,
+        ...(interestsDone ? { isOnboardingComplete: true } : {}),
+      });
+    } catch (error: unknown) {
+      throw new Error(formatApiError(error));
     }
   },
 

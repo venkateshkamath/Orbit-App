@@ -15,6 +15,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
 import { useOrbitTheme } from '../../src/theme';
+import { router } from 'expo-router';
 import { InterestTag, GradientButton } from '../../src/components';
 import { useAuthStore } from '../../src/stores';
 import { useInterestsQuery } from '../../src/hooks/useOrbitApi';
@@ -50,8 +51,13 @@ export default function InterestsScreen() {
     try {
       await updateProfile({ interest_ids: selectedIds });
       setOnboardingComplete(true);
-    } catch (error: any) {
-      Alert.alert('Error', error.message);
+      // Root layout treats this route as "main app" once onboarding is done, so it never
+      // auto-navigates away — must explicitly enter tabs after first-time onboarding.
+      router.replace('/(tabs)');
+    } catch (error: unknown) {
+      const msg =
+        error instanceof Error ? error.message : 'Could not save your interests. Please try again.';
+      Alert.alert('Error', msg);
     } finally {
       setSaving(false);
     }
