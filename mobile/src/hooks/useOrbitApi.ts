@@ -4,7 +4,7 @@ import { chatApi } from '../api/chat';
 import { discoveryApi } from '../api/discovery';
 import { postApi } from '../api/posts';
 import { notificationsApi } from '../api/notifications';
-import type { Message } from '../types';
+import type { Conversation, Message } from '../types';
 import { useAuthStore } from '../stores';
 import { locationKeyPart, orbitKeys } from './orbitKeys';
 
@@ -182,8 +182,7 @@ export function useConversationsQuery() {
       const res = await chatApi.getConversations();
       return res.results ?? [];
     },
-    staleTime: 20 * 1000,
-    refetchInterval: 8000,
+    staleTime: 45 * 1000,
   });
 }
 
@@ -265,7 +264,28 @@ export function useSendMessageMutation() {
       } else {
         qc.invalidateQueries({ queryKey: orbitKeys.messages(conversationId) });
       }
-      qc.invalidateQueries({ queryKey: orbitKeys.conversations() });
+
+      const convList = qc.getQueryData<Conversation[]>(orbitKeys.conversations());
+      const hasConv = convList?.some((c) => c.id === conversationId);
+      if (hasConv && convList) {
+        const next = convList.map((c) =>
+          c.id === conversationId
+            ? {
+                ...c,
+                last_message: serverMessage,
+                updated_at: serverMessage.created_at,
+                unread_count: 0,
+              }
+            : c
+        );
+        next.sort(
+          (a, b) =>
+            new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+        );
+        qc.setQueryData(orbitKeys.conversations(), next);
+      } else {
+        void qc.invalidateQueries({ queryKey: orbitKeys.conversations() });
+      }
     },
   });
 }
@@ -277,6 +297,69 @@ export function useMarkReadMutation() {
     onSuccess: (_, conversationId) => {
       qc.invalidateQueries({ queryKey: orbitKeys.conversations() });
       qc.invalidateQueries({ queryKey: orbitKeys.conversation(conversationId) });
+    },
+  });
+}
+
+export function useClearConversationMutation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (conversationId: string) => chatApi.clearConversation(conversationId),
+    onSuccess: (_, conversationId) => {
+      qc.setQueryData<Message[]>(orbitKeys.messages(conversationId), []);
+      qc.invalidateQueries({ queryKey: orbitKeys.conversation(conversationId) });
+      qc.invalidateQueries({ queryKey: orbitKeys.conversations() });
+    },
+  });
+}
+
+export function useDeleteMessageMutation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ messageId }: { messageId: string; conversationId: string }) =>
+      chatApi.deleteMessage(messageId),
+    onMutate: async ({ messageId, conversationId }) => {
+      await qc.cancelQueries({ queryKey: orbitKeys.messages(conversationId) });
+      const previous = qc.getQueryData<Message[]>(orbitKeys.messages(conversationId));
+      qc.setQueryData<Message[]>(orbitKeys.messages(conversationId), (old) =>
+        (old ?? []).filter((m) => m.id !== messageId)
+      );
+      return { previous, conversationId };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous !== undefined) {
+        qc.setQueryData(orbitKeys.messages(ctx.conversationId), ctx.previous);
+      }
+    },
+    onSuccess: (_data, { conversationId }) => {
+      qc.invalidateQueries({ queryKey: orbitKeys.conversation(conversationId) });
+      qc.invalidateQueries({ queryKey: orbitKeys.conversations() });
+    },
+  });
+}
+
+export function useBlockConversationMutation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (conversationId: string) => chatApi.blockConversationUser(conversationId),
+    onSuccess: (_, conversationId) => {
+      qc.invalidateQueries({ queryKey: orbitKeys.conversation(conversationId) });
+      qc.invalidateQueries({ queryKey: orbitKeys.conversations() });
+      qc.invalidateQueries({ queryKey: orbitKeys.matches() });
+      qc.invalidateQueries({ queryKey: orbitKeys.likesReceived() });
+    },
+  });
+}
+
+export function useUnblockConversationMutation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (conversationId: string) => chatApi.unblockConversationUser(conversationId),
+    onSuccess: (_, conversationId) => {
+      qc.invalidateQueries({ queryKey: orbitKeys.conversation(conversationId) });
+      qc.invalidateQueries({ queryKey: orbitKeys.conversations() });
+      qc.invalidateQueries({ queryKey: orbitKeys.matches() });
+      qc.invalidateQueries({ queryKey: orbitKeys.likesReceived() });
     },
   });
 }

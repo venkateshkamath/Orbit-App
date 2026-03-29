@@ -6,12 +6,12 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "mindlink",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0A0A0F"
+      "backgroundColor": "#08061A"
     },
     "ios": {
       "supportsTablet": true,
@@ -32,7 +32,7 @@
       "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#0A0A0F"
+        "backgroundColor": "#08061A"
       },
       "edgeToEdgeEnabled": true,
       "permissions": [
@@ -74,7 +74,7 @@
         "expo-notifications",
         {
           "icon": "./assets/images/icon.png",
-          "color": "#6D5AE6",
+          "color": "#6C5CE7",
           "defaultChannel": "orbit-default",
           "sounds": []
         }

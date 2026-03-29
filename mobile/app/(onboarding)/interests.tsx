@@ -2,7 +2,7 @@
  * Interests Selection Screen - Onboarding
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,13 +13,15 @@ import {
   Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors, FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
+import { FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
+import { useOrbitTheme } from '../../src/theme';
 import { InterestTag, GradientButton } from '../../src/components';
 import { useAuthStore } from '../../src/stores';
 import { useInterestsQuery } from '../../src/hooks/useOrbitApi';
 import { Interest } from '../../src/types';
 
 export default function InterestsScreen() {
+  const { colors } = useOrbitTheme();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -74,10 +76,91 @@ export default function InterestsScreen() {
     mind: '🧠 Mind & Learning',
   };
 
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        container: {
+          flex: 1,
+        },
+        loadingContainer: {
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: colors.background.primary,
+        },
+        safeArea: {
+          flex: 1,
+        },
+        header: {
+          paddingHorizontal: Spacing.lg,
+          paddingTop: Spacing.xl,
+          paddingBottom: Spacing.lg,
+        },
+        title: {
+          fontSize: FontSizes.xxxl,
+          fontWeight: FontWeights.bold,
+          color: colors.text.primary,
+          marginBottom: Spacing.sm,
+        },
+        subtitle: {
+          fontSize: FontSizes.md,
+          color: colors.text.secondary,
+          lineHeight: 24,
+          marginBottom: Spacing.lg,
+        },
+        progressContainer: {
+          marginTop: Spacing.sm,
+        },
+        progressBar: {
+          height: 6,
+          backgroundColor: colors.background.tertiary,
+          borderRadius: BorderRadius.full,
+          overflow: 'hidden',
+        },
+        progressFill: {
+          height: '100%',
+          borderRadius: BorderRadius.full,
+        },
+        progressText: {
+          fontSize: FontSizes.sm,
+          color: colors.text.tertiary,
+          marginTop: Spacing.sm,
+        },
+        scrollView: {
+          flex: 1,
+        },
+        scrollContent: {
+          paddingHorizontal: Spacing.lg,
+          paddingBottom: Spacing.xl,
+        },
+        categoryContainer: {
+          marginBottom: Spacing.lg,
+        },
+        categoryTitle: {
+          fontSize: FontSizes.lg,
+          fontWeight: FontWeights.semibold,
+          color: colors.text.primary,
+          marginBottom: Spacing.md,
+        },
+        interestsGrid: {
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+        },
+        footer: {
+          paddingHorizontal: Spacing.lg,
+          paddingVertical: Spacing.lg,
+          borderTopWidth: 1,
+          borderTopColor: colors.border,
+          backgroundColor: colors.background.primary,
+        },
+      }),
+    [colors]
+  );
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.primary.default} />
+        <ActivityIndicator size="large" color={colors.primary.default} />
       </View>
     );
   }
@@ -85,7 +168,7 @@ export default function InterestsScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={[Colors.background.primary, Colors.background.secondary]}
+        colors={[colors.background.primary, colors.background.secondary]}
         style={StyleSheet.absoluteFillObject}
       />
 
@@ -99,7 +182,7 @@ export default function InterestsScreen() {
           <View style={styles.progressContainer}>
             <View style={styles.progressBar}>
               <LinearGradient
-                colors={[Colors.primary.start, Colors.primary.end]}
+                colors={[colors.primary.start, colors.primary.end]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={[
@@ -155,80 +238,3 @@ export default function InterestsScreen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: Colors.background.primary,
-  },
-  safeArea: {
-    flex: 1,
-  },
-  header: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.xl,
-    paddingBottom: Spacing.lg,
-  },
-  title: {
-    fontSize: FontSizes.xxxl,
-    fontWeight: FontWeights.bold,
-    color: Colors.text.primary,
-    marginBottom: Spacing.sm,
-  },
-  subtitle: {
-    fontSize: FontSizes.md,
-    color: Colors.text.secondary,
-    lineHeight: 24,
-    marginBottom: Spacing.lg,
-  },
-  progressContainer: {
-    marginTop: Spacing.sm,
-  },
-  progressBar: {
-    height: 6,
-    backgroundColor: Colors.background.tertiary,
-    borderRadius: BorderRadius.full,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: BorderRadius.full,
-  },
-  progressText: {
-    fontSize: FontSizes.sm,
-    color: Colors.text.tertiary,
-    marginTop: Spacing.sm,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.xl,
-  },
-  categoryContainer: {
-    marginBottom: Spacing.lg,
-  },
-  categoryTitle: {
-    fontSize: FontSizes.lg,
-    fontWeight: FontWeights.semibold,
-    color: Colors.text.primary,
-    marginBottom: Spacing.md,
-  },
-  interestsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  footer: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    backgroundColor: Colors.background.primary,
-  },
-});

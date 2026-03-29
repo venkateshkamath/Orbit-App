@@ -1,6 +1,9 @@
 /**
- * Subscribes to chat WebSocket, syncs TanStack Query, and shows local notifications
- * when a message arrives while the user is not viewing that conversation.
+ * Subscribes to chat WebSocket, syncs TanStack Query caches for:
+ *   - new_message: append message to thread
+ *   - message_deleted: remove message from thread
+ *   - conversation_cleared: empty the thread
+ * Also shows local notifications for incoming messages.
  */
 
 import { useEffect, useRef } from 'react';
@@ -14,8 +17,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../stores';
 import { orbitKeys } from '../hooks/orbitKeys';
 import { API_BASE_URL, WS_BASE_URL } from '../api/client';
-import { subscribeChatNewMessage, startChatRealtime, stopChatRealtime } from '../lib/chatRealtime';
-import type { ChatNewMessagePayload } from '../lib/chatRealtime';
+import { subscribeChatEvents, startChatRealtime, stopChatRealtime } from '../lib/chatRealtime';
+import type { ChatRealtimeEvent } from '../lib/chatRealtime';
+import { applyRealtimeChatMessage } from '../lib/applyRealtimeChatMessage';
+import type { Message, Conversation } from '../types';
 
 function isViewingConversationPath(pathname: string, conversationId: string): boolean {
   const p = pathname.replace(/\/$/, '') || '/';
@@ -26,9 +31,11 @@ export function ChatRealtimeBridge() {
   const qc = useQueryClient();
   const pathname = usePathname();
   const router = useRouter();
-  const { isAuthenticated, isOnboardingComplete } = useAuthStore();
+  const { isAuthenticated, isOnboardingComplete, user } = useAuthStore();
   const pathnameRef = useRef(pathname);
+  const userIdRef = useRef<string | undefined>(undefined);
   pathnameRef.current = pathname;
+  userIdRef.current = user?.id;
 
   useEffect(() => {
     if (!isAuthenticated || !isOnboardingComplete || Platform.OS === 'web') {
@@ -45,24 +52,60 @@ export function ChatRealtimeBridge() {
   }, [isAuthenticated, isOnboardingComplete]);
 
   useEffect(() => {
-    return subscribeChatNewMessage((payload: ChatNewMessagePayload) => {
-      const conversationId = String(payload.conversation_id);
-      qc.invalidateQueries({ queryKey: orbitKeys.messages(conversationId) });
-      qc.invalidateQueries({ queryKey: orbitKeys.conversations() });
-      qc.invalidateQueries({ queryKey: orbitKeys.conversation(conversationId) });
-      qc.invalidateQueries({ queryKey: orbitKeys.notifications() });
+    return subscribeChatEvents((event: ChatRealtimeEvent) => {
+      if (event.type === 'new_message') {
+        const conversationId = String(event.conversation_id);
+        const onThisChat = isViewingConversationPath(pathnameRef.current, conversationId);
+        const selfId = userIdRef.current;
+        const isOwnEcho =
+          Boolean(selfId) && String(event.sender_id) === String(selfId);
 
-      const onThisChat = isViewingConversationPath(pathnameRef.current, conversationId);
-      if (onThisChat) return;
+        if (event.message) {
+          applyRealtimeChatMessage(qc, conversationId, event.message, onThisChat);
+        } else if (!(onThisChat && isOwnEcho)) {
+          qc.invalidateQueries({ queryKey: orbitKeys.messages(conversationId) });
+          qc.invalidateQueries({ queryKey: orbitKeys.conversation(conversationId) });
+          void qc.invalidateQueries({ queryKey: orbitKeys.conversations() });
+        }
 
-      const title = payload.sender_username?.trim() || 'New message';
-      const body = payload.preview?.trim() || 'Sent you a message';
+        qc.invalidateQueries({ queryKey: orbitKeys.notifications() });
 
-      void tryScheduleLocalNotification({
-        title,
-        body,
-        data: { conversationId, type: 'chat_message' },
-      });
+        if (onThisChat) return;
+
+        const title = event.sender_username?.trim() || 'New message';
+        const body = event.preview?.trim() || 'Sent you a message';
+
+        void tryScheduleLocalNotification({
+          title,
+          body,
+          data: { conversationId, type: 'chat_message' },
+        });
+        return;
+      }
+
+      if (event.type === 'message_deleted') {
+        const conversationId = String(event.conversation_id);
+        const messageId = String(event.message_id);
+
+        qc.setQueryData<Message[]>(orbitKeys.messages(conversationId), (old) => {
+          if (!old) return old;
+          return old.filter((m) => m.id !== messageId);
+        });
+
+        qc.invalidateQueries({ queryKey: orbitKeys.conversation(conversationId) });
+        qc.invalidateQueries({ queryKey: orbitKeys.conversations() });
+        return;
+      }
+
+      if (event.type === 'conversation_cleared') {
+        const conversationId = String(event.conversation_id);
+
+        qc.setQueryData<Message[]>(orbitKeys.messages(conversationId), []);
+
+        qc.invalidateQueries({ queryKey: orbitKeys.conversation(conversationId) });
+        qc.invalidateQueries({ queryKey: orbitKeys.conversations() });
+        return;
+      }
     });
   }, [qc]);
 

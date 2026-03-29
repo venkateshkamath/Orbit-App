@@ -1,9 +1,11 @@
 /**
- * WebSocket client for chat `new_message` events (backend /ws?token=...).
+ * WebSocket client for chat events (backend /ws?token=...).
+ * Handles: new_message, message_deleted, conversation_cleared.
  */
 
 import { AppState, type AppStateStatus, Platform } from 'react-native';
 import { WS_BASE_URL, getStoredAccessToken } from '../api/client';
+import type { Message } from '../types';
 
 export type ChatNewMessagePayload = {
   type: 'new_message';
@@ -12,18 +14,44 @@ export type ChatNewMessagePayload = {
   sender_id: string;
   sender_username?: string;
   preview: string;
+  message?: Message;
 };
 
-type Listener = (payload: ChatNewMessagePayload) => void;
+export type ChatMessageDeletedPayload = {
+  type: 'message_deleted';
+  conversation_id: string;
+  message_id: string;
+};
+
+export type ChatConversationClearedPayload = {
+  type: 'conversation_cleared';
+  conversation_id: string;
+};
+
+export type ChatRealtimeEvent =
+  | ChatNewMessagePayload
+  | ChatMessageDeletedPayload
+  | ChatConversationClearedPayload;
+
+type Listener = (payload: ChatRealtimeEvent) => void;
 
 const listeners = new Set<Listener>();
 
-export function subscribeChatNewMessage(listener: Listener): () => void {
+export function subscribeChatEvents(listener: Listener): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
 }
 
-function emit(payload: ChatNewMessagePayload) {
+/** @deprecated Use subscribeChatEvents instead */
+export function subscribeChatNewMessage(listener: (p: ChatNewMessagePayload) => void): () => void {
+  const wrapper: Listener = (p) => {
+    if (p.type === 'new_message') listener(p);
+  };
+  listeners.add(wrapper);
+  return () => listeners.delete(wrapper);
+}
+
+function emit(payload: ChatRealtimeEvent) {
   listeners.forEach((fn) => {
     try {
       fn(payload);
@@ -50,6 +78,8 @@ function buildWsUrl(token: string): string {
   const sep = base.includes('?') ? '&' : '?';
   return `${base}${sep}token=${encodeURIComponent(token)}`;
 }
+
+const HANDLED_TYPES = new Set(['new_message', 'message_deleted', 'conversation_cleared']);
 
 function connectOnce() {
   if (Platform.OS === 'web') return;
@@ -87,12 +117,12 @@ function connectOnce() {
 
     socket.onmessage = (event) => {
       try {
-        const data = JSON.parse(String(event.data)) as ChatNewMessagePayload;
-        if (data?.type === 'new_message' && data.conversation_id) {
+        const data = JSON.parse(String(event.data)) as ChatRealtimeEvent;
+        if (data?.type && HANDLED_TYPES.has(data.type) && 'conversation_id' in data && data.conversation_id) {
           emit({
             ...data,
             conversation_id: String(data.conversation_id),
-          });
+          } as ChatRealtimeEvent);
         }
       } catch {
         /* ignore */
@@ -128,7 +158,6 @@ function scheduleReconnect() {
   reconnectTimer = setTimeout(() => connectOnce(), 2500);
 }
 
-/** Start socket when authenticated; no-op on web. */
 export function startChatRealtime() {
   if (Platform.OS === 'web') return;
 

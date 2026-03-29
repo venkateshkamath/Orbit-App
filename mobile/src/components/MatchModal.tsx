@@ -2,7 +2,7 @@
  * MatchModal - Celebration modal for matches
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -20,7 +20,8 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, BorderRadius, FontSizes, FontWeights, Spacing, Shadows } from '../../constants/Colors';
+import { BorderRadius, FontSizes, FontWeights, Spacing } from '../../constants/Colors';
+import { useOrbitTheme } from '../theme';
 import { PublicUser } from '../types';
 import Avatar from './Avatar';
 import GradientButton from './GradientButton';
@@ -40,6 +41,84 @@ export const MatchModal: React.FC<MatchModalProps> = ({
   onClose,
   onMessage,
 }) => {
+  const { colors, shadows } = useOrbitTheme();
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        overlay: {
+          flex: 1,
+          backgroundColor: colors.overlay,
+          justifyContent: 'center',
+          alignItems: 'center',
+        },
+        container: {
+          width: SCREEN_WIDTH - Spacing.xl * 2,
+          borderRadius: BorderRadius.xl,
+          overflow: 'hidden',
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: colors.border,
+        },
+        sheet: {
+          padding: Spacing.xl,
+          alignItems: 'center',
+          backgroundColor: colors.background.card,
+        },
+        closeButton: {
+          position: 'absolute',
+          top: Spacing.md,
+          right: Spacing.md,
+          padding: Spacing.xs,
+        },
+        heartsContainer: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginTop: Spacing.xl,
+          marginBottom: Spacing.lg,
+        },
+        heartIcon: {
+          marginHorizontal: -Spacing.md,
+          zIndex: 1,
+        },
+        heartCircle: {
+          width: 52,
+          height: 52,
+          borderRadius: 26,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: colors.primary.default,
+        },
+        title: {
+          fontSize: FontSizes.xxl,
+          fontWeight: FontWeights.bold,
+          color: colors.text.primary,
+          marginBottom: Spacing.sm,
+          textAlign: 'center',
+        },
+        subtitle: {
+          fontSize: FontSizes.md,
+          color: colors.text.secondary,
+          textAlign: 'center',
+          marginBottom: Spacing.xl,
+        },
+        actions: {
+          width: '100%',
+        },
+        messageButton: {
+          marginBottom: Spacing.md,
+        },
+        keepBrowsingButton: {
+          padding: Spacing.md,
+          alignItems: 'center',
+        },
+        keepBrowsingText: {
+          color: colors.text.secondary,
+          fontSize: FontSizes.md,
+        },
+      }),
+    [colors, shadows]
+  );
+
   const scale = useSharedValue(0);
   const heartScale = useSharedValue(0);
   const avatarScale1 = useSharedValue(0);
@@ -92,7 +171,7 @@ export const MatchModal: React.FC<MatchModalProps> = ({
         <Animated.View style={[styles.container, containerStyle]}>
           <View style={styles.sheet}>
             <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-              <Ionicons name="close" size={24} color={Colors.text.secondary} />
+              <Ionicons name="close" size={24} color={colors.text.secondary} />
             </TouchableOpacity>
 
             <View style={styles.heartsContainer}>
@@ -102,7 +181,7 @@ export const MatchModal: React.FC<MatchModalProps> = ({
 
               <Animated.View style={[styles.heartIcon, heartStyle]}>
                 <View style={styles.heartCircle}>
-                  <Ionicons name="heart" size={28} color={Colors.text.primary} />
+                  <Ionicons name="heart" size={28} color="#FAFAFA" />
                 </View>
               </Animated.View>
 
@@ -133,79 +212,5 @@ export const MatchModal: React.FC<MatchModalProps> = ({
     </Modal>
   );
 };
-
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: Colors.overlay,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  container: {
-    width: SCREEN_WIDTH - Spacing.xl * 2,
-    borderRadius: BorderRadius.xl,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: Colors.border,
-    ...Shadows.lg,
-  },
-  sheet: {
-    padding: Spacing.xl,
-    alignItems: 'center',
-    backgroundColor: Colors.background.card,
-  },
-  closeButton: {
-    position: 'absolute',
-    top: Spacing.md,
-    right: Spacing.md,
-    padding: Spacing.xs,
-  },
-  heartsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: Spacing.xl,
-    marginBottom: Spacing.lg,
-  },
-  heartIcon: {
-    marginHorizontal: -Spacing.md,
-    zIndex: 1,
-  },
-  heartCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.primary.default,
-  },
-  title: {
-    fontSize: FontSizes.xxl,
-    fontWeight: FontWeights.bold,
-    color: Colors.text.primary,
-    marginBottom: Spacing.sm,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: FontSizes.md,
-    color: Colors.text.secondary,
-    textAlign: 'center',
-    marginBottom: Spacing.xl,
-  },
-  actions: {
-    width: '100%',
-  },
-  messageButton: {
-    marginBottom: Spacing.md,
-  },
-  keepBrowsingButton: {
-    padding: Spacing.md,
-    alignItems: 'center',
-  },
-  keepBrowsingText: {
-    color: Colors.text.secondary,
-    fontSize: FontSizes.md,
-  },
-});
 
 export default MatchModal;

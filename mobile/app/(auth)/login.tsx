@@ -2,24 +2,25 @@
  * Sign in — email, then email OTP
  */
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { BackHandler } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
+import { FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
+import { useOrbitTheme } from '../../src/theme';
 import { Input, GradientButton } from '../../src/components';
 import { useAuthStore } from '../../src/stores';
 import { leaveAuthScreen } from '../../src/utils/authNavigation';
@@ -38,6 +39,8 @@ export default function LoginScreen() {
   const [devHint, setDevHint] = useState<string | null>(null);
 
   const { requestLoginOtp, verifyLoginOtp } = useAuthStore();
+
+  const { colors, resolvedScheme } = useOrbitTheme();
 
   useEffect(() => {
     if (resendIn <= 0) return;
@@ -124,9 +127,142 @@ export default function LoginScreen() {
     }
   };
 
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        container: {
+          flex: 1,
+          backgroundColor: colors.background.primary,
+        },
+        safeArea: {
+          flex: 1,
+        },
+        keyboardView: {
+          flex: 1,
+        },
+        content: {
+          flex: 1,
+          paddingHorizontal: Spacing.lg,
+          paddingBottom: Spacing.lg,
+        },
+        backButton: {
+          width: 40,
+          height: 40,
+          borderRadius: 20,
+          backgroundColor: colors.background.tertiary,
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginTop: Platform.OS === 'android' ? Spacing.sm : Spacing.md,
+          alignSelf: 'flex-start',
+        },
+        header: {
+          marginTop: Spacing.xl,
+          marginBottom: Spacing.lg,
+        },
+        title: {
+          fontSize: 32,
+          fontWeight: '700',
+          color: colors.text.primary,
+          marginBottom: Spacing.xs,
+          letterSpacing: -0.5,
+        },
+        subtitle: {
+          fontSize: FontSizes.md,
+          color: colors.text.secondary,
+          lineHeight: 22,
+        },
+        emailEmphasis: {
+          color: colors.text.accent,
+          fontWeight: FontWeights.semibold,
+        },
+        devHint: {
+          fontSize: FontSizes.sm,
+          color: colors.secondary.default,
+          marginBottom: Spacing.md,
+          padding: Spacing.sm,
+          backgroundColor: colors.background.card,
+          borderRadius: BorderRadius.md,
+          borderWidth: 1,
+          borderColor: colors.border,
+        },
+        errorContainer: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          backgroundColor: 'rgba(249, 115, 115, 0.12)',
+          paddingHorizontal: Spacing.md,
+          paddingVertical: Spacing.sm,
+          borderRadius: BorderRadius.md,
+          marginBottom: Spacing.md,
+          gap: Spacing.sm,
+          borderWidth: 1,
+          borderColor: 'rgba(249, 115, 115, 0.35)',
+        },
+        errorText: {
+          flex: 1,
+          color: colors.error,
+          fontSize: FontSizes.sm,
+          lineHeight: 18,
+        },
+        form: {
+          marginBottom: Spacing.md,
+        },
+        primaryBtn: {
+          marginTop: Spacing.lg,
+        },
+        otpLabel: {
+          fontSize: FontSizes.sm,
+          fontWeight: FontWeights.semibold,
+          color: colors.text.secondary,
+          marginBottom: Spacing.sm,
+        },
+        otpInput: {
+          fontSize: 32,
+          fontWeight: '700',
+          letterSpacing: 8,
+          color: colors.text.primary,
+          backgroundColor: colors.background.card,
+          borderWidth: 1,
+          borderColor: colors.border,
+          borderRadius: BorderRadius.lg,
+          paddingVertical: Spacing.md,
+          paddingHorizontal: Spacing.lg,
+          marginBottom: Spacing.lg,
+          textAlign: 'center',
+        },
+        resendBtn: {
+          alignItems: 'center',
+          paddingVertical: Spacing.md,
+        },
+        resendDisabled: {
+          opacity: 0.5,
+        },
+        resendText: {
+          color: colors.primary.light,
+          fontSize: FontSizes.md,
+          fontWeight: FontWeights.semibold,
+        },
+        footer: {
+          flexDirection: 'row',
+          justifyContent: 'center',
+          marginTop: 'auto',
+          paddingTop: Spacing.xl,
+        },
+        footerMuted: {
+          color: colors.text.secondary,
+          fontSize: FontSizes.md,
+        },
+        footerLink: {
+          color: colors.primary.default,
+          fontSize: FontSizes.md,
+          fontWeight: FontWeights.semibold,
+        },
+      }),
+    [colors]
+  );
+
   return (
     <View style={styles.container}>
-      <StatusBar style="light" />
+      <StatusBar style={resolvedScheme === 'dark' ? 'light' : 'dark'} />
 
       <SafeAreaView style={styles.safeArea}>
         <KeyboardAvoidingView
@@ -135,7 +271,7 @@ export default function LoginScreen() {
         >
           <View style={styles.content}>
             <TouchableOpacity onPress={goBack} style={styles.backButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Ionicons name="arrow-back" size={24} color={Colors.text.primary} />
+              <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
             </TouchableOpacity>
 
             {step === 'email' ? (
@@ -147,7 +283,7 @@ export default function LoginScreen() {
 
                 {errorMessage ? (
                   <View style={styles.errorContainer}>
-                    <Ionicons name="alert-circle" size={20} color={Colors.error} />
+                    <Ionicons name="alert-circle" size={20} color={colors.error} />
                     <Text style={styles.errorText}>{errorMessage}</Text>
                   </View>
                 ) : null}
@@ -189,7 +325,7 @@ export default function LoginScreen() {
 
                 {errorMessage ? (
                   <View style={styles.errorContainer}>
-                    <Ionicons name="alert-circle" size={20} color={Colors.error} />
+                    <Ionicons name="alert-circle" size={20} color={colors.error} />
                     <Text style={styles.errorText}>{errorMessage}</Text>
                   </View>
                 ) : null}
@@ -205,7 +341,7 @@ export default function LoginScreen() {
                   keyboardType="number-pad"
                   maxLength={6}
                   placeholder="000000"
-                  placeholderTextColor={Colors.text.muted}
+                  placeholderTextColor={colors.text.muted}
                 />
 
                 <GradientButton
@@ -222,7 +358,7 @@ export default function LoginScreen() {
                   disabled={resendIn > 0 || sending}
                 >
                   {sending ? (
-                    <ActivityIndicator color={Colors.primary.light} />
+                    <ActivityIndicator color={colors.primary.light} />
                   ) : (
                     <Text style={styles.resendText}>
                       {resendIn > 0 ? `Resend code in ${resendIn}s` : 'Resend code'}
@@ -244,132 +380,3 @@ export default function LoginScreen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background.primary,
-  },
-  safeArea: {
-    flex: 1,
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.lg,
-  },
-  backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: BorderRadius.md,
-    backgroundColor: Colors.background.tertiary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: Spacing.md,
-    alignSelf: 'flex-start',
-  },
-  header: {
-    marginTop: Spacing.xl,
-    marginBottom: Spacing.lg,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: Colors.text.primary,
-    marginBottom: Spacing.xs,
-    letterSpacing: -0.5,
-  },
-  subtitle: {
-    fontSize: FontSizes.md,
-    color: Colors.text.secondary,
-    lineHeight: 22,
-  },
-  emailEmphasis: {
-    color: Colors.text.accent,
-    fontWeight: FontWeights.semibold,
-  },
-  devHint: {
-    fontSize: FontSizes.sm,
-    color: Colors.secondary.default,
-    marginBottom: Spacing.md,
-    padding: Spacing.sm,
-    backgroundColor: Colors.background.card,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  errorContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(249, 115, 115, 0.12)',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.md,
-    marginBottom: Spacing.md,
-    gap: Spacing.sm,
-    borderWidth: 1,
-    borderColor: 'rgba(249, 115, 115, 0.35)',
-  },
-  errorText: {
-    flex: 1,
-    color: Colors.error,
-    fontSize: FontSizes.sm,
-    lineHeight: 18,
-  },
-  form: {
-    marginBottom: Spacing.md,
-  },
-  primaryBtn: {
-    marginTop: Spacing.lg,
-  },
-  otpLabel: {
-    fontSize: FontSizes.sm,
-    fontWeight: FontWeights.semibold,
-    color: Colors.text.secondary,
-    marginBottom: Spacing.sm,
-  },
-  otpInput: {
-    fontSize: 32,
-    fontWeight: '700',
-    letterSpacing: 8,
-    color: Colors.text.primary,
-    backgroundColor: Colors.background.card,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: BorderRadius.lg,
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    marginBottom: Spacing.lg,
-    textAlign: 'center',
-  },
-  resendBtn: {
-    alignItems: 'center',
-    paddingVertical: Spacing.md,
-  },
-  resendDisabled: {
-    opacity: 0.5,
-  },
-  resendText: {
-    color: Colors.primary.light,
-    fontSize: FontSizes.md,
-    fontWeight: FontWeights.semibold,
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 'auto',
-    paddingTop: Spacing.xl,
-  },
-  footerMuted: {
-    color: Colors.text.secondary,
-    fontSize: FontSizes.md,
-  },
-  footerLink: {
-    color: Colors.primary.default,
-    fontSize: FontSizes.md,
-    fontWeight: FontWeights.semibold,
-  },
-});

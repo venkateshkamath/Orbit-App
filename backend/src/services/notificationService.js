@@ -1,5 +1,24 @@
 const { Notification, User } = require('../models');
 
+let expoClient = null;
+
+function getExpoClient() {
+  if (expoClient) return expoClient;
+  // eslint-disable-next-line global-require, import/no-extraneous-dependencies
+  const { Expo } = require('expo-server-sdk');
+  expoClient = new Expo({
+    accessToken: process.env.EXPO_ACCESS_TOKEN,
+  });
+  return expoClient;
+}
+
+function isValidExpoToken(token) {
+  if (!token) return false;
+  // eslint-disable-next-line global-require, import/no-extraneous-dependencies
+  const { Expo } = require('expo-server-sdk');
+  return Expo.isExpoPushToken(token);
+}
+
 /**
  * @param {import('mongoose').Types.ObjectId} recipientId
  * @param {import('mongoose').Document} actorUser
@@ -19,18 +38,15 @@ async function notifyOrbitJoinRecipient(recipientId, actorUser) {
   }
 
   try {
-    // eslint-disable-next-line global-require, import/no-extraneous-dependencies
-    const { Expo } = require('expo-server-sdk');
-    const expo = new Expo({
-      accessToken: process.env.EXPO_ACCESS_TOKEN,
-    });
-    if (!Expo.isExpoPushToken(recipient.expo_push_token)) {
+    if (!isValidExpoToken(recipient.expo_push_token)) {
       return;
     }
-    await expo.sendPushNotificationsAsync([
+    await getExpoClient().sendPushNotificationsAsync([
       {
         to: recipient.expo_push_token,
         sound: 'default',
+        priority: 'high',
+        channelId: 'orbit-default',
         title: 'Join orbit request',
         body: `${actorUser.username} wants to join your orbit.`,
         data: { type: 'orbit_join', actor_id: String(actorUser._id) },
@@ -65,18 +81,15 @@ async function notifyChatMessageRecipient(recipientId, senderUser, conversationI
   }
 
   try {
-    // eslint-disable-next-line global-require, import/no-extraneous-dependencies
-    const { Expo } = require('expo-server-sdk');
-    const expo = new Expo({
-      accessToken: process.env.EXPO_ACCESS_TOKEN,
-    });
-    if (!Expo.isExpoPushToken(recipient.expo_push_token)) {
+    if (!isValidExpoToken(recipient.expo_push_token)) {
       return;
     }
-    await expo.sendPushNotificationsAsync([
+    await getExpoClient().sendPushNotificationsAsync([
       {
         to: recipient.expo_push_token,
         sound: 'default',
+        priority: 'high',
+        channelId: 'orbit-default',
         title: senderUser.username || 'New message',
         body: preview || 'Sent you a message',
         data: {

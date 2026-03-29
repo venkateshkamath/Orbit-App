@@ -1,10 +1,11 @@
 /**
- * GlassCard - Glassmorphism styled card component
+ * GlassCard — simple elevated card surface
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
-import { Colors, BorderRadius, Spacing, Shadows } from '../../constants/Colors';
+import { BorderRadius, Spacing } from '../../constants/Colors';
+import { useOrbitTheme } from '../theme';
 
 interface GlassCardProps {
   children: React.ReactNode;
@@ -16,29 +17,29 @@ interface GlassCardProps {
 export const GlassCard: React.FC<GlassCardProps> = ({
   children,
   style,
-  intensity = 20,
+  intensity: _intensity,
   padding = Spacing.md,
 }) => {
+  const { colors, shadows } = useOrbitTheme();
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        container: {
+          borderRadius: BorderRadius.lg,
+          backgroundColor: colors.background.card,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: colors.border,
+          ...shadows.sm,
+        },
+      }),
+    [colors, shadows]
+  );
+
   return (
     <View style={[styles.container, { padding }, style]}>
-      <View style={styles.background} />
       {children}
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    borderRadius: BorderRadius.lg,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: Colors.border,
-    ...Shadows.sm,
-  },
-  background: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: Colors.glass.background,
-  },
-});
 
 export default GlassCard;

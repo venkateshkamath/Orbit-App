@@ -2,9 +2,10 @@
  * Avatar - User avatar component with online status indicator
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Image, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Colors, FontWeights } from '../../constants/Colors';
+import { FontWeights } from '../../constants/Colors';
+import { useOrbitTheme } from '../theme';
 
 interface AvatarProps {
   uri?: string | null;
@@ -23,8 +24,39 @@ export const Avatar: React.FC<AvatarProps> = ({
   isOnline = false,
   onPress,
 }) => {
+  const { colors } = useOrbitTheme();
   const initials = name.charAt(0).toUpperCase();
   const onlineSize = Math.max(size * 0.25, 10);
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        container: {
+          position: 'relative',
+        },
+        image: {
+          resizeMode: 'cover',
+        },
+        placeholder: {
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: colors.background.tertiary,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: colors.border,
+        },
+        initials: {
+          color: colors.text.primary,
+          fontWeight: FontWeights.bold,
+        },
+        onlineIndicator: {
+          position: 'absolute',
+          bottom: 0,
+          right: 0,
+          borderColor: colors.background.primary,
+        },
+      }),
+    [colors]
+  );
 
   const content = (
     <View style={[styles.container, { width: size, height: size }]}>
@@ -43,7 +75,7 @@ export const Avatar: React.FC<AvatarProps> = ({
           <Text style={[styles.initials, { fontSize: size * 0.4 }]}>{initials}</Text>
         </View>
       )}
-      
+
       {showOnline && (
         <View
           style={[
@@ -52,7 +84,7 @@ export const Avatar: React.FC<AvatarProps> = ({
               width: onlineSize,
               height: onlineSize,
               borderRadius: onlineSize / 2,
-              backgroundColor: isOnline ? Colors.online : Colors.offline,
+              backgroundColor: isOnline ? colors.online : colors.offline,
               borderWidth: onlineSize * 0.2,
             },
           ]}
@@ -71,31 +103,5 @@ export const Avatar: React.FC<AvatarProps> = ({
 
   return content;
 };
-
-const styles = StyleSheet.create({
-  container: {
-    position: 'relative',
-  },
-  image: {
-    resizeMode: 'cover',
-  },
-  placeholder: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.background.elevated,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  initials: {
-    color: Colors.text.primary,
-    fontWeight: FontWeights.bold,
-  },
-  onlineIndicator: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    borderColor: Colors.background.primary,
-  },
-});
 
 export default Avatar;

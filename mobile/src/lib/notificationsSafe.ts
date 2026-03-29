@@ -2,20 +2,49 @@
  * Safe wrappers around expo-notifications. No Expo account or EAS project is required:
  * remote push registration is skipped when unset / Expo Go / invalid id. Local notifications
  * for chat can still work with OS permission.
+ *
+ * expo-notifications must NOT be imported at module top level: Expo Go (SDK 53+) throws on
+ * Android when the package loads. We lazy-require after first use.
  */
 
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
-import * as Notifications from 'expo-notifications';
+import type { NotificationContentInput } from 'expo-notifications';
+
+type ExpoNotifications = typeof import('expo-notifications');
 
 /** Must match `defaultChannel` in app.json expo-notifications plugin (rebuild native app after change). */
 export const ORBIT_NOTIFICATION_CHANNEL_ID = 'orbit-default';
+
+let notificationsRef: ExpoNotifications | null | undefined;
+
+function getNotifications(): ExpoNotifications | null {
+  if (Platform.OS === 'web') return null;
+  if (notificationsRef === null) return null;
+  if (notificationsRef !== undefined) return notificationsRef;
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    notificationsRef = require('expo-notifications') as ExpoNotifications;
+    return notificationsRef;
+  } catch (e) {
+    notificationsRef = null;
+    if (__DEV__) {
+      console.warn(
+        '[notifications] expo-notifications unavailable (Expo Go SDK 53+ on Android, etc.):',
+        e
+      );
+    }
+    return null;
+  }
+}
 
 let handlerInstalled = false;
 let androidChannelReady = false;
 
 async function ensureAndroidDefaultChannel(): Promise<void> {
-  if (Platform.OS !== 'android' || androidChannelReady) return;
+  const Notifications = getNotifications();
+  if (!Notifications || Platform.OS !== 'android' || androidChannelReady) return;
   try {
     // Omit `sound` so native uses Settings.System.DEFAULT_NOTIFICATION_URI (see expo-notifications Android channel manager).
     await Notifications.setNotificationChannelAsync(ORBIT_NOTIFICATION_CHANNEL_ID, {
@@ -37,8 +66,10 @@ async function ensureAndroidDefaultChannel(): Promise<void> {
  * POST_NOTIFICATIONS was never requested and local chat alerts fail silently.
  */
 export async function prepareNotificationEnvironment(): Promise<void> {
-  if (Platform.OS === 'web') return;
+  if (Platform.OS === 'web' || !getNotifications()) return;
   await ensureAndroidDefaultChannel();
+  const Notifications = getNotifications();
+  if (!Notifications) return;
   try {
     const current = await Notifications.getPermissionsAsync();
     if (current.granted) return;
@@ -67,6 +98,8 @@ function isInvalidEasProjectId(id: unknown): boolean {
 /** Call once on app start (native only). */
 export function installNotificationHandlerSafe(): void {
   if (Platform.OS === 'web' || handlerInstalled) return;
+  const Notifications = getNotifications();
+  if (!Notifications) return;
   try {
     Notifications.setNotificationHandler({
       handleNotification: async () => ({
@@ -117,6 +150,9 @@ export async function tryRegisterExpoPushToken(
     return;
   }
 
+  const Notifications = getNotifications();
+  if (!Notifications) return;
+
   const projectId =
     Constants.expoConfig?.extra?.eas?.projectId ??
     (Constants as { easConfig?: { projectId?: string } }).easConfig?.projectId;
@@ -163,9 +199,11 @@ export async function tryRegisterExpoPushToken(
 
 /** Local notification for in-app chat alerts; no-op if permissions denied or API errors. */
 export async function tryScheduleLocalNotification(
-  content: Notifications.NotificationContentInput
+  content: NotificationContentInput
 ): Promise<void> {
   if (Platform.OS === 'web') return;
+  const Notifications = getNotifications();
+  if (!Notifications) return;
   try {
     await ensureAndroidDefaultChannel();
     const { status } = await Notifications.getPermissionsAsync();
@@ -177,7 +215,7 @@ export async function tryScheduleLocalNotification(
       if (next !== 'granted') return;
     }
 
-    const mergedContent: Notifications.NotificationContentInput =
+    const mergedContent: NotificationContentInput =
       Platform.OS === 'android'
         ? {
             ...content,
@@ -210,6 +248,10 @@ export function addNotificationResponseListenerSafe(
   callback: (data: Record<string, unknown> | undefined) => void
 ): { remove: () => void } {
   if (Platform.OS === 'web') {
+    return { remove: () => {} };
+  }
+  const Notifications = getNotifications();
+  if (!Notifications) {
     return { remove: () => {} };
   }
   try {

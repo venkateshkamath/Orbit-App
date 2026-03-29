@@ -3,6 +3,7 @@
  */
 
 import React, { useCallback, useMemo } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -16,16 +17,16 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
+import { FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
+import { useOrbitTheme } from '../../src/theme';
 import { ConversationItem, Avatar } from '../../src/components';
 import {
   useConversationsQuery,
   useMatchesQuery,
   useStartConversationMutation,
   useLikeUserMutation,
-  useMarkNotificationReadMutation,
 } from '../../src/hooks/useOrbitApi';
-import { useLikesReceivedForTab, useNotificationsForTab } from '../../src/hooks/useChatTabQueries';
+import { useLikesReceivedForTab } from '../../src/hooks/useChatTabQueries';
 import type { LikeReceivedItem } from '../../src/types';
 
 export default function ChatScreen() {
@@ -37,23 +38,158 @@ export default function ChatScreen() {
   } = useConversationsQuery();
   const { data: matches = [], refetch: refetchMatches } = useMatchesQuery();
   const { data: pendingOrbits = [], refetch: refetchLikes } = useLikesReceivedForTab();
-  const { data: notifPack, refetch: refetchNotifs } = useNotificationsForTab();
   const startConversationMut = useStartConversationMutation();
   const likeMut = useLikeUserMutation();
-  const markNotifRead = useMarkNotificationReadMutation();
+
+  const { colors } = useOrbitTheme();
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  safeArea: {
+    flex: 1,
+  },
+  header: {
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Platform.OS === 'android' ? Spacing.md : Spacing.md,
+    paddingBottom: Spacing.sm,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: colors.text.primary,
+    letterSpacing: -0.5,
+  },
+  listContent: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.xxl,
+  },
+  matchesSection: {
+    marginBottom: Spacing.md,
+  },
+  sectionTitle: {
+    fontSize: FontSizes.lg,
+    fontWeight: FontWeights.semibold,
+    color: colors.text.primary,
+    marginBottom: Spacing.md,
+    marginTop: Spacing.md,
+  },
+  messagesTitle: {
+    marginTop: Spacing.lg,
+  },
+  matchesList: {
+    paddingRight: Spacing.md,
+  },
+  matchItem: {
+    alignItems: 'center',
+    marginRight: Spacing.md,
+    width: 80,
+  },
+  matchAvatarContainer: {
+    position: 'relative',
+  },
+  newBadge: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: colors.secondary.default,
+    borderRadius: BorderRadius.sm,
+    paddingVertical: 2,
+    alignItems: 'center',
+  },
+  newBadgeText: {
+    color: '#08061A',
+    fontSize: 9,
+    fontWeight: FontWeights.bold,
+  },
+  matchName: {
+    fontSize: FontSizes.sm,
+    color: colors.text.secondary,
+    marginTop: Spacing.xs,
+    textAlign: 'center',
+  },
+  emptyMatches: {
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.md,
+    backgroundColor: colors.background.tertiary,
+    borderRadius: BorderRadius.lg,
+  },
+  emptyMatchesText: {
+    color: colors.text.tertiary,
+    fontSize: FontSizes.sm,
+    textAlign: 'center',
+  },
+  requestsList: {
+    paddingRight: Spacing.md,
+    paddingBottom: Spacing.sm,
+  },
+  requestItem: {
+    width: 100,
+    marginRight: Spacing.md,
+    alignItems: 'center',
+  },
+  requestName: {
+    fontSize: FontSizes.sm,
+    color: colors.text.secondary,
+    marginTop: Spacing.xs,
+    textAlign: 'center',
+    width: '100%',
+  },
+  acceptBtn: {
+    marginTop: Spacing.sm,
+    backgroundColor: colors.primary.default,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.full,
+  },
+  acceptBtnText: {
+    color: colors.text.primary,
+    fontSize: FontSizes.xs,
+    fontWeight: FontWeights.semibold,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 60,
+  },
+  emptyIcon: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: colors.primary.default + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.lg,
+  },
+  emptyTitle: {
+    fontSize: FontSizes.xl,
+    fontWeight: FontWeights.bold,
+    color: colors.text.primary,
+    marginBottom: Spacing.sm,
+  },
+  emptySubtitle: {
+    fontSize: FontSizes.md,
+    color: colors.text.secondary,
+    textAlign: 'center',
+  },
+      }),
+    [colors]
+  );
 
   const onRefresh = useCallback(async () => {
-    await Promise.all([
-      refetchConversations(),
-      refetchMatches(),
-      refetchLikes(),
-      refetchNotifs(),
-    ]);
-  }, [refetchConversations, refetchMatches, refetchLikes, refetchNotifs]);
+    await Promise.all([refetchConversations(), refetchMatches(), refetchLikes()]);
+  }, [refetchConversations, refetchMatches, refetchLikes]);
 
-  const notificationRows = useMemo(
-    () => (Array.isArray(notifPack?.results) ? notifPack!.results : []),
-    [notifPack?.results]
+  useFocusEffect(
+    useCallback(() => {
+      void refetchConversations();
+      void refetchMatches();
+      void refetchLikes();
+    }, [refetchConversations, refetchMatches, refetchLikes])
   );
 
   const conversationsWithOther = useMemo(
@@ -143,43 +279,6 @@ export default function ChatScreen() {
         </View>
       )}
 
-      {notificationRows.length > 0 && (
-        <>
-          <Text style={[styles.sectionTitle, styles.messagesTitle]}>Activity</Text>
-          <View style={styles.notifBlock}>
-            {notificationRows.slice(0, 8).map((n) => (
-              <TouchableOpacity
-                key={n.id}
-                style={[styles.notifRow, !n.read_at && styles.notifRowUnread]}
-                onPress={async () => {
-                  if (!n.read_at) {
-                    try {
-                      await markNotifRead.mutateAsync(n.id);
-                    } catch {
-                      /* ignore */
-                    }
-                  }
-                  const convId = n.payload?.conversation_id;
-                  if (typeof convId === 'string') {
-                    router.push(`/chat/${convId}`);
-                    return;
-                  }
-                  const actorId = n.payload?.actor_id;
-                  if (typeof actorId === 'string') {
-                    router.push(`/user/${actorId}`);
-                  }
-                }}
-              >
-                <Text style={styles.notifTitle}>{n.title}</Text>
-                <Text style={styles.notifBody} numberOfLines={2}>
-                  {n.body}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </>
-      )}
-
       <Text style={styles.sectionTitle}>New Matches</Text>
       {matches.length > 0 ? (
         <ScrollView
@@ -207,7 +306,7 @@ export default function ChatScreen() {
   const renderEmptyMessages = () => (
     <View style={styles.emptyContainer}>
       <View style={styles.emptyIcon}>
-        <Ionicons name="chatbubbles-outline" size={48} color={Colors.primary.default} />
+        <Ionicons name="chatbubbles-outline" size={48} color={colors.primary.default} />
       </View>
       <Text style={styles.emptyTitle}>No messages yet</Text>
       <Text style={styles.emptySubtitle}>
@@ -217,7 +316,7 @@ export default function ChatScreen() {
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: Colors.background.primary }]}>
+    <View style={[styles.container, { backgroundColor: colors.background.primary }]}>
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <View style={styles.header}>
           <Text style={styles.title}>Messages</Text>
@@ -241,8 +340,8 @@ export default function ChatScreen() {
             <RefreshControl
               refreshing={isRefetching}
               onRefresh={onRefresh}
-              tintColor={Colors.primary.default}
-              colors={[Colors.primary.default]}
+              tintColor={colors.primary.default}
+              colors={[colors.primary.default]}
             />
           }
         />
@@ -251,158 +350,3 @@ export default function ChatScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  safeArea: {
-    flex: 1,
-  },
-  header: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Platform.OS === 'android' ? Spacing.sm : Spacing.md,
-    paddingBottom: Spacing.sm,
-  },
-  title: {
-    fontSize: FontSizes.xxxl,
-    fontWeight: FontWeights.bold,
-    color: Colors.text.primary,
-  },
-  listContent: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.xxl,
-  },
-  matchesSection: {
-    marginBottom: Spacing.md,
-  },
-  sectionTitle: {
-    fontSize: FontSizes.lg,
-    fontWeight: FontWeights.semibold,
-    color: Colors.text.primary,
-    marginBottom: Spacing.md,
-    marginTop: Spacing.md,
-  },
-  messagesTitle: {
-    marginTop: Spacing.lg,
-  },
-  matchesList: {
-    paddingRight: Spacing.md,
-  },
-  matchItem: {
-    alignItems: 'center',
-    marginRight: Spacing.md,
-    width: 80,
-  },
-  matchAvatarContainer: {
-    position: 'relative',
-  },
-  newBadge: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: Colors.primary.default,
-    borderRadius: BorderRadius.sm,
-    paddingVertical: 2,
-    alignItems: 'center',
-  },
-  newBadgeText: {
-    color: Colors.text.primary,
-    fontSize: 9,
-    fontWeight: FontWeights.bold,
-  },
-  matchName: {
-    fontSize: FontSizes.sm,
-    color: Colors.text.secondary,
-    marginTop: Spacing.xs,
-    textAlign: 'center',
-  },
-  emptyMatches: {
-    paddingVertical: Spacing.lg,
-    paddingHorizontal: Spacing.md,
-    backgroundColor: Colors.background.tertiary,
-    borderRadius: BorderRadius.lg,
-  },
-  emptyMatchesText: {
-    color: Colors.text.tertiary,
-    fontSize: FontSizes.sm,
-    textAlign: 'center',
-  },
-  requestsList: {
-    paddingRight: Spacing.md,
-    paddingBottom: Spacing.sm,
-  },
-  requestItem: {
-    width: 100,
-    marginRight: Spacing.md,
-    alignItems: 'center',
-  },
-  requestName: {
-    fontSize: FontSizes.sm,
-    color: Colors.text.secondary,
-    marginTop: Spacing.xs,
-    textAlign: 'center',
-    width: '100%',
-  },
-  acceptBtn: {
-    marginTop: Spacing.sm,
-    backgroundColor: Colors.primary.default,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 6,
-    borderRadius: BorderRadius.full,
-  },
-  acceptBtnText: {
-    color: Colors.text.primary,
-    fontSize: FontSizes.xs,
-    fontWeight: FontWeights.semibold,
-  },
-  notifBlock: {
-    marginBottom: Spacing.md,
-    gap: Spacing.xs,
-  },
-  notifRow: {
-    backgroundColor: Colors.background.tertiary,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
-    marginBottom: Spacing.xs,
-  },
-  notifRowUnread: {
-    borderWidth: 1,
-    borderColor: Colors.primary.default + '55',
-  },
-  notifTitle: {
-    fontSize: FontSizes.sm,
-    fontWeight: FontWeights.semibold,
-    color: Colors.text.primary,
-  },
-  notifBody: {
-    marginTop: 4,
-    fontSize: FontSizes.xs,
-    color: Colors.text.secondary,
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 60,
-  },
-  emptyIcon: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: Colors.primary.default + '20',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.lg,
-  },
-  emptyTitle: {
-    fontSize: FontSizes.xl,
-    fontWeight: FontWeights.bold,
-    color: Colors.text.primary,
-    marginBottom: Spacing.sm,
-  },
-  emptySubtitle: {
-    fontSize: FontSizes.md,
-    color: Colors.text.secondary,
-    textAlign: 'center',
-  },
-});

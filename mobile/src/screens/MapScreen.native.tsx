@@ -1,13 +1,15 @@
 /**
  * Map Screen - Native Implementation
+ * Clean map styling (custom JSON on Google/Android, muted/dark on Apple Maps) + glass chrome.
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   ActivityIndicator,
   Platform,
 } from 'react-native';
@@ -16,9 +18,11 @@ import MapView, { Marker, Circle, PROVIDER_GOOGLE, type Region } from 'react-nat
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { Colors, FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
+import { FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
 import { useNearbyUsersQuery } from '../hooks/useOrbitApi';
 import { useAuthStore } from '../stores';
+import { useOrbitTheme } from '../theme';
+import { googleMapStyleDark, googleMapStyleLight } from '../theme/mapStyles';
 
 const DEFAULT_REGION: Region = {
   latitude: 37.78825,
@@ -26,6 +30,15 @@ const DEFAULT_REGION: Region = {
   latitudeDelta: 0.05,
   longitudeDelta: 0.05,
 };
+
+function hexToRgba(hex: string, alpha: number): string {
+  const h = hex.replace('#', '');
+  if (h.length !== 6) return `rgba(109, 90, 230, ${alpha})`;
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
 
 /** Stable pseudo-offset per user id (distance is meters from API). */
 function markerCoordinate(
@@ -53,25 +66,19 @@ function formatDistanceMeters(m: number) {
   return `${(m / 1000).toFixed(1)} km`;
 }
 
-function InitialMarker({ username }: { username: string }) {
-  const letter = (username?.trim()?.[0] || '?').toUpperCase();
-  return (
-    <View style={styles.markerLetterOuter} collapsable={false}>
-      <Text style={styles.markerLetterText}>{letter}</Text>
-    </View>
-  );
-}
-
 export type MapScreenProps = {
   variant?: 'discover' | 'map';
 };
 
 export default function MapScreen({ variant = 'discover' }: MapScreenProps) {
+  const { colors, shadows, resolvedScheme } = useOrbitTheme();
   const insets = useSafeAreaInsets();
   const mapRef = useRef<MapView>(null);
   const mapReadyRef = useRef(false);
   const [loading, setLoading] = useState(true);
-  const [userLocation, setUserLocation] = useState<{latitude: number, longitude: number} | null>(null);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(
+    null
+  );
   const [locationError, setLocationError] = useState<string | null>(null);
   const { user, updateLocation } = useAuthStore();
   const radius = user?.discovery_radius ?? 1000;
@@ -83,10 +90,59 @@ export default function MapScreen({ variant = 'discover' }: MapScreenProps) {
   );
   const nearbyUsers = nearbyQuery.data?.users ?? [];
 
-  /** Android: allow markers to repaint while images load, then turn off to avoid blank/glitched custom views. */
-  const [androidMarkersSettled, setAndroidMarkersSettled] = useState(
-    Platform.OS !== 'android'
+  const { refetch: refetchNearby } = nearbyQuery;
+
+  const isLight = resolvedScheme === 'light';
+  const customMapStyle = useMemo(
+    () => (isLight ? googleMapStyleLight : googleMapStyleDark),
+    [isLight]
   );
+
+  const radiusFill = useMemo(() => hexToRgba(colors.primary.default, 0.08), [colors.primary.default]);
+  const radiusStroke = useMemo(() => hexToRgba(colors.primary.default, 0.28), [colors.primary.default]);
+
+  /** Compact header + floating tab bar */
+  const mapPadding = useMemo(
+    () => ({
+      top: insets.top + 62,
+      right: 10,
+      left: 10,
+      bottom: Math.max(insets.bottom, 10) + 100,
+    }),
+    [insets.top, insets.bottom]
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (user?.latitude == null || user?.longitude == null) return;
+      void refetchNearby();
+    }, [user?.latitude, user?.longitude, refetchNearby])
+  );
+
+  const prevServerCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
+  const locationDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (user?.latitude == null || user?.longitude == null) return;
+    const lat = user.latitude;
+    const lng = user.longitude;
+    const prev = prevServerCoordsRef.current;
+    if (prev && prev.lat === lat && prev.lng === lng) return;
+    if (prev == null) {
+      prevServerCoordsRef.current = { lat, lng };
+      return;
+    }
+    if (locationDebounceRef.current) clearTimeout(locationDebounceRef.current);
+    locationDebounceRef.current = setTimeout(() => {
+      locationDebounceRef.current = null;
+      void refetchNearby();
+    }, 1500);
+    prevServerCoordsRef.current = { lat, lng };
+    return () => {
+      if (locationDebounceRef.current) clearTimeout(locationDebounceRef.current);
+    };
+  }, [user?.latitude, user?.longitude, refetchNearby]);
+
+  const [androidMarkersSettled, setAndroidMarkersSettled] = useState(Platform.OS !== 'android');
 
   useEffect(() => {
     if (Platform.OS !== 'android') return undefined;
@@ -101,7 +157,6 @@ export default function MapScreen({ variant = 'discover' }: MapScreenProps) {
 
   const initializeLocation = async () => {
     try {
-      // If we already have a stored location for this user, reuse it without prompting again.
       if (user?.latitude != null && user?.longitude != null) {
         const coords = { latitude: user.latitude, longitude: user.longitude };
         setUserLocation(coords);
@@ -171,30 +226,127 @@ export default function MapScreen({ variant = 'discover' }: MapScreenProps) {
     );
   }, [userLocation]);
 
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        container: {
+          flex: 1,
+          backgroundColor: colors.background.primary,
+        },
+        loadingContainer: {
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+        },
+        map: {
+          ...StyleSheet.absoluteFillObject,
+        },
+        mapSlot: {
+          flex: 1,
+          width: '100%',
+          position: 'relative',
+        },
+        headerSafe: {
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          paddingHorizontal: Spacing.md,
+          paddingTop: Platform.OS === 'android' ? 8 : 4,
+          alignItems: 'flex-start',
+        },
+        headerChip: {
+          maxWidth: '86%',
+          paddingVertical: 9,
+          paddingHorizontal: 13,
+          borderRadius: BorderRadius.md + 2,
+          backgroundColor: isLight ? 'rgba(255,255,255,0.94)' : colors.background.elevated,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: colors.borderLight,
+          ...shadows.sm,
+        },
+        headerTitle: {
+          fontSize: 19,
+          fontWeight: '700',
+          color: colors.text.primary,
+          letterSpacing: -0.35,
+        },
+        headerHint: {
+          marginTop: 2,
+          fontSize: 12,
+          color: colors.text.tertiary,
+          lineHeight: 16,
+        },
+        locateWrap: {
+          position: 'absolute',
+          right: Spacing.md,
+        },
+        locateButton: {
+          width: 46,
+          height: 46,
+          borderRadius: 23,
+          backgroundColor: colors.background.elevated,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: colors.borderLight,
+          alignItems: 'center',
+          justifyContent: 'center',
+          ...shadows.sm,
+        },
+        markerLetterOuter: {
+          width: 36,
+          height: 36,
+          borderRadius: 18,
+          backgroundColor: colors.background.elevated,
+          borderWidth: 2,
+          borderColor: colors.primary.default,
+          alignItems: 'center',
+          justifyContent: 'center',
+          ...shadows.sm,
+        },
+        markerLetterText: {
+          fontSize: FontSizes.sm,
+          fontWeight: FontWeights.bold,
+          color: colors.text.primary,
+        },
+      }),
+    [colors, shadows, isLight]
+  );
+
+  function InitialMarker({ username }: { username: string }) {
+    const letter = (username?.trim()?.[0] || '?').toUpperCase();
+    return (
+      <View style={styles.markerLetterOuter} collapsable={false}>
+        <Text style={styles.markerLetterText}>{letter}</Text>
+      </View>
+    );
+  }
+
   if (loading) {
     return (
       <View style={[styles.loadingContainer, { paddingTop: insets.top }]}>
-        <ActivityIndicator size="large" color={Colors.primary.default} />
+        <ActivityIndicator size="large" color={colors.primary.default} />
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      {/*
-        Map sizing: flex:1 on MapView alone can resolve to 0 height inside tab navigators.
-        Slot uses flex:1; MapView uses absoluteFill so it always fills the slot.
-        customMapStyle is Google Maps JSON only — do not pass it on iOS (Apple MapKit) or the map can fail.
-      */}
       <View style={styles.mapSlot} collapsable={false}>
         <MapView
           ref={mapRef}
           style={styles.map}
           provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+          customMapStyle={Platform.OS === 'android' ? customMapStyle : undefined}
+          mapType={Platform.OS === 'ios' ? (isLight ? 'mutedStandard' : 'standard') : 'standard'}
+          userInterfaceStyle={Platform.OS === 'ios' ? resolvedScheme : undefined}
           showsUserLocation={!!userLocation}
           followsUserLocation={false}
           loadingEnabled={Platform.OS === 'android'}
           initialRegion={initialRegion}
+          mapPadding={mapPadding}
+          showsPointsOfInterest={Platform.OS === 'ios' ? false : undefined}
+          poiClickEnabled={Platform.OS === 'android' ? false : undefined}
+          toolbarEnabled={Platform.OS === 'android' ? false : undefined}
           onMapReady={() => {
             mapReadyRef.current = true;
             if (userLocation) {
@@ -213,8 +365,9 @@ export default function MapScreen({ variant = 'discover' }: MapScreenProps) {
             <Circle
               center={userLocation}
               radius={radius}
-              fillColor="rgba(139, 92, 246, 0.1)"
-              strokeColor="rgba(139, 92, 246, 0.3)"
+              fillColor={radiusFill}
+              strokeColor={radiusStroke}
+              strokeWidth={1.5}
             />
           )}
 
@@ -242,86 +395,28 @@ export default function MapScreen({ variant = 'discover' }: MapScreenProps) {
         </MapView>
       </View>
 
-      <SafeAreaView style={styles.headerOverlay} edges={['top']}>
-        <View style={styles.header}>
-          <Text style={styles.title}>{variant === 'discover' ? 'Discover' : 'Map'}</Text>
-          <Text style={styles.subtitle}>
-            {formatDistanceMeters(radius)} range · tap a pin to view their profile
+      <SafeAreaView style={styles.headerSafe} edges={['top']} pointerEvents="box-none">
+        <View style={styles.headerChip}>
+          <Text style={styles.headerTitle}>{variant === 'discover' ? 'Discover' : 'Map'}</Text>
+          <Text style={styles.headerHint}>
+            {formatDistanceMeters(radius)} around you · tap a pin for their profile
           </Text>
+          {locationError ? (
+            <Text style={{ marginTop: 6, fontSize: 11, color: colors.error }}>{locationError}</Text>
+          ) : null}
         </View>
       </SafeAreaView>
 
-      <TouchableOpacity style={styles.centerButton} onPress={centerOnUser}>
-        <Ionicons name="locate" size={24} color={Colors.primary.default} />
-      </TouchableOpacity>
-
+      <View style={[styles.locateWrap, { bottom: 100 + insets.bottom }]}>
+        <Pressable
+          onPress={centerOnUser}
+          accessibilityLabel="Center map on my location"
+          android_ripple={{ color: hexToRgba(colors.primary.default, 0.12) }}
+          style={({ pressed }) => [styles.locateButton, pressed && { opacity: 0.9 }]}
+        >
+          <Ionicons name="locate" size={22} color={colors.primary.default} />
+        </Pressable>
+      </View>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background.primary,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  map: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  mapSlot: {
-    flex: 1,
-    width: '100%',
-    position: 'relative',
-  },
-  header: {
-    padding: Spacing.lg,
-  },
-  headerOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: Colors.text.primary,
-  },
-  subtitle: {
-    marginTop: 4,
-    fontSize: FontSizes.sm,
-    color: Colors.text.tertiary,
-    lineHeight: 18,
-  },
-  centerButton: {
-    position: 'absolute',
-    bottom: 120,
-    right: Spacing.lg,
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: Colors.background.secondary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 5,
-  },
-  markerLetterOuter: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.background.secondary,
-    borderWidth: 2,
-    borderColor: Colors.primary.default,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  markerLetterText: {
-    fontSize: FontSizes.md,
-    fontWeight: FontWeights.bold,
-    color: Colors.text.primary,
-  },
-});

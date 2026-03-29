@@ -1,4 +1,4 @@
-const { Conversation, Message, MessageReaction } = require('../models');
+const { Conversation, Message, MessageReaction, UserBlock } = require('../models');
 const { fullMediaUrl } = require('../utils/media');
 const { serializePublicUser, serializePublicUserSync } = require('./user');
 
@@ -76,6 +76,14 @@ async function serializeConversation(conversation, currentUserId, req) {
   }
   const other =
     conversation.participants.find((p) => String(p._id) !== String(currentUserId)) || null;
+  const [blockedByMeRow, blockedByOtherRow] = other
+    ? await Promise.all([
+        UserBlock.findOne({ blocker: currentUserId, blocked: other._id }).select('_id').lean(),
+        UserBlock.findOne({ blocker: other._id, blocked: currentUserId }).select('_id').lean(),
+      ])
+    : [null, null];
+  const blockedByMe = Boolean(blockedByMeRow);
+  const blockedByOther = Boolean(blockedByOtherRow);
   const lastMessageRow = await Message.findOne({
     conversation: conversation._id,
     is_deleted: false,
@@ -96,6 +104,9 @@ async function serializeConversation(conversation, currentUserId, req) {
     other_participant: other ? await serializePublicUser(other, req) : null,
     last_message: lastMessageRow ? await serializeMessage(lastMessageRow, req) : null,
     unread_count: unreadCount,
+    is_blocked: blockedByMe || blockedByOther,
+    blocked_by_me: blockedByMe,
+    blocked_by_other: blockedByOther,
     created_at: conversation.created_at.toISOString(),
     updated_at: conversation.updated_at.toISOString(),
   };

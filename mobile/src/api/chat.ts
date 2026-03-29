@@ -47,6 +47,27 @@ export const chatApi = {
     await api.post(`/chat/conversations/${conversationId}/messages/read/`);
   },
 
+  clearConversation: async (
+    conversationId: string
+  ): Promise<{ message: string; deleted_count: number }> => {
+    const response = await api.post(`/chat/conversations/${conversationId}/clear/`);
+    return response.data;
+  },
+
+  blockConversationUser: async (
+    conversationId: string
+  ): Promise<{ message: string; blocked_user_id: string }> => {
+    const response = await api.post(`/chat/conversations/${conversationId}/block/`);
+    return response.data;
+  },
+
+  unblockConversationUser: async (
+    conversationId: string
+  ): Promise<{ message: string; unblocked_user_id: string }> => {
+    const response = await api.post(`/chat/conversations/${conversationId}/unblock/`);
+    return response.data;
+  },
+
   deleteMessage: async (messageId: string): Promise<void> => {
     await api.delete(`/chat/messages/${messageId}/delete/`);
   },

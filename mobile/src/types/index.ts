@@ -69,6 +69,9 @@ export interface Conversation {
   other_participant: PublicUser | null;
   last_message: Message | null;
   unread_count: number;
+  is_blocked: boolean;
+  blocked_by_me: boolean;
+  blocked_by_other: boolean;
   created_at: string;
   updated_at: string;
 }

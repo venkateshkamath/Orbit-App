@@ -2,7 +2,7 @@
  * Feed Tab — card-based posts (editorial layout)
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -24,23 +24,28 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { formatDistanceToNow } from 'date-fns';
-import { Colors, FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
+import { FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
+import { useOrbitTheme, type OrbitThemeColors } from '../../src/theme';
 import { Avatar, CommentsModal } from '../../src/components';
 import { useCreatePostMutation, useFeedQuery, useToggleLikeMutation } from '../../src/hooks/useOrbitApi';
 import { Post } from '../../src/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-function PostItem({ 
-  post, 
-  onLike, 
+function PostItem({
+  post,
+  onLike,
   onComment,
-  onShare
-}: { 
-  post: Post; 
+  onShare,
+  styles,
+  colors,
+}: {
+  post: Post;
   onLike: () => Promise<unknown>;
   onComment: () => void;
   onShare: () => void;
+  styles: Record<string, any>;
+  colors: OrbitThemeColors;
 }) {
   const [isLiked, setIsLiked] = useState(post.is_liked);
   const [likeCount, setLikeCount] = useState(post.like_count);
@@ -75,7 +80,7 @@ function PostItem({
           </View>
         </View>
         <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Ionicons name="ellipsis-horizontal" size={18} color={Colors.text.tertiary} />
+          <Ionicons name="ellipsis-horizontal" size={18} color={colors.text.tertiary} />
         </TouchableOpacity>
       </View>
 
@@ -93,14 +98,14 @@ function PostItem({
             <Ionicons
               name={isLiked ? 'heart' : 'heart-outline'}
               size={24}
-              color={isLiked ? Colors.error : Colors.text.secondary}
+              color={isLiked ? colors.error : colors.text.secondary}
             />
           </TouchableOpacity>
           <TouchableOpacity onPress={onComment} style={styles.actionButton}>
-            <Ionicons name="chatbubble-outline" size={22} color={Colors.text.secondary} />
+            <Ionicons name="chatbubble-outline" size={22} color={colors.text.secondary} />
           </TouchableOpacity>
           <TouchableOpacity onPress={onShare} style={styles.actionButton}>
-            <Ionicons name="share-outline" size={22} color={Colors.text.secondary} />
+            <Ionicons name="share-outline" size={22} color={colors.text.secondary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -137,6 +142,7 @@ function PostItem({
 }
 
 export default function FeedScreen() {
+  const { colors, resolvedScheme } = useOrbitTheme();
   const insets = useSafeAreaInsets();
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [caption, setCaption] = useState('');
@@ -223,27 +229,262 @@ export default function FeedScreen() {
     }
   };
 
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        container: {
+          flex: 1,
+          backgroundColor: colors.background.primary,
+        },
+        listContent: {
+          paddingBottom: Spacing.xxl,
+        },
+        listContentEmpty: {
+          flexGrow: 1,
+        },
+        loadingContainer: {
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: colors.background.primary,
+        },
+        feedHeader: {
+          backgroundColor: colors.background.primary,
+          borderBottomWidth: StyleSheet.hairlineWidth,
+          borderBottomColor: colors.border,
+        },
+        headerRow: {
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          paddingHorizontal: Spacing.lg,
+          paddingBottom: Platform.OS === 'android' ? 10 : 12,
+        },
+        headerTitle: {
+          fontSize: 28,
+          fontWeight: '700',
+          color: colors.text.primary,
+          letterSpacing: -0.5,
+        },
+        headerCompose: {
+          width: 40,
+          height: 40,
+          borderRadius: 20,
+          backgroundColor: colors.background.tertiary,
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+        postCard: {
+          width: SCREEN_WIDTH,
+          backgroundColor: colors.background.primary,
+          borderBottomWidth: StyleSheet.hairlineWidth,
+          borderBottomColor: colors.border,
+          paddingBottom: Spacing.sm,
+        },
+        postHeader: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingHorizontal: Spacing.lg,
+          paddingVertical: Platform.OS === 'android' ? 8 : 10,
+        },
+        headerLeft: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          flex: 1,
+        },
+        headerInfo: {
+          marginLeft: Spacing.sm,
+          flex: 1,
+        },
+        username: {
+          color: colors.text.primary,
+          fontSize: FontSizes.sm,
+          fontWeight: FontWeights.semibold,
+        },
+        locationText: {
+          color: colors.text.secondary,
+          fontSize: 11,
+          marginTop: 1,
+        },
+        postImage: {
+          width: SCREEN_WIDTH,
+          aspectRatio: 1,
+          backgroundColor: colors.background.secondary,
+        },
+        postActions: {
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          paddingHorizontal: Spacing.lg,
+          paddingVertical: Platform.OS === 'android' ? 6 : Spacing.sm,
+        },
+        actionRow: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: Spacing.md,
+        },
+        actionButton: {
+          padding: 4,
+        },
+        postContent: {
+          paddingHorizontal: Spacing.lg,
+          paddingBottom: Spacing.sm,
+        },
+        likesText: {
+          color: colors.text.secondary,
+          fontSize: FontSizes.sm,
+          fontWeight: FontWeights.medium,
+          marginBottom: 6,
+        },
+        captionContainer: {
+          marginBottom: 4,
+        },
+        captionText: {
+          color: colors.text.primary,
+          fontSize: FontSizes.sm,
+          lineHeight: 18,
+        },
+        usernameInline: {
+          fontWeight: FontWeights.semibold,
+        },
+        viewComments: {
+          color: colors.text.tertiary,
+          fontSize: FontSizes.sm,
+          marginTop: 4,
+          marginBottom: 4,
+        },
+        timestamp: {
+          color: colors.text.muted,
+          fontSize: FontSizes.xs,
+          marginTop: 6,
+        },
+        emptyContainer: {
+          flex: 1,
+          minHeight: 320,
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingVertical: Spacing.xxl,
+          paddingHorizontal: Spacing.xl,
+        },
+        emptyText: {
+          color: colors.text.primary,
+          fontSize: FontSizes.xl,
+          fontWeight: FontWeights.bold,
+          marginTop: Spacing.lg,
+        },
+        emptySubtext: {
+          color: colors.text.secondary,
+          fontSize: FontSizes.md,
+          textAlign: 'center',
+          marginTop: Spacing.xs,
+        },
+        createButton: {
+          marginTop: Spacing.xl,
+          borderRadius: BorderRadius.lg,
+          backgroundColor: colors.primary.default,
+          paddingHorizontal: Spacing.xl,
+          paddingVertical: Spacing.md,
+        },
+        createButtonText: {
+          color: '#FFFFFF',
+          fontSize: FontSizes.md,
+          fontWeight: FontWeights.semibold,
+        },
+  
+        // Modal Styles
+        modalContainer: {
+          flex: 1,
+          backgroundColor: colors.background.primary,
+        },
+        modalHeader: {
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          paddingHorizontal: Spacing.lg,
+          paddingBottom: Spacing.md,
+          borderBottomWidth: StyleSheet.hairlineWidth,
+          borderBottomColor: colors.border,
+        },
+        modalTitle: {
+          fontSize: FontSizes.lg,
+          fontWeight: FontWeights.semibold,
+          color: colors.text.primary,
+        },
+        shareButton: {
+          paddingHorizontal: Spacing.lg,
+          paddingVertical: Spacing.sm,
+          borderRadius: BorderRadius.md,
+          backgroundColor: colors.primary.default,
+        },
+        shareButtonDisabled: {
+          opacity: 0.35,
+        },
+        shareText: {
+          color: '#FFFFFF',
+          fontSize: FontSizes.sm,
+          fontWeight: FontWeights.semibold,
+        },
+        imagePickerContainer: {
+          width: SCREEN_WIDTH,
+          aspectRatio: 1,
+          backgroundColor: colors.background.tertiary,
+        },
+        selectedImage: {
+          width: '100%',
+          height: '100%',
+        },
+        imagePlaceholder: {
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: colors.background.elevated,
+        },
+        imagePlaceholderText: {
+          color: colors.text.tertiary,
+          marginTop: Spacing.md,
+          fontSize: FontSizes.sm,
+          fontWeight: FontWeights.medium,
+        },
+        captionSection: {
+          flex: 1,
+          padding: Spacing.lg,
+        },
+        captionInput: {
+          flex: 1,
+          color: colors.text.primary,
+          fontSize: FontSizes.md,
+          textAlignVertical: 'top',
+          lineHeight: 22,
+        },
+        characterCount: {
+          color: colors.text.tertiary,
+          fontSize: 12,
+          textAlign: 'right',
+          marginTop: Spacing.sm,
+        },
+      }),
+    [colors]
+  );
+
   const feedListHeader = (
     <View
       style={[
         styles.feedHeader,
         {
           paddingTop:
-            insets.top + (Platform.OS === 'android' ? 6 : 8),
+            insets.top + (Platform.OS === 'android' ? 12 : 8),
         },
       ]}
     >
       <View style={styles.headerRow}>
-        <View>
-          <Text style={styles.headerKicker}>Community</Text>
-          <Text style={styles.headerTitle}>Feed</Text>
-        </View>
+        <Text style={styles.headerTitle}>Feed</Text>
         <TouchableOpacity
           style={styles.headerCompose}
           onPress={() => setCreateModalVisible(true)}
           accessibilityLabel="New post"
         >
-          <Ionicons name="add" size={24} color={Colors.text.primary} />
+          <Ionicons name="add" size={24} color={colors.text.primary} />
         </TouchableOpacity>
       </View>
     </View>
@@ -252,7 +493,7 @@ export default function FeedScreen() {
   if (isLoading) {
     return (
       <View style={[styles.loadingContainer, { paddingTop: insets.top }]}>
-        <ActivityIndicator size="large" color={Colors.primary.default} />
+        <ActivityIndicator size="large" color={colors.primary.default} />
       </View>
     );
   }
@@ -260,7 +501,7 @@ export default function FeedScreen() {
   return (
     <View style={styles.container}>
       <StatusBar
-        barStyle="light-content"
+        barStyle={resolvedScheme === 'dark' ? 'light-content' : 'dark-content'}
         translucent
         backgroundColor="transparent"
       />
@@ -279,6 +520,8 @@ export default function FeedScreen() {
             onLike={() => toggleLike.mutateAsync(item.id)}
             onComment={() => handleOpenComments(item.id)}
             onShare={() => handleShare(item)}
+            styles={styles}
+            colors={colors}
           />
         )}
         showsVerticalScrollIndicator={false}
@@ -286,13 +529,13 @@ export default function FeedScreen() {
           <RefreshControl
             refreshing={isRefetching}
             onRefresh={handleRefresh}
-            tintColor={Colors.primary.default}
-            colors={[Colors.primary.default]}
+            tintColor={colors.primary.default}
+            colors={[colors.primary.default]}
           />
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name="images-outline" size={64} color={Colors.text.tertiary} />
+            <Ionicons name="images-outline" size={64} color={colors.text.tertiary} />
             <Text style={styles.emptyText}>No posts yet</Text>
             <Text style={styles.emptySubtext}>Share your first moment</Text>
             <TouchableOpacity
@@ -325,7 +568,7 @@ export default function FeedScreen() {
                   onPress={() => setCreateModalVisible(false)}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
-                  <Ionicons name="close" size={28} color={Colors.text.primary} />
+                  <Ionicons name="close" size={28} color={colors.text.primary} />
                 </TouchableOpacity>
                 <Text style={styles.modalTitle}>New Post</Text>
                 <TouchableOpacity
@@ -352,7 +595,7 @@ export default function FeedScreen() {
                 <Image source={{ uri: selectedImage }} style={styles.selectedImage} />
               ) : (
                 <View style={styles.imagePlaceholder}>
-                  <Ionicons name="image-outline" size={48} color={Colors.text.tertiary} />
+                  <Ionicons name="image-outline" size={48} color={colors.text.tertiary} />
                   <Text style={styles.imagePlaceholderText}>Tap to add a photo</Text>
                 </View>
               )}
@@ -363,7 +606,7 @@ export default function FeedScreen() {
               <TextInput
                 style={styles.captionInput}
                 placeholder="Write a caption..."
-                placeholderTextColor={Colors.text.tertiary}
+                placeholderTextColor={colors.text.tertiary}
                 multiline
                 value={caption}
                 onChangeText={setCaption}
@@ -377,246 +620,3 @@ export default function FeedScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background.primary,
-  },
-  listContent: {
-    paddingBottom: Spacing.xxl,
-  },
-  listContentEmpty: {
-    flexGrow: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: Colors.background.primary,
-  },
-  feedHeader: {
-    backgroundColor: Colors.background.primary,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.border,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Platform.OS === 'android' ? 10 : 12,
-  },
-  headerKicker: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: Colors.text.tertiary,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-    marginBottom: 2,
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: Colors.text.primary,
-    letterSpacing: -0.4,
-  },
-  headerCompose: {
-    width: Platform.OS === 'android' ? 40 : 44,
-    height: Platform.OS === 'android' ? 40 : 44,
-    borderRadius: 22,
-    backgroundColor: Colors.background.elevated,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  postCard: {
-    width: SCREEN_WIDTH,
-    backgroundColor: Colors.background.primary,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.border,
-    paddingBottom: Spacing.sm,
-  },
-  postHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Platform.OS === 'android' ? 8 : 10,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  headerInfo: {
-    marginLeft: Spacing.sm,
-    flex: 1,
-  },
-  username: {
-    color: Colors.text.primary,
-    fontSize: FontSizes.sm,
-    fontWeight: FontWeights.semibold,
-  },
-  locationText: {
-    color: Colors.text.secondary,
-    fontSize: 11,
-    marginTop: 1,
-  },
-  postImage: {
-    width: SCREEN_WIDTH,
-    aspectRatio: 1,
-    backgroundColor: Colors.background.secondary,
-  },
-  postActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Platform.OS === 'android' ? 6 : Spacing.sm,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  actionButton: {
-    padding: 4,
-  },
-  postContent: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.sm,
-  },
-  likesText: {
-    color: Colors.text.secondary,
-    fontSize: FontSizes.sm,
-    fontWeight: FontWeights.medium,
-    marginBottom: 6,
-  },
-  captionContainer: {
-    marginBottom: 4,
-  },
-  captionText: {
-    color: Colors.text.primary,
-    fontSize: FontSizes.sm,
-    lineHeight: 18,
-  },
-  usernameInline: {
-    fontWeight: FontWeights.semibold,
-  },
-  viewComments: {
-    color: Colors.text.tertiary,
-    fontSize: FontSizes.sm,
-    marginTop: 4,
-    marginBottom: 4,
-  },
-  timestamp: {
-    color: Colors.text.muted,
-    fontSize: FontSizes.xs,
-    marginTop: 6,
-  },
-  emptyContainer: {
-    flex: 1,
-    minHeight: 320,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: Spacing.xxl,
-    paddingHorizontal: Spacing.xl,
-  },
-  emptyText: {
-    color: Colors.text.primary,
-    fontSize: FontSizes.xl,
-    fontWeight: FontWeights.bold,
-    marginTop: Spacing.lg,
-  },
-  emptySubtext: {
-    color: Colors.text.secondary,
-    fontSize: FontSizes.md,
-    textAlign: 'center',
-    marginTop: Spacing.xs,
-  },
-  createButton: {
-    marginTop: Spacing.xl,
-    borderRadius: BorderRadius.lg,
-    backgroundColor: Colors.primary.default,
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.md,
-  },
-  createButtonText: {
-    color: Colors.text.primary,
-    fontSize: FontSizes.md,
-    fontWeight: FontWeights.semibold,
-  },
-  
-  // Modal Styles
-  modalContainer: {
-    flex: 1,
-    backgroundColor: Colors.background.primary,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.border,
-  },
-  modalTitle: {
-    fontSize: FontSizes.lg,
-    fontWeight: FontWeights.semibold,
-    color: Colors.text.primary,
-  },
-  shareButton: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.md,
-    backgroundColor: Colors.primary.default,
-  },
-  shareButtonDisabled: {
-    opacity: 0.35,
-  },
-  shareText: {
-    color: Colors.text.primary,
-    fontSize: FontSizes.sm,
-    fontWeight: FontWeights.semibold,
-  },
-  imagePickerContainer: {
-    width: SCREEN_WIDTH,
-    aspectRatio: 1,
-    backgroundColor: Colors.background.tertiary,
-  },
-  selectedImage: {
-    width: '100%',
-    height: '100%',
-  },
-  imagePlaceholder: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: Colors.background.elevated,
-  },
-  imagePlaceholderText: {
-    color: Colors.text.tertiary,
-    marginTop: Spacing.md,
-    fontSize: FontSizes.sm,
-    fontWeight: FontWeights.medium,
-  },
-  captionSection: {
-    flex: 1,
-    padding: Spacing.lg,
-  },
-  captionInput: {
-    flex: 1,
-    color: Colors.text.primary,
-    fontSize: FontSizes.md,
-    textAlignVertical: 'top',
-    lineHeight: 22,
-  },
-  characterCount: {
-    color: Colors.text.tertiary,
-    fontSize: 12,
-    textAlign: 'right',
-    marginTop: Spacing.sm,
-  },
-});

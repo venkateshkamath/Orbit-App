@@ -3,7 +3,7 @@
  * Handles authentication routing
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
@@ -17,10 +17,32 @@ import {
   prepareNotificationEnvironment,
   tryRegisterExpoPushToken,
 } from '../src/lib/notificationsSafe';
-import { Colors } from '../constants/Colors';
+import { ThemeProvider, useOrbitTheme } from '../src/theme';
 import { authApi } from '../src/api/auth';
 
 function RootLayoutNav() {
+  const { colors, resolvedScheme } = useOrbitTheme();
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        slotRoot: {
+          flex: 1,
+          backgroundColor: colors.background.primary,
+        },
+        loadingContainer: {
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: colors.background.primary,
+        },
+        loadingText: {
+          color: colors.text.secondary,
+          marginTop: 16,
+          fontSize: 16,
+        },
+      }),
+    [colors]
+  );
   const { isLoading, loadUser, isAuthenticated, isOnboardingComplete } = useAuthStore();
   const router = useRouter();
   const segments = useSegments();
@@ -40,7 +62,11 @@ function RootLayoutNav() {
     const inTabsGroup = segments[0] === '(tabs)';
     const inChatStack = segments[0] === 'chat';
     const inUserStack = segments[0] === 'user';
-    const inMainApp = inTabsGroup || inChatStack || inUserStack;
+    /** Lets completed users open interests from Profile without being forced back to tabs. */
+    const inOnboardingInterests =
+      segments[0] === '(onboarding)' && segments[1] === 'interests';
+    const inMainApp =
+      inTabsGroup || inChatStack || inUserStack || inOnboardingInterests;
 
     // Redirect logic
     if (!isAuthenticated) {
@@ -84,11 +110,13 @@ function RootLayoutNav() {
     };
   }, [mounted, isLoading, isAuthenticated, isOnboardingComplete]);
 
+  const statusStyle = resolvedScheme === 'dark' ? 'light' : 'dark';
+
   if (isLoading || !mounted) {
     return (
       <View style={styles.loadingContainer}>
-        <StatusBar style="light" />
-        <ActivityIndicator size="large" color={Colors.primary.default} />
+        <StatusBar style={statusStyle} />
+        <ActivityIndicator size="large" color={colors.primary.default} />
         <Text style={styles.loadingText}>Loading ORBIT...</Text>
       </View>
     );
@@ -96,7 +124,7 @@ function RootLayoutNav() {
 
   return (
     <View style={styles.slotRoot}>
-      <StatusBar style="light" />
+      <StatusBar style={statusStyle} />
       <Slot />
     </View>
   );
@@ -104,49 +132,19 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   return (
-    <GestureHandlerRootView style={styles.container}>
-      <SafeAreaProvider style={styles.container}>
-        <OrbitQueryProvider>
-          <ChatRealtimeBridge />
-          <RootLayoutNav />
-        </OrbitQueryProvider>
+    <GestureHandlerRootView style={layoutStyles.flex}>
+      <SafeAreaProvider style={layoutStyles.flex}>
+        <ThemeProvider>
+          <OrbitQueryProvider>
+            <ChatRealtimeBridge />
+            <RootLayoutNav />
+          </OrbitQueryProvider>
+        </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background.primary,
-  },
-  slotRoot: {
-    flex: 1,
-    backgroundColor: Colors.background.primary,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: Colors.background.primary,
-  },
-  loadingText: {
-    color: Colors.text.secondary,
-    marginTop: 16,
-    fontSize: 16,
-  },
-  logoutOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.9)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 99999,
-  },
-  logoutContainer: {
-    backgroundColor: Colors.background.card,
-    borderRadius: 20,
-    padding: 32,
-    alignItems: 'center',
-    minWidth: 200,
-  },
+const layoutStyles = StyleSheet.create({
+  flex: { flex: 1 },
 });

@@ -3,14 +3,15 @@
  */
 
 import { Stack } from 'expo-router';
-import { Colors } from '../../constants/Colors';
+import { useOrbitTheme } from '../../src/theme';
 
 export default function AuthLayout() {
+  const { colors } = useOrbitTheme();
   return (
     <Stack
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: Colors.background.primary },
+        contentStyle: { backgroundColor: colors.background.primary },
         animation: 'slide_from_right',
       }}
     />

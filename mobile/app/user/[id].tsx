@@ -2,7 +2,7 @@
  * Other user's public profile — distance, Join orbit / Accept / Message
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,7 +16,8 @@ import {
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
+import { FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
+import { useOrbitTheme } from '../../src/theme';
 import { Avatar, GradientButton, InterestTag, MatchModal } from '../../src/components';
 import {
   usePublicProfileQuery,
@@ -33,6 +34,7 @@ function formatDistanceMeters(m: number | null) {
 }
 
 export default function UserProfileScreen() {
+  const { colors } = useOrbitTheme();
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const id = typeof rawId === 'string' ? rawId : rawId?.[0];
   const insets = useSafeAreaInsets();
@@ -42,6 +44,79 @@ export default function UserProfileScreen() {
   const { data, isPending, error, refetch } = usePublicProfileQuery(id);
   const likeMut = useLikeUserMutation();
   const startConversationMut = useStartConversationMutation();
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        root: {
+          flex: 1,
+          backgroundColor: colors.background.primary,
+        },
+        topBar: {
+          paddingHorizontal: Spacing.sm,
+          paddingBottom: Spacing.sm,
+          paddingTop: Platform.OS === 'android' ? Spacing.sm : 0,
+        },
+        iconBtn: {
+          alignSelf: 'flex-start',
+          padding: Spacing.xs,
+        },
+        scrollContent: {
+          paddingHorizontal: Spacing.xl,
+          paddingBottom: Spacing.xxl,
+          alignItems: 'center',
+        },
+        username: {
+          marginTop: Spacing.lg,
+          fontSize: FontSizes.xxl,
+          fontWeight: FontWeights.bold,
+          color: colors.text.primary,
+        },
+        distance: {
+          marginTop: Spacing.xs,
+          fontSize: FontSizes.sm,
+          color: colors.text.secondary,
+        },
+        bio: {
+          marginTop: Spacing.md,
+          fontSize: FontSizes.md,
+          color: colors.text.secondary,
+          textAlign: 'center',
+          lineHeight: 22,
+        },
+        interests: {
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          justifyContent: 'center',
+          gap: Spacing.sm,
+          marginTop: Spacing.lg,
+        },
+        cta: {
+          marginTop: Spacing.xl,
+          alignSelf: 'stretch',
+          width: '100%',
+        },
+        centered: {
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: colors.background.primary,
+          padding: Spacing.lg,
+        },
+        muted: {
+          color: colors.text.tertiary,
+          fontSize: FontSizes.md,
+        },
+        backLink: {
+          marginTop: Spacing.md,
+        },
+        backLinkText: {
+          color: colors.primary.default,
+          fontSize: FontSizes.md,
+        },
+      }),
+    [colors]
+  );
 
   useEffect(() => {
     if (data?.is_self) {
@@ -97,7 +172,7 @@ export default function UserProfileScreen() {
   if (isPending) {
     return (
       <View style={[styles.centered, { paddingTop: insets.top }]}>
-        <ActivityIndicator color={Colors.primary.default} size="large" />
+        <ActivityIndicator color={colors.primary.default} size="large" />
       </View>
     );
   }
@@ -116,7 +191,7 @@ export default function UserProfileScreen() {
   if (data.is_self) {
     return (
       <View style={[styles.centered, { paddingTop: insets.top }]}>
-        <ActivityIndicator color={Colors.primary.default} />
+        <ActivityIndicator color={colors.primary.default} />
       </View>
     );
   }
@@ -144,9 +219,9 @@ export default function UserProfileScreen() {
 
   return (
     <View style={styles.root}>
-      <View style={[styles.topBar, { paddingTop: insets.top + (Platform.OS === 'android' ? 8 : 4) }]}>
+      <View style={[styles.topBar, { paddingTop: insets.top + (Platform.OS === 'android' ? 16 : 4) }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn} hitSlop={12}>
-          <Ionicons name="chevron-back" size={28} color={Colors.text.primary} />
+          <Ionicons name="chevron-back" size={28} color={colors.text.primary} />
         </TouchableOpacity>
       </View>
 
@@ -185,71 +260,3 @@ export default function UserProfileScreen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: Colors.background.primary,
-  },
-  topBar: {
-    paddingHorizontal: Spacing.sm,
-    paddingBottom: Spacing.sm,
-  },
-  iconBtn: {
-    alignSelf: 'flex-start',
-    padding: Spacing.xs,
-  },
-  scrollContent: {
-    paddingHorizontal: Spacing.xl,
-    paddingBottom: Spacing.xxl,
-    alignItems: 'center',
-  },
-  username: {
-    marginTop: Spacing.lg,
-    fontSize: FontSizes.xxl,
-    fontWeight: FontWeights.bold,
-    color: Colors.text.primary,
-  },
-  distance: {
-    marginTop: Spacing.xs,
-    fontSize: FontSizes.sm,
-    color: Colors.text.secondary,
-  },
-  bio: {
-    marginTop: Spacing.md,
-    fontSize: FontSizes.md,
-    color: Colors.text.secondary,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  interests: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    marginTop: Spacing.lg,
-  },
-  cta: {
-    marginTop: Spacing.xl,
-    alignSelf: 'stretch',
-    width: '100%',
-  },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: Colors.background.primary,
-    padding: Spacing.lg,
-  },
-  muted: {
-    color: Colors.text.tertiary,
-    fontSize: FontSizes.md,
-  },
-  backLink: {
-    marginTop: Spacing.md,
-  },
-  backLinkText: {
-    color: Colors.primary.default,
-    fontSize: FontSizes.md,
-  },
-});

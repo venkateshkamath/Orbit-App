@@ -1,8 +1,8 @@
 /**
- * GradientButton - Premium animated button with gradient
+ * GradientButton — primary CTA uses brand gradient; refined outline & secondary
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   TouchableOpacity,
   Text,
@@ -12,12 +12,16 @@ import {
   ViewStyle,
   TextStyle,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
-import { Colors, BorderRadius, FontSizes, FontWeights, Spacing } from '../../constants/Colors';
+import { BorderRadius, FontSizes, FontWeights, Spacing } from '../../constants/Colors';
+import { useOrbitTheme } from '../theme';
+
+const CTA_TEXT = '#FFFFFF';
 
 interface GradientButtonProps {
   title: string;
@@ -44,14 +48,68 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
   style,
   textStyle,
 }) => {
+  const { colors } = useOrbitTheme();
   const scale = useSharedValue(1);
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        radiusClip: {
+          borderRadius: BorderRadius.lg,
+          overflow: 'hidden',
+        },
+        gradientFill: {
+          ...StyleSheet.absoluteFillObject,
+        },
+        row: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1,
+        },
+        text: {
+          color: CTA_TEXT,
+          fontWeight: FontWeights.semibold,
+          textAlign: 'center',
+          letterSpacing: 0.2,
+        },
+        secondaryShell: {
+          borderRadius: BorderRadius.lg,
+          backgroundColor: colors.background.elevated,
+          borderWidth: StyleSheet.hairlineWidth * 2,
+          borderColor: colors.borderLight,
+        },
+        secondaryText: {
+          color: colors.text.primary,
+        },
+        outlineButton: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderRadius: BorderRadius.lg,
+          borderWidth: StyleSheet.hairlineWidth * 2,
+          borderColor: colors.primary.default,
+          backgroundColor: 'transparent',
+        },
+        outlineText: {
+          color: colors.primary.default,
+          fontWeight: FontWeights.semibold,
+          textAlign: 'center',
+          letterSpacing: 0.15,
+        },
+        disabled: {
+          opacity: 0.48,
+        },
+      }),
+    [colors]
+  );
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
   }));
 
   const handlePressIn = () => {
-    scale.value = withSpring(0.96);
+    scale.value = withSpring(0.97);
   };
 
   const handlePressOut = () => {
@@ -59,8 +117,8 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
   };
 
   const sizeStyles = {
-    sm: { paddingVertical: Spacing.sm, paddingHorizontal: Spacing.md },
-    md: { paddingVertical: Spacing.md, paddingHorizontal: Spacing.lg },
+    sm: { paddingVertical: Spacing.sm + 2, paddingHorizontal: Spacing.md },
+    md: { paddingVertical: Spacing.md + 2, paddingHorizontal: Spacing.lg },
     lg: { paddingVertical: Spacing.lg, paddingHorizontal: Spacing.xl },
   };
 
@@ -86,10 +144,10 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
           disabled && styles.disabled,
           style,
         ]}
-        activeOpacity={0.8}
+        activeOpacity={0.85}
       >
         {loading ? (
-          <ActivityIndicator color={Colors.primary.default} />
+          <ActivityIndicator color={colors.primary.default} />
         ) : (
           <>
             {icon}
@@ -109,10 +167,39 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
     );
   }
 
-  const fillStyles =
-    variant === 'secondary'
-      ? { backgroundColor: Colors.background.elevated, borderWidth: 1, borderColor: Colors.border }
-      : { backgroundColor: Colors.primary.default };
+  if (variant === 'secondary') {
+    return (
+      <AnimatedTouchable
+        onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        disabled={disabled || loading}
+        style={[animatedStyle, disabled && styles.disabled, style]}
+        activeOpacity={0.9}
+      >
+        <View style={[styles.secondaryShell, sizeStyles[size], styles.row]}>
+          {loading ? (
+            <ActivityIndicator color={colors.text.primary} />
+          ) : (
+            <>
+              {icon}
+              <Text
+                style={[
+                  styles.text,
+                  styles.secondaryText,
+                  { fontSize: textSizes[size] },
+                  textIconSpacing,
+                  textStyle,
+                ]}
+              >
+                {title}
+              </Text>
+            </>
+          )}
+        </View>
+      </AnimatedTouchable>
+    );
+  }
 
   return (
     <AnimatedTouchable
@@ -121,64 +208,30 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
       onPressOut={handlePressOut}
       disabled={disabled || loading}
       style={[animatedStyle, disabled && styles.disabled, style]}
-      activeOpacity={0.9}
+      activeOpacity={0.92}
     >
-      <View style={[styles.solidFill, fillStyles, sizeStyles[size]]}>
-        {loading ? (
-          <ActivityIndicator color={Colors.text.primary} />
-        ) : (
-          <>
-            {icon}
-            <Text
-              style={[
-                styles.text,
-                variant === 'secondary' && styles.secondaryText,
-                { fontSize: textSizes[size] },
-                textIconSpacing,
-                textStyle,
-              ]}
-            >
-              {title}
-            </Text>
-          </>
-        )}
+      <View style={styles.radiusClip}>
+        <LinearGradient
+          colors={[colors.primary.start, colors.primary.end]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.gradientFill}
+        />
+        <View style={[styles.row, sizeStyles[size]]}>
+          {loading ? (
+            <ActivityIndicator color={CTA_TEXT} />
+          ) : (
+            <>
+              {icon}
+              <Text style={[styles.text, { fontSize: textSizes[size] }, textIconSpacing, textStyle]}>
+                {title}
+              </Text>
+            </>
+          )}
+        </View>
       </View>
     </AnimatedTouchable>
   );
 };
-
-const styles = StyleSheet.create({
-  solidFill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: BorderRadius.lg,
-  },
-  text: {
-    color: Colors.text.primary,
-    fontWeight: FontWeights.semibold,
-    textAlign: 'center',
-  },
-  secondaryText: {
-    color: Colors.text.primary,
-  },
-  outlineButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1.5,
-    borderColor: Colors.primary.default,
-    backgroundColor: 'transparent',
-  },
-  outlineText: {
-    color: Colors.primary.default,
-    fontWeight: FontWeights.semibold,
-    textAlign: 'center',
-  },
-  disabled: {
-    opacity: 0.5,
-  },
-});
 
 export default GradientButton;

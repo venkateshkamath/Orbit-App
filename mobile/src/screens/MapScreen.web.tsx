@@ -2,7 +2,7 @@
  * Map Screen - Web Implementation
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { router } from 'expo-router';
-import { Colors, FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
+import { FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
+import { useOrbitTheme } from '../theme';
 import { UserCard } from '../components';
 import { useLikeUserMutation, useNearbyUsersQuery, usePassUserMutation } from '../hooks/useOrbitApi';
 import { useAuthStore } from '../stores';
@@ -24,6 +25,7 @@ export type MapScreenProps = {
 };
 
 export default function MapScreen({ variant = 'discover' }: MapScreenProps) {
+  const { colors } = useOrbitTheme();
   const { user, updateLocation } = useAuthStore();
   const radius = user?.discovery_radius ?? 1000;
   const [loading, setLoading] = useState(true);
@@ -67,10 +69,48 @@ export default function MapScreen({ variant = 'discover' }: MapScreenProps) {
     }
   };
 
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        container: {
+          flex: 1,
+          backgroundColor: colors.background.primary,
+        },
+        loadingContainer: {
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+        },
+        safeArea: {
+          flex: 1,
+        },
+        header: {
+          padding: Spacing.lg,
+        },
+        title: {
+          fontSize: 28,
+          fontWeight: 'bold',
+          color: colors.text.primary,
+        },
+        webNotice: {
+          padding: Spacing.md,
+          backgroundColor: 'rgba(139, 92, 246, 0.1)',
+          marginHorizontal: Spacing.lg,
+          borderRadius: BorderRadius.md,
+          marginBottom: Spacing.md,
+        },
+        webNoticeText: {
+          color: colors.text.secondary,
+          textAlign: 'center',
+        },
+      }),
+    [colors]
+  );
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.primary.default} />
+        <ActivityIndicator size="large" color={colors.primary.default} />
       </View>
     );
   }
@@ -105,37 +145,3 @@ export default function MapScreen({ variant = 'discover' }: MapScreenProps) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background.primary,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  safeArea: {
-    flex: 1,
-  },
-  header: {
-    padding: Spacing.lg,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: Colors.text.primary,
-  },
-  webNotice: {
-    padding: Spacing.md,
-    backgroundColor: 'rgba(139, 92, 246, 0.1)',
-    marginHorizontal: Spacing.lg,
-    borderRadius: BorderRadius.md,
-    marginBottom: Spacing.md,
-  },
-  webNoticeText: {
-    color: Colors.text.secondary,
-    textAlign: 'center',
-  },
-});

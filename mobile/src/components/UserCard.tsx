@@ -2,7 +2,7 @@
  * UserCard - Beautiful user profile card for discovery
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -19,7 +19,8 @@ import Animated, {
   Extrapolation,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, BorderRadius, FontSizes, FontWeights, Spacing, Shadows } from '../../constants/Colors';
+import { BorderRadius, FontSizes, FontWeights, Spacing } from '../../constants/Colors';
+import { useOrbitTheme } from '../theme';
 import { NearbyUser } from '../types';
 import InterestTag from './InterestTag';
 
@@ -39,8 +40,188 @@ export const UserCard: React.FC<UserCardProps> = ({
   onPass,
   onPress,
 }) => {
+  const { colors, shadows } = useOrbitTheme();
   const likeScale = useSharedValue(1);
   const passScale = useSharedValue(1);
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        cardContainer: {
+          alignItems: 'center',
+          marginBottom: Spacing.lg,
+        },
+        card: {
+          width: CARD_WIDTH,
+          backgroundColor: colors.background.card,
+          borderRadius: BorderRadius.xl,
+          overflow: 'hidden',
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: colors.border,
+        },
+        imageContainer: {
+          height: 320,
+          position: 'relative',
+        },
+        image: {
+          width: '100%',
+          height: '100%',
+          resizeMode: 'cover',
+        },
+        imagePlaceholder: {
+          width: '100%',
+          height: '100%',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: colors.background.tertiary,
+        },
+        placeholderText: {
+          fontSize: 80,
+          fontWeight: FontWeights.bold,
+          color: colors.text.primary,
+        },
+        hiddenPhotoLabel: {
+          marginTop: Spacing.md,
+          color: colors.text.secondary,
+          fontSize: FontSizes.sm,
+        },
+        imageFade: {
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: 100,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+        },
+        matchBadge: {
+          position: 'absolute',
+          top: Spacing.md,
+          right: Spacing.md,
+          paddingHorizontal: Spacing.md,
+          paddingVertical: Spacing.xs,
+          borderRadius: BorderRadius.sm,
+          alignItems: 'center',
+        },
+        matchText: {
+          color: '#FAFAFA',
+          fontSize: FontSizes.lg,
+          fontWeight: FontWeights.bold,
+        },
+        matchLabel: {
+          color: '#FAFAFA',
+          fontSize: FontSizes.xs,
+          opacity: 0.9,
+        },
+        onlineBadge: {
+          position: 'absolute',
+          top: Spacing.md,
+          left: Spacing.md,
+          flexDirection: 'row',
+          alignItems: 'center',
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          paddingHorizontal: Spacing.sm,
+          paddingVertical: Spacing.xs,
+          borderRadius: BorderRadius.full,
+        },
+        onlineDot: {
+          width: 8,
+          height: 8,
+          borderRadius: 4,
+          backgroundColor: colors.online,
+          marginRight: Spacing.xs,
+        },
+        onlineText: {
+          color: '#FAFAFA',
+          fontSize: FontSizes.xs,
+        },
+        userInfoOverlay: {
+          position: 'absolute',
+          bottom: Spacing.md,
+          left: Spacing.md,
+          right: Spacing.md,
+        },
+        nameRow: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: Spacing.xs,
+        },
+        username: {
+          fontSize: FontSizes.xxl,
+          fontWeight: FontWeights.bold,
+          color: '#FAFAFA',
+        },
+        distanceRow: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          marginTop: Spacing.xs,
+        },
+        distance: {
+          color: 'rgba(255,255,255,0.88)',
+          fontSize: FontSizes.sm,
+          marginLeft: Spacing.xs,
+        },
+        bioContainer: {
+          padding: Spacing.md,
+          paddingBottom: 0,
+        },
+        bio: {
+          color: colors.text.secondary,
+          fontSize: FontSizes.sm,
+          lineHeight: 20,
+        },
+        interestsContainer: {
+          padding: Spacing.md,
+          paddingTop: Spacing.sm,
+        },
+        interestsLabel: {
+          color: colors.text.tertiary,
+          fontSize: FontSizes.xs,
+          marginBottom: Spacing.sm,
+          textTransform: 'uppercase',
+          letterSpacing: 1,
+        },
+        interestsList: {
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+        },
+        moreInterests: {
+          paddingVertical: Spacing.xs,
+          paddingHorizontal: Spacing.sm,
+          backgroundColor: colors.background.tertiary,
+          borderRadius: BorderRadius.full,
+        },
+        moreText: {
+          color: colors.text.tertiary,
+          fontSize: FontSizes.xs,
+        },
+        actions: {
+          flexDirection: 'row',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: Spacing.lg,
+          paddingTop: Spacing.sm,
+          gap: Spacing.xl,
+        },
+        actionButton: {
+          width: 64,
+          height: 64,
+          borderRadius: 32,
+          alignItems: 'center',
+          justifyContent: 'center',
+          ...shadows.md,
+        },
+        passButton: {
+          backgroundColor: colors.background.elevated,
+          borderWidth: 2,
+          borderColor: colors.error,
+        },
+        likeButton: {
+          backgroundColor: colors.primary.default,
+        },
+      }),
+    [colors, shadows]
+  );
 
   const likeAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: likeScale.value }],
@@ -58,9 +239,9 @@ export const UserCard: React.FC<UserCardProps> = ({
   };
 
   const getMatchColor = (score: number) => {
-    if (score >= 80) return Colors.success;
-    if (score >= 50) return Colors.warning;
-    return Colors.text.tertiary;
+    if (score >= 80) return colors.success;
+    if (score >= 50) return colors.warning;
+    return colors.text.tertiary;
   };
 
   return (
@@ -100,11 +281,11 @@ export const UserCard: React.FC<UserCardProps> = ({
             <View style={styles.nameRow}>
               <Text style={styles.username}>{user.username}</Text>
               {user.is_verified && (
-                <Ionicons name="checkmark-circle" size={20} color={Colors.info} />
+                <Ionicons name="checkmark-circle" size={20} color={colors.info} />
               )}
             </View>
             <View style={styles.distanceRow}>
-              <Ionicons name="location" size={14} color={Colors.primary.default} />
+              <Ionicons name="location" size={14} color={colors.primary.default} />
               <Text style={styles.distance}>{getDistanceText(user.distance)}</Text>
             </View>
           </View>
@@ -148,7 +329,7 @@ export const UserCard: React.FC<UserCardProps> = ({
               onPressOut={() => (passScale.value = withSpring(1))}
               style={[styles.actionButton, styles.passButton]}
             >
-              <Ionicons name="close" size={32} color={Colors.error} />
+              <Ionicons name="close" size={32} color={colors.error} />
             </TouchableOpacity>
           </Animated.View>
 
@@ -159,7 +340,7 @@ export const UserCard: React.FC<UserCardProps> = ({
               onPressOut={() => (likeScale.value = withSpring(1))}
               style={[styles.actionButton, styles.likeButton]}
             >
-              <Ionicons name="heart" size={28} color={Colors.text.primary} />
+              <Ionicons name="heart" size={28} color="#FAFAFA" />
             </TouchableOpacity>
           </Animated.View>
         </View>
@@ -167,181 +348,5 @@ export const UserCard: React.FC<UserCardProps> = ({
     </TouchableOpacity>
   );
 };
-
-const styles = StyleSheet.create({
-  cardContainer: {
-    alignItems: 'center',
-    marginBottom: Spacing.lg,
-  },
-  card: {
-    width: CARD_WIDTH,
-    backgroundColor: Colors.background.card,
-    borderRadius: BorderRadius.xl,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: Colors.border,
-    ...Shadows.sm,
-  },
-  imageContainer: {
-    height: 320,
-    position: 'relative',
-  },
-  image: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  imagePlaceholder: {
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.background.tertiary,
-  },
-  placeholderText: {
-    fontSize: 80,
-    fontWeight: FontWeights.bold,
-    color: Colors.text.primary,
-  },
-  hiddenPhotoLabel: {
-    marginTop: Spacing.md,
-    color: Colors.text.secondary,
-    fontSize: FontSizes.sm,
-  },
-  imageFade: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 100,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  matchBadge: {
-    position: 'absolute',
-    top: Spacing.md,
-    right: Spacing.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.sm,
-    alignItems: 'center',
-  },
-  matchText: {
-    color: Colors.text.primary,
-    fontSize: FontSizes.lg,
-    fontWeight: FontWeights.bold,
-  },
-  matchLabel: {
-    color: Colors.text.primary,
-    fontSize: FontSizes.xs,
-    opacity: 0.9,
-  },
-  onlineBadge: {
-    position: 'absolute',
-    top: Spacing.md,
-    left: Spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.full,
-  },
-  onlineDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.online,
-    marginRight: Spacing.xs,
-  },
-  onlineText: {
-    color: Colors.text.primary,
-    fontSize: FontSizes.xs,
-  },
-  userInfoOverlay: {
-    position: 'absolute',
-    bottom: Spacing.md,
-    left: Spacing.md,
-    right: Spacing.md,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-  },
-  username: {
-    fontSize: FontSizes.xxl,
-    fontWeight: FontWeights.bold,
-    color: Colors.text.primary,
-  },
-  distanceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: Spacing.xs,
-  },
-  distance: {
-    color: Colors.text.secondary,
-    fontSize: FontSizes.sm,
-    marginLeft: Spacing.xs,
-  },
-  bioContainer: {
-    padding: Spacing.md,
-    paddingBottom: 0,
-  },
-  bio: {
-    color: Colors.text.secondary,
-    fontSize: FontSizes.sm,
-    lineHeight: 20,
-  },
-  interestsContainer: {
-    padding: Spacing.md,
-    paddingTop: Spacing.sm,
-  },
-  interestsLabel: {
-    color: Colors.text.tertiary,
-    fontSize: FontSizes.xs,
-    marginBottom: Spacing.sm,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  interestsList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-  },
-  moreInterests: {
-    paddingVertical: Spacing.xs,
-    paddingHorizontal: Spacing.sm,
-    backgroundColor: Colors.background.tertiary,
-    borderRadius: BorderRadius.full,
-  },
-  moreText: {
-    color: Colors.text.tertiary,
-    fontSize: FontSizes.xs,
-  },
-  actions: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: Spacing.lg,
-    paddingTop: Spacing.sm,
-    gap: Spacing.xl,
-  },
-  actionButton: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Shadows.md,
-  },
-  passButton: {
-    backgroundColor: Colors.background.elevated,
-    borderWidth: 2,
-    borderColor: Colors.error,
-  },
-  likeButton: {
-    backgroundColor: Colors.primary.default,
-  },
-});
 
 export default UserCard;

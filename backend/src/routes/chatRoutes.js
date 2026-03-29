@@ -10,6 +10,9 @@ router.get('/api/chat/conversations/:id/', authMiddleware, chatController.getCon
 router.get('/api/chat/conversations/:id/messages/', authMiddleware, chatController.listMessages);
 router.post('/api/chat/conversations/:id/messages/send/', authMiddleware, chatController.sendMessage);
 router.post('/api/chat/conversations/:id/messages/read/', authMiddleware, chatController.markRead);
+router.post('/api/chat/conversations/:id/clear/', authMiddleware, chatController.clearConversation);
+router.post('/api/chat/conversations/:id/block/', authMiddleware, chatController.blockConversationUser);
+router.post('/api/chat/conversations/:id/unblock/', authMiddleware, chatController.unblockConversationUser);
 router.delete('/api/chat/messages/:id/delete/', authMiddleware, chatController.deleteMessage);
 
 module.exports = router;

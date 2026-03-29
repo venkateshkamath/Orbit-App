@@ -2,12 +2,11 @@
  * Sign up — name, email, date of birth, then email OTP
  */
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
@@ -15,6 +14,7 @@ import {
   ActivityIndicator,
   Modal,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
@@ -22,7 +22,8 @@ import { BackHandler } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format, parse, isValid } from 'date-fns';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
+import { FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
+import { useOrbitTheme } from '../../src/theme';
 import { Input, GradientButton } from '../../src/components';
 import { useAuthStore } from '../../src/stores';
 import { leaveAuthScreen } from '../../src/utils/authNavigation';
@@ -60,6 +61,8 @@ export default function RegisterScreen() {
   const [iosPickerOpen, setIosPickerOpen] = useState(false);
 
   const { requestSignupOtp, verifySignupOtp } = useAuthStore();
+
+  const { colors, resolvedScheme } = useOrbitTheme();
 
   const maxDob = new Date();
   const minDob = minDobDate();
@@ -191,13 +194,220 @@ export default function RegisterScreen() {
     }
   };
 
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background.primary,
+  },
+  safeArea: {
+    flex: 1,
+  },
+  keyboardView: {
+    flex: 1,
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.lg,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.background.tertiary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: Platform.OS === 'android' ? Spacing.sm : Spacing.md,
+    alignSelf: 'flex-start',
+  },
+  header: {
+    marginTop: Spacing.xl,
+    marginBottom: Spacing.lg,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: colors.text.primary,
+    marginBottom: Spacing.xs,
+    letterSpacing: -0.5,
+  },
+  subtitle: {
+    fontSize: FontSizes.md,
+    color: colors.text.secondary,
+    lineHeight: 22,
+  },
+  emailEmphasis: {
+    color: colors.text.accent,
+    fontWeight: FontWeights.semibold,
+  },
+  devHint: {
+    fontSize: FontSizes.sm,
+    color: colors.secondary.default,
+    marginBottom: Spacing.md,
+    padding: Spacing.sm,
+    backgroundColor: colors.background.card,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(249, 115, 115, 0.12)',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.md,
+    gap: Spacing.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(249, 115, 115, 0.35)',
+  },
+  errorText: {
+    flex: 1,
+    color: colors.error,
+    fontSize: FontSizes.sm,
+    lineHeight: 18,
+  },
+  form: {
+    marginBottom: Spacing.md,
+  },
+  dobBlock: {
+    marginBottom: Spacing.md,
+  },
+  dobLabel: {
+    fontSize: FontSizes.sm,
+    fontWeight: FontWeights.semibold,
+    color: colors.text.secondary,
+    marginBottom: Spacing.xs,
+  },
+  dobRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background.secondary,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 14,
+    minHeight: 50,
+  },
+  dobIcon: {
+    marginRight: Spacing.sm,
+  },
+  dobValue: {
+    flex: 1,
+    fontSize: FontSizes.md,
+    color: colors.text.primary,
+    fontWeight: FontWeights.medium,
+  },
+  dobWebInput: {
+    flex: 1,
+    fontSize: FontSizes.md,
+    color: colors.text.primary,
+    paddingVertical: 0,
+  },
+  dobHint: {
+    fontSize: FontSizes.xs,
+    color: colors.text.muted,
+    marginTop: Spacing.xs,
+  },
+  iosModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'flex-end',
+  },
+  iosModalCard: {
+    backgroundColor: colors.background.elevated,
+    borderTopLeftRadius: BorderRadius.xl,
+    borderTopRightRadius: BorderRadius.xl,
+    paddingBottom: Spacing.xl,
+  },
+  iosModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  iosModalTitle: {
+    fontSize: FontSizes.lg,
+    fontWeight: FontWeights.semibold,
+    color: colors.text.primary,
+  },
+  iosModalDone: {
+    fontSize: FontSizes.md,
+    fontWeight: FontWeights.bold,
+    color: colors.primary.default,
+  },
+  iosPicker: {
+    height: 216,
+    alignSelf: 'stretch',
+  },
+  primaryBtn: {
+    marginTop: Spacing.lg,
+  },
+  otpLabel: {
+    fontSize: FontSizes.sm,
+    fontWeight: FontWeights.semibold,
+    color: colors.text.secondary,
+    marginBottom: Spacing.sm,
+  },
+  otpInput: {
+    fontSize: 32,
+    fontWeight: '700',
+    letterSpacing: 8,
+    color: colors.text.primary,
+    backgroundColor: colors.background.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    marginBottom: Spacing.lg,
+    textAlign: 'center',
+  },
+  resendBtn: {
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+  },
+  resendDisabled: {
+    opacity: 0.5,
+  },
+  resendText: {
+    color: colors.primary.light,
+    fontSize: FontSizes.md,
+    fontWeight: FontWeights.semibold,
+  },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 'auto',
+    paddingTop: Spacing.xl,
+  },
+  footerMuted: {
+    color: colors.text.secondary,
+    fontSize: FontSizes.md,
+  },
+  footerLink: {
+    color: colors.primary.default,
+    fontSize: FontSizes.md,
+    fontWeight: FontWeights.semibold,
+  },
+    }),
+    [colors]
+  );
   const renderDobField = () => {
     if (Platform.OS === 'web') {
       return (
         <View style={styles.dobBlock}>
           <Text style={styles.dobLabel}>Date of birth</Text>
           <View style={styles.dobRow}>
-            <Ionicons name="calendar-outline" size={20} color={Colors.text.tertiary} style={styles.dobIcon} />
+            <Ionicons name="calendar-outline" size={20} color={colors.text.tertiary} style={styles.dobIcon} />
             <TextInput
               style={styles.dobWebInput}
               value={dobText}
@@ -206,7 +416,7 @@ export default function RegisterScreen() {
                 setErrorMessage('');
               }}
               placeholder="YYYY-MM-DD"
-              placeholderTextColor={Colors.text.muted}
+              placeholderTextColor={colors.text.muted}
               autoCapitalize="none"
             />
           </View>
@@ -223,9 +433,9 @@ export default function RegisterScreen() {
           onPress={openNativeDatePicker}
           activeOpacity={0.75}
         >
-          <Ionicons name="calendar-outline" size={20} color={Colors.text.tertiary} style={styles.dobIcon} />
+          <Ionicons name="calendar-outline" size={20} color={colors.text.tertiary} style={styles.dobIcon} />
           <Text style={styles.dobValue}>{format(dobDate, 'MMMM d, yyyy')}</Text>
-          <Ionicons name="chevron-down" size={20} color={Colors.text.tertiary} />
+          <Ionicons name="chevron-down" size={20} color={colors.text.tertiary} />
         </TouchableOpacity>
 
         {androidPickerOpen ? (
@@ -274,7 +484,7 @@ export default function RegisterScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="light" />
+      <StatusBar style={resolvedScheme === 'dark' ? 'light' : 'dark'} />
 
       <SafeAreaView style={styles.safeArea}>
         <KeyboardAvoidingView
@@ -283,7 +493,7 @@ export default function RegisterScreen() {
         >
           <View style={styles.content}>
             <TouchableOpacity onPress={goBack} style={styles.backButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Ionicons name="arrow-back" size={24} color={Colors.text.primary} />
+              <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
             </TouchableOpacity>
 
             {step === 'details' ? (
@@ -295,7 +505,7 @@ export default function RegisterScreen() {
 
                 {errorMessage ? (
                   <View style={styles.errorContainer}>
-                    <Ionicons name="alert-circle" size={20} color={Colors.error} />
+                    <Ionicons name="alert-circle" size={20} color={colors.error} />
                     <Text style={styles.errorText}>{errorMessage}</Text>
                   </View>
                 ) : null}
@@ -349,7 +559,7 @@ export default function RegisterScreen() {
 
                 {errorMessage ? (
                   <View style={styles.errorContainer}>
-                    <Ionicons name="alert-circle" size={20} color={Colors.error} />
+                    <Ionicons name="alert-circle" size={20} color={colors.error} />
                     <Text style={styles.errorText}>{errorMessage}</Text>
                   </View>
                 ) : null}
@@ -365,7 +575,7 @@ export default function RegisterScreen() {
                   keyboardType="number-pad"
                   maxLength={6}
                   placeholder="000000"
-                  placeholderTextColor={Colors.text.muted}
+                  placeholderTextColor={colors.text.muted}
                 />
 
                 <GradientButton
@@ -382,7 +592,7 @@ export default function RegisterScreen() {
                   disabled={resendIn > 0 || sending}
                 >
                   {sending ? (
-                    <ActivityIndicator color={Colors.primary.light} />
+                    <ActivityIndicator color={colors.primary.light} />
                   ) : (
                     <Text style={styles.resendText}>
                       {resendIn > 0 ? `Resend code in ${resendIn}s` : 'Resend code'}
@@ -404,206 +614,3 @@ export default function RegisterScreen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background.primary,
-  },
-  safeArea: {
-    flex: 1,
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.lg,
-  },
-  backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: BorderRadius.md,
-    backgroundColor: Colors.background.tertiary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: Spacing.md,
-    alignSelf: 'flex-start',
-  },
-  header: {
-    marginTop: Spacing.xl,
-    marginBottom: Spacing.lg,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: Colors.text.primary,
-    marginBottom: Spacing.xs,
-    letterSpacing: -0.5,
-  },
-  subtitle: {
-    fontSize: FontSizes.md,
-    color: Colors.text.secondary,
-    lineHeight: 22,
-  },
-  emailEmphasis: {
-    color: Colors.text.accent,
-    fontWeight: FontWeights.semibold,
-  },
-  devHint: {
-    fontSize: FontSizes.sm,
-    color: Colors.secondary.default,
-    marginBottom: Spacing.md,
-    padding: Spacing.sm,
-    backgroundColor: Colors.background.card,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  errorContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(249, 115, 115, 0.12)',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.md,
-    marginBottom: Spacing.md,
-    gap: Spacing.sm,
-    borderWidth: 1,
-    borderColor: 'rgba(249, 115, 115, 0.35)',
-  },
-  errorText: {
-    flex: 1,
-    color: Colors.error,
-    fontSize: FontSizes.sm,
-    lineHeight: 18,
-  },
-  form: {
-    marginBottom: Spacing.md,
-  },
-  dobBlock: {
-    marginBottom: Spacing.md,
-  },
-  dobLabel: {
-    fontSize: FontSizes.sm,
-    fontWeight: FontWeights.semibold,
-    color: Colors.text.secondary,
-    marginBottom: Spacing.xs,
-  },
-  dobRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.background.card,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: BorderRadius.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 14,
-    minHeight: 52,
-  },
-  dobIcon: {
-    marginRight: Spacing.sm,
-  },
-  dobValue: {
-    flex: 1,
-    fontSize: FontSizes.md,
-    color: Colors.text.primary,
-    fontWeight: FontWeights.medium,
-  },
-  dobWebInput: {
-    flex: 1,
-    fontSize: FontSizes.md,
-    color: Colors.text.primary,
-    paddingVertical: 0,
-  },
-  dobHint: {
-    fontSize: FontSizes.xs,
-    color: Colors.text.muted,
-    marginTop: Spacing.xs,
-  },
-  iosModalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    justifyContent: 'flex-end',
-  },
-  iosModalCard: {
-    backgroundColor: Colors.background.elevated,
-    borderTopLeftRadius: BorderRadius.xl,
-    borderTopRightRadius: BorderRadius.xl,
-    paddingBottom: Spacing.xl,
-  },
-  iosModalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  iosModalTitle: {
-    fontSize: FontSizes.lg,
-    fontWeight: FontWeights.semibold,
-    color: Colors.text.primary,
-  },
-  iosModalDone: {
-    fontSize: FontSizes.md,
-    fontWeight: FontWeights.bold,
-    color: Colors.primary.default,
-  },
-  iosPicker: {
-    height: 216,
-    alignSelf: 'stretch',
-  },
-  primaryBtn: {
-    marginTop: Spacing.lg,
-  },
-  otpLabel: {
-    fontSize: FontSizes.sm,
-    fontWeight: FontWeights.semibold,
-    color: Colors.text.secondary,
-    marginBottom: Spacing.sm,
-  },
-  otpInput: {
-    fontSize: 32,
-    fontWeight: '700',
-    letterSpacing: 8,
-    color: Colors.text.primary,
-    backgroundColor: Colors.background.card,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: BorderRadius.lg,
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    marginBottom: Spacing.lg,
-    textAlign: 'center',
-  },
-  resendBtn: {
-    alignItems: 'center',
-    paddingVertical: Spacing.md,
-  },
-  resendDisabled: {
-    opacity: 0.5,
-  },
-  resendText: {
-    color: Colors.primary.light,
-    fontSize: FontSizes.md,
-    fontWeight: FontWeights.semibold,
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 'auto',
-    paddingTop: Spacing.xl,
-  },
-  footerMuted: {
-    color: Colors.text.secondary,
-    fontSize: FontSizes.md,
-  },
-  footerLink: {
-    color: Colors.primary.default,
-    fontSize: FontSizes.md,
-    fontWeight: FontWeights.semibold,
-  },
-});

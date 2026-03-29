@@ -2,14 +2,15 @@
  * InterestTag - Animated interest chip component
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { TouchableOpacity, Text, StyleSheet, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
-import { Colors, BorderRadius, FontSizes, Spacing } from '../../constants/Colors';
+import { BorderRadius, FontSizes, Spacing } from '../../constants/Colors';
+import { useOrbitTheme } from '../theme';
 import { Interest } from '../types';
 
 interface InterestTagProps {
@@ -27,7 +28,43 @@ export const InterestTag: React.FC<InterestTagProps> = ({
   onPress,
   size = 'md',
 }) => {
+  const { colors } = useOrbitTheme();
   const scale = useSharedValue(1);
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        container: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          borderRadius: BorderRadius.full,
+          borderWidth: StyleSheet.hairlineWidth,
+          marginRight: Spacing.sm,
+          marginBottom: Spacing.sm,
+        },
+        emoji: {
+          marginRight: Spacing.xs,
+        },
+        text: {
+          color: colors.text.secondary,
+          fontWeight: '500',
+        },
+        checkmark: {
+          width: 18,
+          height: 18,
+          borderRadius: 9,
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginLeft: Spacing.xs,
+        },
+        checkmarkText: {
+          color: '#FFFFFF',
+          fontSize: 10,
+          fontWeight: 'bold',
+        },
+      }),
+    [colors]
+  );
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -71,8 +108,8 @@ export const InterestTag: React.FC<InterestTagProps> = ({
         {
           paddingVertical: sizeStyles[size].paddingVertical,
           paddingHorizontal: sizeStyles[size].paddingHorizontal,
-          backgroundColor: selected ? interest.color + '30' : Colors.background.tertiary,
-          borderColor: selected ? interest.color + '80' : Colors.border,
+          backgroundColor: selected ? interest.color + '30' : colors.background.tertiary,
+          borderColor: selected ? interest.color + '80' : colors.border,
         },
       ]}
       activeOpacity={0.85}
@@ -95,36 +132,5 @@ export const InterestTag: React.FC<InterestTagProps> = ({
     </AnimatedTouchable>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: BorderRadius.full,
-    borderWidth: 1,
-    marginRight: Spacing.sm,
-    marginBottom: Spacing.sm,
-  },
-  emoji: {
-    marginRight: Spacing.xs,
-  },
-  text: {
-    color: Colors.text.secondary,
-    fontWeight: '500',
-  },
-  checkmark: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: Spacing.xs,
-  },
-  checkmarkText: {
-    color: Colors.text.primary,
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-});
 
 export default InterestTag;
