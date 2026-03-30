@@ -7,10 +7,12 @@ import { Tabs } from 'expo-router';
 import { View, StyleSheet } from 'react-native';
 import { LocationProvider } from '../../src/context/LocationContext';
 import OrbitTabBar from '../../src/components/OrbitTabBar';
+import { SessionLocationSync } from '../../src/components/SessionLocationSync';
 
 export default function TabsLayout() {
   return (
     <LocationProvider>
+      <SessionLocationSync />
       <View style={styles.tabsRoot}>
         <View style={styles.tabsNavigatorFill}>
           <Tabs

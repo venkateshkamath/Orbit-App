@@ -5,7 +5,6 @@
 import React, { useMemo } from 'react';
 import {
   TouchableOpacity,
-  Text,
   View,
   StyleSheet,
   ActivityIndicator,
@@ -20,6 +19,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { BorderRadius, FontSizes, FontWeights, Spacing } from '../../constants/Colors';
 import { useOrbitTheme } from '../theme';
+import { AppText } from '../ui/AppText';
 
 const CTA_TEXT = '#FFFFFF';
 
@@ -151,7 +151,7 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
         ) : (
           <>
             {icon}
-            <Text
+            <AppText
               style={[
                 styles.outlineText,
                 { fontSize: textSizes[size] },
@@ -160,7 +160,7 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
               ]}
             >
               {title}
-            </Text>
+            </AppText>
           </>
         )}
       </AnimatedTouchable>
@@ -183,7 +183,7 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
           ) : (
             <>
               {icon}
-              <Text
+              <AppText
                 style={[
                   styles.text,
                   styles.secondaryText,
@@ -193,7 +193,7 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
                 ]}
               >
                 {title}
-              </Text>
+              </AppText>
             </>
           )}
         </View>
@@ -223,9 +223,9 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
           ) : (
             <>
               {icon}
-              <Text style={[styles.text, { fontSize: textSizes[size] }, textIconSpacing, textStyle]}>
+              <AppText style={[styles.text, { fontSize: textSizes[size] }, textIconSpacing, textStyle]}>
                 {title}
-              </Text>
+              </AppText>
             </>
           )}
         </View>

@@ -5,7 +5,6 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   FlatList,
   TextInput,
@@ -25,6 +24,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
 import { useOrbitTheme } from '../../src/theme';
 import { Avatar, MessageBubble } from '../../src/components';
+import { AppText } from '../../src/ui/AppText';
 import {
   useConversationQuery,
   useClearConversationMutation,
@@ -40,7 +40,7 @@ import { useAuthStore } from '../../src/stores';
 const BOTTOM_THRESHOLD_PX = 80;
 
 export default function ChatDetailScreen() {
-  const { colors } = useOrbitTheme();
+  const { colors, fonts } = useOrbitTheme();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const insets = useSafeAreaInsets();
@@ -293,10 +293,12 @@ export default function ChatDetailScreen() {
           fontSize: FontSizes.md,
           fontWeight: FontWeights.semibold,
           color: colors.text.primary,
+          fontFamily: fonts.semibold,
         },
         status: {
           fontSize: FontSizes.xs,
           color: colors.text.secondary,
+          fontFamily: fonts.regular,
         },
         moreButton: {
           width: 40,
@@ -326,6 +328,7 @@ export default function ChatDetailScreen() {
         emptyText: {
           fontSize: FontSizes.lg,
           color: colors.text.tertiary,
+          fontFamily: fonts.regular,
         },
         inputContainer: {
           flexDirection: 'row',
@@ -362,6 +365,7 @@ export default function ChatDetailScreen() {
           paddingVertical: Platform.OS === 'ios' ? Spacing.sm : Spacing.xs,
           paddingHorizontal: Spacing.xs,
           maxHeight: 100,
+          fontFamily: fonts.regular,
         },
         emojiButton: {
           width: 36,
@@ -418,6 +422,7 @@ export default function ChatDetailScreen() {
           fontSize: FontSizes.sm,
           fontWeight: FontWeights.semibold,
           color: colors.text.primary,
+          fontFamily: fonts.semibold,
         },
         blockedBanner: {
           marginHorizontal: Spacing.md,
@@ -438,6 +443,7 @@ export default function ChatDetailScreen() {
           color: colors.text.secondary,
           fontSize: FontSizes.sm,
           fontWeight: FontWeights.medium,
+          fontFamily: fonts.medium,
         },
         blockedBannerAction: {
           marginLeft: Spacing.sm,
@@ -450,6 +456,7 @@ export default function ChatDetailScreen() {
           color: colors.text.primary,
           fontSize: FontSizes.xs,
           fontWeight: FontWeights.semibold,
+          fontFamily: fonts.semibold,
         },
         menuBackdrop: {
           flex: 1,
@@ -481,6 +488,7 @@ export default function ChatDetailScreen() {
           color: colors.text.primary,
           fontSize: FontSizes.sm,
           fontWeight: FontWeights.medium,
+          fontFamily: fonts.medium,
         },
         menuDivider: {
           height: StyleSheet.hairlineWidth,
@@ -490,7 +498,7 @@ export default function ChatDetailScreen() {
           color: colors.error,
         },
       }),
-    [colors, insets.top]
+    [colors, fonts, insets.top]
   );
 
   return (
@@ -529,10 +537,10 @@ export default function ChatDetailScreen() {
                 isOnline={otherUser.is_online}
               />
               <View style={styles.userDetails}>
-                <Text style={styles.username}>{otherUser.username}</Text>
-                <Text style={styles.status}>
+                <AppText style={styles.username}>{otherUser.username}</AppText>
+                <AppText style={styles.status}>
                   {otherUser.is_online ? 'Online' : 'Offline'}
-                </Text>
+                </AppText>
               </View>
             </TouchableOpacity>
           )}
@@ -570,9 +578,9 @@ export default function ChatDetailScreen() {
                 scrollEventThrottle={16}
                 ListEmptyComponent={
                   <View style={styles.emptyContainer}>
-                    <Text style={styles.emptyText}>
+                    <AppText style={styles.emptyText}>
                       Say hello! 👋
-                    </Text>
+                    </AppText>
                   </View>
                 }
               />
@@ -587,13 +595,13 @@ export default function ChatDetailScreen() {
                     activeOpacity={0.9}
                   >
                     <Ionicons name="arrow-down" size={16} color={colors.text.primary} />
-                    <Text style={styles.jumpToLatestText}>
+                    <AppText style={styles.jumpToLatestText}>
                       {newMessagesCount === 0
                         ? 'Latest'
                         : newMessagesCount === 1
                           ? 'New message'
                           : `${newMessagesCount} new messages`}
-                    </Text>
+                    </AppText>
                   </TouchableOpacity>
                 </View>
               ) : null}
@@ -603,20 +611,20 @@ export default function ChatDetailScreen() {
           {isConversationBlocked ? (
             <View style={styles.blockedBanner}>
               <Ionicons name="lock-closed-outline" size={16} color={colors.text.secondary} />
-              <Text style={styles.blockedBannerText}>
+              <AppText style={styles.blockedBannerText}>
                 {blockedByOther
                   ? 'You are blocked and cannot send messages.'
                   : 'You blocked this user. This chat is read-only.'}
-              </Text>
+              </AppText>
               {blockedByMe ? (
                 <TouchableOpacity
                   style={styles.blockedBannerAction}
                   onPress={confirmUnblockUser}
                   disabled={unblockMut.isPending}
                 >
-                  <Text style={styles.blockedBannerActionText}>
+                  <AppText style={styles.blockedBannerActionText}>
                     {unblockMut.isPending ? 'Unblocking...' : 'Unblock'}
-                  </Text>
+                  </AppText>
                 </TouchableOpacity>
               ) : null}
             </View>
@@ -685,7 +693,7 @@ export default function ChatDetailScreen() {
                   disabled={unblockMut.isPending}
                 >
                   <Ionicons name="lock-open-outline" size={18} color={colors.text.primary} />
-                  <Text style={styles.menuItemText}>Unblock user</Text>
+                  <AppText style={styles.menuItemText}>Unblock user</AppText>
                 </TouchableOpacity>
                 <View style={styles.menuDivider} />
               </>
@@ -701,7 +709,7 @@ export default function ChatDetailScreen() {
                   disabled={blockMut.isPending}
                 >
                   <Ionicons name="ban-outline" size={18} color={colors.error} />
-                  <Text style={[styles.menuItemText, styles.destructiveText]}>Block user</Text>
+                  <AppText style={[styles.menuItemText, styles.destructiveText]}>Block user</AppText>
                 </TouchableOpacity>
                 <View style={styles.menuDivider} />
               </>
@@ -715,7 +723,7 @@ export default function ChatDetailScreen() {
               disabled={clearMut.isPending}
             >
               <Ionicons name="trash-outline" size={18} color={colors.error} />
-              <Text style={[styles.menuItemText, styles.destructiveText]}>Clear chat</Text>
+              <AppText style={[styles.menuItemText, styles.destructiveText]}>Clear chat</AppText>
             </TouchableOpacity>
           </Pressable>
         </Pressable>

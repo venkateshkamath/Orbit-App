@@ -5,7 +5,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   SafeAreaView,
   ScrollView,
@@ -20,6 +19,7 @@ import { InterestTag, GradientButton } from '../../src/components';
 import { useAuthStore } from '../../src/stores';
 import { useInterestsQuery } from '../../src/hooks/useOrbitApi';
 import { Interest } from '../../src/types';
+import { AppText } from '../../src/ui/AppText';
 
 export default function InterestsScreen() {
   const { colors } = useOrbitTheme();
@@ -181,10 +181,10 @@ export default function InterestsScreen() {
       <SafeAreaView style={styles.safeArea}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>What are you into?</Text>
-          <Text style={styles.subtitle}>
+          <AppText style={styles.title}>What are you into?</AppText>
+          <AppText style={styles.subtitle}>
             Select at least 3 interests to help us find your people
-          </Text>
+          </AppText>
           <View style={styles.progressContainer}>
             <View style={styles.progressBar}>
               <LinearGradient
@@ -197,10 +197,10 @@ export default function InterestsScreen() {
                 ]}
               />
             </View>
-            <Text style={styles.progressText}>
+            <AppText style={styles.progressText}>
               {selectedIds.length} selected
               {selectedIds.length < 3 && ` (${3 - selectedIds.length} more needed)`}
-            </Text>
+            </AppText>
           </View>
         </View>
 
@@ -212,9 +212,9 @@ export default function InterestsScreen() {
         >
           {Object.entries(groupedInterests).map(([category, categoryInterests]) => (
             <View key={category} style={styles.categoryContainer}>
-              <Text style={styles.categoryTitle}>
+              <AppText style={styles.categoryTitle}>
                 {categoryLabels[category] || category}
-              </Text>
+              </AppText>
               <View style={styles.interestsGrid}>
                 {categoryInterests.map((interest) => (
                   <InterestTag

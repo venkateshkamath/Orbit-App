@@ -6,7 +6,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAuthStore } from '../src/stores';
@@ -18,10 +18,11 @@ import {
   tryRegisterExpoPushToken,
 } from '../src/lib/notificationsSafe';
 import { ThemeProvider, useOrbitTheme } from '../src/theme';
+import { AppText } from '../src/ui/AppText';
 import { authApi } from '../src/api/auth';
 
 function RootLayoutNav() {
-  const { colors, resolvedScheme } = useOrbitTheme();
+  const { colors, resolvedScheme, fonts } = useOrbitTheme();
   const styles = useMemo(
     () =>
       StyleSheet.create({
@@ -39,9 +40,10 @@ function RootLayoutNav() {
           color: colors.text.secondary,
           marginTop: 16,
           fontSize: 16,
+          fontFamily: fonts.medium,
         },
       }),
-    [colors]
+    [colors, fonts]
   );
   const { isLoading, loadUser, isAuthenticated, isOnboardingComplete } = useAuthStore();
   const router = useRouter();
@@ -117,7 +119,7 @@ function RootLayoutNav() {
       <View style={styles.loadingContainer}>
         <StatusBar style={statusStyle} />
         <ActivityIndicator size="large" color={colors.primary.default} />
-        <Text style={styles.loadingText}>Loading ORBIT...</Text>
+        <AppText style={styles.loadingText}>Loading ORBIT...</AppText>
       </View>
     );
   }

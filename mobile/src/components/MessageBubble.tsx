@@ -3,10 +3,11 @@
  */
 
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
+import { View, StyleSheet, Pressable, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BorderRadius, FontSizes, Spacing } from '../../constants/Colors';
 import { useOrbitTheme } from '../theme';
+import { AppText } from '../ui/AppText';
 import { Message } from '../types';
 
 interface MessageBubbleProps {
@@ -113,14 +114,14 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           pressed && { opacity: 0.85 },
         ]}
       >
-        <Text style={[styles.text, isOwn ? styles.ownText : styles.otherText]}>
+        <AppText style={[styles.text, isOwn ? styles.ownText : styles.otherText]}>
           {message.content}
-        </Text>
+        </AppText>
         {isOwn ? (
           <View style={styles.meta}>
-            <Text style={[styles.time, styles.ownTime]}>
+            <AppText style={[styles.time, styles.ownTime]}>
               {formatTime(message.created_at)}
-            </Text>
+            </AppText>
             <Ionicons
               name={message.is_read ? 'checkmark-done' : 'checkmark'}
               size={14}
@@ -129,9 +130,9 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
             />
           </View>
         ) : (
-          <Text style={[styles.time, styles.otherTime]}>
+          <AppText style={[styles.time, styles.otherTime]}>
             {formatTime(message.created_at)}
-          </Text>
+          </AppText>
         )}
       </Pressable>
     </View>

@@ -20,6 +20,14 @@ const userSchema = new mongoose.Schema(
     date_of_birth: { type: String, default: null },
     latitude: { type: Number, default: null },
     longitude: { type: Number, default: null },
+    /** GeoJSON Point for $geoNear discovery queries; synced from latitude/longitude. */
+    location: {
+      type: {
+        type: String,
+        enum: ['Point'],
+      },
+      coordinates: { type: [Number] },
+    },
     location_updated_at: { type: Date, default: null },
     is_discoverable: { type: Boolean, default: true },
     discovery_radius: { type: Number, default: 1000 },
@@ -33,6 +41,7 @@ const userSchema = new mongoose.Schema(
   },
   { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
 );
+userSchema.index({ location: '2dsphere' }, { sparse: true });
 
 const otpChallengeSchema = new mongoose.Schema(
   {

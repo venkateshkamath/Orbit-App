@@ -5,7 +5,6 @@
 import React, { useState, useMemo } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
@@ -26,6 +25,7 @@ import { useOrbitTheme } from '../../src/theme';
 import { Avatar, GlassCard, InterestTag } from '../../src/components';
 import { useMatchesQuery } from '../../src/hooks/useOrbitApi';
 import { useAuthStore } from '../../src/stores';
+import { AppText } from '../../src/ui/AppText';
 
 function formatDiscoveryRadiusMeters(m?: number | null) {
   const r = m ?? 1000;
@@ -34,7 +34,7 @@ function formatDiscoveryRadiusMeters(m?: number | null) {
 }
 
 export default function ProfileScreen() {
-  const { colors, shadows, preference, setPreference } = useOrbitTheme();
+  const { colors, shadows, preference, setPreference, fonts } = useOrbitTheme();
   const { user, logout, updateProfile } = useAuthStore();
   const { data: matches = [] } = useMatchesQuery();
   const router = useRouter();
@@ -251,11 +251,13 @@ export default function ProfileScreen() {
       letterSpacing: -0.5,
       marginBottom: Spacing.xs,
       textAlign: 'center',
+      fontFamily: fonts.bold,
     },
     heroEmail: {
       fontSize: FontSizes.sm,
       color: colors.text.tertiary,
       marginBottom: Spacing.sm,
+      fontFamily: fonts.regular,
     },
     heroBio: {
       fontSize: FontSizes.md,
@@ -263,6 +265,7 @@ export default function ProfileScreen() {
       textAlign: 'center',
       lineHeight: 22,
       paddingHorizontal: Spacing.sm,
+      fontFamily: fonts.regular,
     },
     heroBioMuted: {
       fontSize: FontSizes.sm,
@@ -270,6 +273,7 @@ export default function ProfileScreen() {
       textAlign: 'center',
       fontStyle: 'italic',
       paddingHorizontal: Spacing.md,
+      fontFamily: fonts.regular,
     },
     statsRow: {
       flexDirection: 'row',
@@ -289,6 +293,7 @@ export default function ProfileScreen() {
       fontWeight: FontWeights.bold,
       color: colors.text.primary,
       marginTop: Spacing.xs,
+      fontFamily: fonts.bold,
     },
     statPillLabel: {
       fontSize: 10,
@@ -297,6 +302,7 @@ export default function ProfileScreen() {
       marginTop: 2,
       letterSpacing: 0.5,
       textTransform: 'uppercase',
+      fontFamily: fonts.semibold,
     },
     section: {
       marginBottom: Spacing.lg,
@@ -314,6 +320,7 @@ export default function ProfileScreen() {
       fontSize: FontSizes.lg,
       fontWeight: '600' as const,
       color: colors.text.primary,
+      fontFamily: fonts.semibold,
     },
     sectionTitleSpaced: {
       marginBottom: Spacing.md,
@@ -323,6 +330,7 @@ export default function ProfileScreen() {
       color: colors.text.tertiary,
       marginBottom: Spacing.md,
       lineHeight: 20,
+      fontFamily: fonts.regular,
     },
     appearanceRow: {
       flexDirection: 'row',
@@ -349,6 +357,7 @@ export default function ProfileScreen() {
       fontSize: FontSizes.sm,
       fontWeight: FontWeights.semibold,
       color: colors.text.secondary,
+      fontFamily: fonts.semibold,
     },
     appearanceChipTextActive: {
       color: colors.primary.default,
@@ -360,6 +369,7 @@ export default function ProfileScreen() {
       fontSize: FontSizes.sm,
       color: colors.primary.default,
       fontWeight: FontWeights.medium,
+      fontFamily: fonts.medium,
     },
     interestsContainer: {
       flexDirection: 'row',
@@ -386,11 +396,13 @@ export default function ProfileScreen() {
       fontSize: FontSizes.md,
       fontWeight: FontWeights.medium,
       color: colors.text.primary,
+      fontFamily: fonts.medium,
     },
     settingSubtitle: {
       fontSize: FontSizes.sm,
       color: colors.text.tertiary,
       marginTop: 2,
+      fontFamily: fonts.regular,
     },
     separator: {
       height: StyleSheet.hairlineWidth,
@@ -418,6 +430,7 @@ export default function ProfileScreen() {
       fontWeight: FontWeights.semibold,
       color: colors.text.secondary,
       letterSpacing: 0.5,
+      fontFamily: fonts.semibold,
     },
     copyright: {
       fontSize: FontSizes.xs,
@@ -425,6 +438,7 @@ export default function ProfileScreen() {
       textAlign: 'center',
       maxWidth: 260,
       lineHeight: 18,
+      fontFamily: fonts.regular,
     },
     modalOverlay: {
       flex: 1,
@@ -459,6 +473,7 @@ export default function ProfileScreen() {
       fontWeight: FontWeights.bold,
       color: colors.text.primary,
       marginBottom: Spacing.sm,
+      fontFamily: fonts.bold,
     },
     modalMessage: {
       fontSize: FontSizes.md,
@@ -466,6 +481,7 @@ export default function ProfileScreen() {
       textAlign: 'center',
       marginBottom: Spacing.xl,
       lineHeight: 22,
+      fontFamily: fonts.regular,
     },
     modalButtons: {
       flexDirection: 'row',
@@ -487,6 +503,7 @@ export default function ProfileScreen() {
       fontSize: FontSizes.md,
       fontWeight: FontWeights.semibold,
       color: colors.text.primary,
+      fontFamily: fonts.semibold,
     },
     logoutButton: {
       alignItems: 'center',
@@ -498,6 +515,7 @@ export default function ProfileScreen() {
       fontWeight: FontWeights.semibold,
       color: '#FFFFFF',
       zIndex: 1,
+      fontFamily: fonts.semibold,
     },
     loadingOverlay: {
       ...StyleSheet.absoluteFillObject,
@@ -517,6 +535,7 @@ export default function ProfileScreen() {
       fontWeight: FontWeights.semibold,
       color: colors.text.primary,
       marginTop: Spacing.md,
+      fontFamily: fonts.semibold,
     },
     avatarOptionsButtons: {
       width: '100%',
@@ -538,6 +557,7 @@ export default function ProfileScreen() {
       fontSize: FontSizes.md,
       fontWeight: FontWeights.semibold,
       color: colors.text.primary,
+      fontFamily: fonts.semibold,
     },
     removeOptionButton: {
       flexDirection: 'row',
@@ -551,6 +571,7 @@ export default function ProfileScreen() {
       fontSize: FontSizes.md,
       fontWeight: FontWeights.semibold,
       color: colors.error,
+      fontFamily: fonts.semibold,
     },
     cancelOptionButton: {
       backgroundColor: colors.background.tertiary,
@@ -561,9 +582,10 @@ export default function ProfileScreen() {
       color: colors.text.primary,
       textAlign: 'center',
       paddingVertical: Spacing.md,
+      fontFamily: fonts.semibold,
     },
         }),
-      [colors, shadows]
+      [colors, shadows, fonts]
     );
 
   const SettingItem = ({
@@ -599,15 +621,15 @@ export default function ProfileScreen() {
         />
       </View>
       <View style={styles.settingContent}>
-        <Text
+        <AppText
           style={[
             styles.settingTitle,
             destructive && { color: colors.error },
           ]}
         >
           {title}
-        </Text>
-        {subtitle && <Text style={styles.settingSubtitle}>{subtitle}</Text>}
+        </AppText>
+        {subtitle && <AppText style={styles.settingSubtitle}>{subtitle}</AppText>}
       </View>
       {rightElement || (onPress && (
         <Ionicons name="chevron-forward" size={20} color={colors.text.tertiary} />
@@ -652,14 +674,14 @@ export default function ProfileScreen() {
                 </View>
               </TouchableOpacity>
 
-              <Text style={styles.heroName}>{user?.username ?? 'Explorer'}</Text>
-              <Text style={styles.heroEmail}>{user?.email}</Text>
+              <AppText style={styles.heroName}>{user?.username ?? 'Explorer'}</AppText>
+              <AppText style={styles.heroEmail}>{user?.email}</AppText>
               {user?.bio ? (
-                <Text style={styles.heroBio} numberOfLines={3}>
+                <AppText style={styles.heroBio} numberOfLines={3}>
                   {user.bio}
-                </Text>
+                </AppText>
               ) : (
-                <Text style={styles.heroBioMuted}>Add a short bio so people know you better.</Text>
+                <AppText style={styles.heroBioMuted}>Add a short bio so people know you better.</AppText>
               )}
             </View>
           </View>
@@ -668,20 +690,20 @@ export default function ProfileScreen() {
           <View style={styles.statsRow}>
             <View style={styles.statPill}>
               <Ionicons name="heart" size={16} color={colors.secondary.default} />
-              <Text style={styles.statPillValue}>{matches.length}</Text>
-              <Text style={styles.statPillLabel}>Matches</Text>
+              <AppText style={styles.statPillValue}>{matches.length}</AppText>
+              <AppText style={styles.statPillLabel}>Matches</AppText>
             </View>
             <View style={styles.statPill}>
               <Ionicons name="planet" size={16} color={colors.primary.default} />
-              <Text style={styles.statPillValue}>{user?.interests?.length ?? 0}</Text>
-              <Text style={styles.statPillLabel}>Interests</Text>
+              <AppText style={styles.statPillValue}>{user?.interests?.length ?? 0}</AppText>
+              <AppText style={styles.statPillLabel}>Interests</AppText>
             </View>
             <View style={styles.statPill}>
               <Ionicons name="navigate" size={16} color={colors.primary.light} />
-              <Text style={styles.statPillValue} numberOfLines={1} adjustsFontSizeToFit>
+              <AppText style={styles.statPillValue} numberOfLines={1} adjustsFontSizeToFit>
                 {formatDiscoveryRadiusMeters(user?.discovery_radius)}
-              </Text>
-              <Text style={styles.statPillLabel}>Radius</Text>
+              </AppText>
+              <AppText style={styles.statPillLabel}>Radius</AppText>
             </View>
           </View>
 
@@ -689,11 +711,11 @@ export default function ProfileScreen() {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <View>
-                <Text style={styles.sectionKicker}>Passions</Text>
-                <Text style={styles.sectionTitleLarge}>Interests</Text>
+                <AppText style={styles.sectionKicker}>Passions</AppText>
+                <AppText style={styles.sectionTitleLarge}>Interests</AppText>
               </View>
               <TouchableOpacity onPress={() => router.push('/(onboarding)/interests')} hitSlop={12}>
-                <Text style={styles.editLink}>Edit</Text>
+                <AppText style={styles.editLink}>Edit</AppText>
               </TouchableOpacity>
             </View>
             <GlassCard padding={Spacing.md} style={styles.interestsCard}>
@@ -712,8 +734,8 @@ export default function ProfileScreen() {
 
           {/* Discovery Settings */}
           <View style={styles.section}>
-            <Text style={styles.sectionKicker}>Visibility</Text>
-            <Text style={[styles.sectionTitleLarge, styles.sectionTitleSpaced]}>Discovery</Text>
+            <AppText style={styles.sectionKicker}>Visibility</AppText>
+            <AppText style={[styles.sectionTitleLarge, styles.sectionTitleSpaced]}>Discovery</AppText>
             <GlassCard padding={0}>
               <SettingItem
                 icon="eye"
@@ -754,11 +776,11 @@ export default function ProfileScreen() {
 
           {/* Appearance */}
           <View style={styles.section}>
-            <Text style={styles.sectionKicker}>Display</Text>
-            <Text style={[styles.sectionTitleLarge, styles.sectionTitleSpaced]}>Appearance</Text>
-            <Text style={styles.appearanceHint}>
+            <AppText style={styles.sectionKicker}>Display</AppText>
+            <AppText style={[styles.sectionTitleLarge, styles.sectionTitleSpaced]}>Appearance</AppText>
+            <AppText style={styles.appearanceHint}>
               Use device setting, or keep the app light or dark.
-            </Text>
+            </AppText>
             <View style={styles.appearanceRow}>
               {(['system', 'light', 'dark'] as const).map((key) => (
                 <TouchableOpacity
@@ -781,14 +803,14 @@ export default function ProfileScreen() {
                     size={18}
                     color={preference === key ? colors.primary.default : colors.text.tertiary}
                   />
-                  <Text
+                  <AppText
                     style={[
                       styles.appearanceChipText,
                       preference === key && styles.appearanceChipTextActive,
                     ]}
                   >
                     {key === 'system' ? 'System' : key === 'light' ? 'Light' : 'Dark'}
-                  </Text>
+                  </AppText>
                 </TouchableOpacity>
               ))}
             </View>
@@ -796,8 +818,8 @@ export default function ProfileScreen() {
 
           {/* Account Settings */}
           <View style={styles.section}>
-            <Text style={styles.sectionKicker}>Security & help</Text>
-            <Text style={[styles.sectionTitleLarge, styles.sectionTitleSpaced]}>Account</Text>
+            <AppText style={styles.sectionKicker}>Security & help</AppText>
+            <AppText style={[styles.sectionTitleLarge, styles.sectionTitleSpaced]}>Account</AppText>
             <GlassCard padding={0}>
               <SettingItem
                 icon="shield-checkmark"
@@ -837,9 +859,9 @@ export default function ProfileScreen() {
                 end={{ x: 1, y: 1 }}
                 style={styles.brandMarkDot}
               />
-              <Text style={styles.appVersion}>ORBIT v1.0.0</Text>
+              <AppText style={styles.appVersion}>ORBIT v1.0.0</AppText>
             </View>
-            <Text style={styles.copyright}>Built for real connections nearby.</Text>
+            <AppText style={styles.copyright}>Built for real connections nearby.</AppText>
           </View>
         </ScrollView>
       </SafeAreaView>
@@ -858,12 +880,12 @@ export default function ProfileScreen() {
                   <Ionicons name="shield-checkmark" size={36} color={colors.primary.default} />
                 </View>
               </View>
-              <Text style={styles.modalTitle}>Privacy</Text>
-              <Text style={styles.modalMessage}>
+              <AppText style={styles.modalTitle}>Privacy</AppText>
+              <AppText style={styles.modalMessage}>
                 ORBIT uses your location while you use the app to show nearby people. Your email is used for
                 sign-in. You control discoverability and online status in Discovery settings. We don’t sell your
                 data to third parties.
-              </Text>
+              </AppText>
               <TouchableOpacity
                 style={[styles.modalButton, styles.logoutButton, { flex: 0, width: '100%' }]}
                 onPress={() => setShowPrivacyModal(false)}
@@ -875,7 +897,7 @@ export default function ProfileScreen() {
                   end={{ x: 1, y: 1 }}
                   style={StyleSheet.absoluteFillObject}
                 />
-                <Text style={styles.logoutButtonText}>Got it</Text>
+                <AppText style={styles.logoutButtonText}>Got it</AppText>
               </TouchableOpacity>
             </View>
           </View>
@@ -897,10 +919,10 @@ export default function ProfileScreen() {
                   <Ionicons name="image-outline" size={40} color="#FFFFFF" />
                 </View>
               </View>
-              <Text style={styles.modalTitle}>Profile Photo</Text>
-              <Text style={styles.modalMessage}>
+              <AppText style={styles.modalTitle}>Profile Photo</AppText>
+              <AppText style={styles.modalMessage}>
                 Choose an action for your profile photo
-              </Text>
+              </AppText>
               <View style={styles.avatarOptionsButtons}>
                 <TouchableOpacity
                   style={[styles.avatarOptionButton, styles.avatarOptionPrimary]}
@@ -912,9 +934,9 @@ export default function ProfileScreen() {
                   ) : (
                     <Ionicons name="camera-outline" size={20} color={colors.text.primary} />
                   )}
-                  <Text style={styles.avatarOptionText}>
+                  <AppText style={styles.avatarOptionText}>
                     {isRequestingPermission ? 'Opening…' : 'Change photo'}
-                  </Text>
+                  </AppText>
                 </TouchableOpacity>
                 {user?.avatar && (
                   <TouchableOpacity
@@ -923,7 +945,7 @@ export default function ProfileScreen() {
                   >
                     <View style={styles.removeOptionButton}>
                       <Ionicons name="trash-outline" size={20} color={colors.error} />
-                      <Text style={styles.removeOptionText}>Remove Photo</Text>
+                      <AppText style={styles.removeOptionText}>Remove Photo</AppText>
                     </View>
                   </TouchableOpacity>
                 )}
@@ -931,7 +953,7 @@ export default function ProfileScreen() {
                   style={[styles.avatarOptionButton, styles.cancelOptionButton]}
                   onPress={() => setShowAvatarOptions(false)}
                 >
-                  <Text style={styles.cancelOptionText}>Cancel</Text>
+                  <AppText style={styles.cancelOptionText}>Cancel</AppText>
                 </TouchableOpacity>
               </View>
             </View>
@@ -958,21 +980,21 @@ export default function ProfileScreen() {
                   )}
                 </View>
               </View>
-              <Text style={styles.modalTitle}>
+              <AppText style={styles.modalTitle}>
                 {isLoggingOut ? 'Logging Out' : 'Log Out'}
-              </Text>
-              <Text style={styles.modalMessage}>
+              </AppText>
+              <AppText style={styles.modalMessage}>
                 {isLoggingOut 
                   ? 'Please wait...' 
                   : 'Are you sure you want to log out?'}
-              </Text>
+              </AppText>
               {!isLoggingOut && (
                 <View style={styles.modalButtons}>
                   <TouchableOpacity
                     style={[styles.modalButton, styles.cancelButton]}
                     onPress={() => setShowLogoutModal(false)}
                   >
-                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                    <AppText style={styles.cancelButtonText}>Cancel</AppText>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.modalButton, styles.logoutButton]}
@@ -985,7 +1007,7 @@ export default function ProfileScreen() {
                       end={{ x: 1, y: 1 }}
                       style={StyleSheet.absoluteFillObject}
                     />
-                    <Text style={styles.logoutButtonText}>Log out</Text>
+                    <AppText style={styles.logoutButtonText}>Log out</AppText>
                   </TouchableOpacity>
                 </View>
               )}

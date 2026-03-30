@@ -7,21 +7,26 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
-  Text,
   StyleSheet,
   Pressable,
   ActivityIndicator,
   Platform,
+  Modal,
+  TextInput,
+  Keyboard,
+  InteractionManager,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker, Circle, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
-import { useNearbyUsersQuery } from '../hooks/useOrbitApi';
+import { useNearbyUsersQuery, useNotificationsQuery } from '../hooks/useOrbitApi';
+import { DiscoverNotificationsPanel } from '../components/DiscoverNotificationsPanel';
 import { useAuthStore } from '../stores';
 import { useOrbitTheme } from '../theme';
+import { AppText } from '../ui/AppText';
 import { googleMapStyleDark, googleMapStyleLight } from '../theme/mapStyles';
 
 const DEFAULT_REGION: Region = {
@@ -70,11 +75,12 @@ export type MapScreenProps = {
   variant?: 'discover' | 'map';
 };
 
-export default function MapScreen({ variant = 'discover' }: MapScreenProps) {
-  const { colors, shadows, resolvedScheme } = useOrbitTheme();
+export default function MapScreen({ variant: _variant = 'discover' }: MapScreenProps) {
+  const { colors, shadows, resolvedScheme, fonts } = useOrbitTheme();
   const insets = useSafeAreaInsets();
   const mapRef = useRef<MapView>(null);
   const mapReadyRef = useRef(false);
+  const iosCompassHideScheduledRef = useRef(false);
   const [loading, setLoading] = useState(true);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(
     null
@@ -89,8 +95,35 @@ export default function MapScreen({ variant = 'discover' }: MapScreenProps) {
     !loading && user?.latitude != null && user?.longitude != null
   );
   const nearbyUsers = nearbyQuery.data?.users ?? [];
+  const nearbyOthers = useMemo(
+    () => nearbyUsers.filter((u) => u.id !== user?.id),
+    [nearbyUsers, user?.id]
+  );
+  const { data: notifData } = useNotificationsQuery();
+  const unreadNotifCount = notifData?.unread_count ?? 0;
 
   const { refetch: refetchNearby } = nearbyQuery;
+
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
+  /**
+   * iOS MapKit + react-native-maps: `showsCompass={false}` runs before `MKCompassButton` is
+   * created in `layoutSubviews`, so visibility never becomes hidden. Pulse true→false after
+   * the map has laid out so the native setter runs when the overlay exists.
+   */
+  const [iosCompassPulse, setIosCompassPulse] = useState(false);
+
+  const scheduleIosMapKitCompassHide = useCallback(() => {
+    if (Platform.OS !== 'ios' || iosCompassHideScheduledRef.current) return;
+    iosCompassHideScheduledRef.current = true;
+    InteractionManager.runAfterInteractions(() => {
+      setTimeout(() => {
+        setIosCompassPulse(true);
+        setTimeout(() => setIosCompassPulse(false), 120);
+      }, 320);
+    });
+  }, []);
 
   const isLight = resolvedScheme === 'light';
   const customMapStyle = useMemo(
@@ -101,16 +134,42 @@ export default function MapScreen({ variant = 'discover' }: MapScreenProps) {
   const radiusFill = useMemo(() => hexToRgba(colors.primary.default, 0.08), [colors.primary.default]);
   const radiusStroke = useMemo(() => hexToRgba(colors.primary.default, 0.28), [colors.primary.default]);
 
-  /** Compact header + floating tab bar */
-  const mapPadding = useMemo(
-    () => ({
-      top: insets.top + 62,
+  /**
+   * Discover map is only the tab **scene** (fills space above the custom tab bar). The bar is
+   * not inside this view — so mapPadding must NOT include tab-bar height. Doing that double-
+   * insets MKMapView, shrinks the layout margin rect, and MapKit parks the logo/Legal stack
+   * near the vertical middle. Insets here are only for in-map chrome (status + floating header,
+   * bottom-right FAB, legal line).
+   */
+  const mapPadding = useMemo(() => {
+    if (Platform.OS === 'ios') {
+      return {
+        top: insets.top + 12,
+        right: 10,
+        left: 10,
+        bottom: 28,
+      };
+    }
+    return {
+      top: insets.top + 56,
       right: 10,
+      left: 16,
+      bottom: 44,
+    };
+  }, [insets.top]);
+
+  /** iOS: nudge MKAttributionLabel (“Legal”) to bottom-leading inside the map view. */
+  const legalLabelInsets = useMemo(() => {
+    if (Platform.OS !== 'ios') {
+      return undefined;
+    }
+    return {
+      top: 0,
       left: 10,
-      bottom: Math.max(insets.bottom, 10) + 100,
-    }),
-    [insets.top, insets.bottom]
-  );
+      right: 0,
+      bottom: 14,
+    };
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -142,18 +201,32 @@ export default function MapScreen({ variant = 'discover' }: MapScreenProps) {
     };
   }, [user?.latitude, user?.longitude, refetchNearby]);
 
-  const [androidMarkersSettled, setAndroidMarkersSettled] = useState(Platform.OS !== 'android');
-
-  useEffect(() => {
-    if (Platform.OS !== 'android') return undefined;
-    setAndroidMarkersSettled(false);
-    const t = setTimeout(() => setAndroidMarkersSettled(true), 1500);
-    return () => clearTimeout(t);
-  }, [nearbyUsers]);
-
   useEffect(() => {
     initializeLocation();
   }, []);
+
+  /**
+   * Nearby discovery uses `user` lat/lng from the API/store (SessionLocationSync, updateLocation).
+   * Marker positions are derived from local `userLocation`; if those diverge, the pill can show
+   * matches while pins sit off the visible map or under incorrect zoom.
+   */
+  useEffect(() => {
+    const lat = user?.latitude;
+    const lng = user?.longitude;
+    if (lat == null || lng == null) return;
+    const next = { latitude: Number(lat), longitude: Number(lng) };
+    if (!Number.isFinite(next.latitude) || !Number.isFinite(next.longitude)) return;
+    setUserLocation((prev) => {
+      if (
+        prev &&
+        Math.abs(prev.latitude - next.latitude) < 1e-8 &&
+        Math.abs(prev.longitude - next.longitude) < 1e-8
+      ) {
+        return prev;
+      }
+      return next;
+    });
+  }, [user?.latitude, user?.longitude]);
 
   const initializeLocation = async () => {
     try {
@@ -246,51 +319,139 @@ export default function MapScreen({ variant = 'discover' }: MapScreenProps) {
           width: '100%',
           position: 'relative',
         },
-        headerSafe: {
+        topChrome: {
           position: 'absolute',
           top: 0,
           left: 0,
           right: 0,
           paddingHorizontal: Spacing.md,
-          paddingTop: Platform.OS === 'android' ? 8 : 4,
+          paddingTop: Platform.OS === 'android' ? 6 : 4,
+        },
+        topRow: {
+          flexDirection: 'row',
           alignItems: 'flex-start',
+          justifyContent: 'space-between',
         },
-        headerChip: {
-          maxWidth: '86%',
-          paddingVertical: 9,
-          paddingHorizontal: 13,
-          borderRadius: BorderRadius.md + 2,
-          backgroundColor: isLight ? 'rgba(255,255,255,0.94)' : colors.background.elevated,
-          borderWidth: StyleSheet.hairlineWidth,
-          borderColor: colors.borderLight,
-          ...shadows.sm,
+        topRowCluster: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 10,
         },
-        headerTitle: {
-          fontSize: 19,
-          fontWeight: '700',
-          color: colors.text.primary,
-          letterSpacing: -0.35,
-        },
-        headerHint: {
-          marginTop: 2,
-          fontSize: 12,
-          color: colors.text.tertiary,
-          lineHeight: 16,
-        },
-        locateWrap: {
-          position: 'absolute',
-          right: Spacing.md,
-        },
-        locateButton: {
-          width: 46,
-          height: 46,
-          borderRadius: 23,
-          backgroundColor: colors.background.elevated,
+        mapControlBtn: {
+          width: 44,
+          height: 44,
+          borderRadius: 22,
+          backgroundColor: isLight ? 'rgba(255,255,255,0.95)' : 'rgba(24, 22, 58, 0.96)',
           borderWidth: StyleSheet.hairlineWidth,
           borderColor: colors.borderLight,
           alignItems: 'center',
           justifyContent: 'center',
           ...shadows.sm,
+        },
+        badgeDot: {
+          position: 'absolute',
+          top: 6,
+          right: 6,
+          minWidth: 16,
+          height: 16,
+          paddingHorizontal: 4,
+          borderRadius: 8,
+          backgroundColor: '#E84D4D',
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+        badgeText: {
+          color: '#fff',
+          fontSize: 10,
+          fontWeight: '700',
+          fontFamily: fonts.bold,
+        },
+        nearbyPill: {
+          alignSelf: 'flex-end',
+          marginTop: 10,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 8,
+          paddingVertical: 8,
+          paddingHorizontal: 14,
+          borderRadius: BorderRadius.full,
+          backgroundColor: isLight ? 'rgba(255,255,255,0.95)' : 'rgba(24, 22, 58, 0.96)',
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: colors.borderLight,
+          ...shadows.sm,
+        },
+        nearbyDot: {
+          width: 8,
+          height: 8,
+          borderRadius: 4,
+          backgroundColor: colors.success,
+        },
+        nearbyPillText: {
+          fontSize: 13,
+          fontWeight: '600',
+          color: colors.text.primary,
+          fontFamily: fonts.semibold,
+        },
+        recenterWrap: {
+          position: 'absolute',
+          right: Spacing.md,
+          bottom: 18,
+          alignItems: 'flex-end',
+        },
+        recenterButton: {
+          width: 48,
+          height: 48,
+          borderRadius: 24,
+          backgroundColor: isLight ? 'rgba(255,255,255,0.95)' : 'rgba(24, 22, 58, 0.96)',
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: colors.borderLight,
+          alignItems: 'center',
+          justifyContent: 'center',
+          ...shadows.sm,
+        },
+        modalCard: {
+          marginHorizontal: Spacing.lg,
+          padding: Spacing.lg,
+          borderRadius: BorderRadius.lg,
+          backgroundColor: colors.background.elevated,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: colors.borderLight,
+        },
+        modalTitle: {
+          fontSize: FontSizes.lg,
+          fontWeight: FontWeights.bold,
+          color: colors.text.primary,
+          marginBottom: 8,
+          fontFamily: fonts.bold,
+        },
+        modalBody: {
+          fontSize: FontSizes.sm,
+          color: colors.text.secondary,
+          lineHeight: 20,
+          fontFamily: fonts.regular,
+        },
+        modalInput: {
+          marginTop: 12,
+          padding: 12,
+          borderRadius: BorderRadius.md,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: colors.border,
+          color: colors.text.primary,
+          backgroundColor: colors.background.secondary,
+          fontFamily: fonts.regular,
+        },
+        modalBtn: {
+          marginTop: 16,
+          paddingVertical: 12,
+          borderRadius: BorderRadius.md,
+          backgroundColor: colors.primary.default,
+          alignItems: 'center',
+        },
+        modalBtnText: {
+          color: '#fff',
+          fontWeight: '600',
+          fontSize: FontSizes.md,
+          fontFamily: fonts.semibold,
         },
         markerLetterOuter: {
           width: 36,
@@ -307,19 +468,23 @@ export default function MapScreen({ variant = 'discover' }: MapScreenProps) {
           fontSize: FontSizes.sm,
           fontWeight: FontWeights.bold,
           color: colors.text.primary,
+          fontFamily: fonts.bold,
         },
       }),
-    [colors, shadows, isLight]
+    [colors, shadows, isLight, fonts]
   );
 
   function InitialMarker({ username }: { username: string }) {
     const letter = (username?.trim()?.[0] || '?').toUpperCase();
     return (
       <View style={styles.markerLetterOuter} collapsable={false}>
-        <Text style={styles.markerLetterText}>{letter}</Text>
+        <AppText style={styles.markerLetterText}>{letter}</AppText>
       </View>
     );
   }
+
+  const nearbyLabel =
+    nearbyOthers.length >= 100 ? '100+ nearby' : `${nearbyOthers.length} nearby`;
 
   if (loading) {
     return (
@@ -341,9 +506,14 @@ export default function MapScreen({ variant = 'discover' }: MapScreenProps) {
           userInterfaceStyle={Platform.OS === 'ios' ? resolvedScheme : undefined}
           showsUserLocation={!!userLocation}
           followsUserLocation={false}
+          showsMyLocationButton={false}
+          showsCompass={Platform.OS === 'ios' ? iosCompassPulse : false}
+          showsScale={false}
+          showsIndoorLevelPicker={false}
           loadingEnabled={Platform.OS === 'android'}
           initialRegion={initialRegion}
           mapPadding={mapPadding}
+          legalLabelInsets={legalLabelInsets}
           showsPointsOfInterest={Platform.OS === 'ios' ? false : undefined}
           poiClickEnabled={Platform.OS === 'android' ? false : undefined}
           toolbarEnabled={Platform.OS === 'android' ? false : undefined}
@@ -359,9 +529,10 @@ export default function MapScreen({ variant = 'discover' }: MapScreenProps) {
                 0
               );
             }
+            scheduleIosMapKitCompassHide();
           }}
         >
-          {userLocation && (
+          {userLocation && Platform.OS !== 'android' ? (
             <Circle
               center={userLocation}
               radius={radius}
@@ -369,10 +540,10 @@ export default function MapScreen({ variant = 'discover' }: MapScreenProps) {
               strokeColor={radiusStroke}
               strokeWidth={1.5}
             />
-          )}
+          ) : null}
 
           {userLocation &&
-            nearbyUsers.map((u) => {
+            nearbyOthers.map((u) => {
               const coord = markerCoordinate(
                 u.id,
                 userLocation.latitude,
@@ -385,7 +556,8 @@ export default function MapScreen({ variant = 'discover' }: MapScreenProps) {
                   key={u.id}
                   coordinate={coord}
                   anchor={{ x: 0.5, y: 0.5 }}
-                  tracksViewChanges={Platform.OS === 'ios' || !androidMarkersSettled}
+                  zIndex={2}
+                  tracksViewChanges={Platform.OS === 'android'}
                   onPress={() => router.push(`/user/${u.id}`)}
                 >
                   <InitialMarker username={u.username} />
@@ -395,28 +567,147 @@ export default function MapScreen({ variant = 'discover' }: MapScreenProps) {
         </MapView>
       </View>
 
-      <SafeAreaView style={styles.headerSafe} edges={['top']} pointerEvents="box-none">
-        <View style={styles.headerChip}>
-          <Text style={styles.headerTitle}>{variant === 'discover' ? 'Discover' : 'Map'}</Text>
-          <Text style={styles.headerHint}>
-            {formatDistanceMeters(radius)} around you · tap a pin for their profile
-          </Text>
-          {locationError ? (
-            <Text style={{ marginTop: 6, fontSize: 11, color: colors.error }}>{locationError}</Text>
-          ) : null}
+      <View style={[styles.topChrome, { paddingTop: insets.top + 4 }]} pointerEvents="box-none">
+        <View style={styles.topRow}>
+          <View style={styles.topRowCluster}>
+            <Pressable
+              onPress={() => setSearchOpen(true)}
+              style={({ pressed }) => [styles.mapControlBtn, pressed && { opacity: 0.88 }]}
+              accessibilityLabel="Search"
+            >
+              <Ionicons name="search" size={22} color={colors.text.primary} />
+            </Pressable>
+            <Pressable
+              onPress={() => setFilterOpen(true)}
+              style={({ pressed }) => [styles.mapControlBtn, pressed && { opacity: 0.88 }]}
+              accessibilityLabel="Filters"
+            >
+              <Ionicons name="options" size={22} color={colors.text.primary} />
+            </Pressable>
+          </View>
+          <View style={styles.topRowCluster}>
+            <Pressable
+              onPress={() => setNotifOpen(true)}
+              style={({ pressed }) => [styles.mapControlBtn, pressed && { opacity: 0.88 }]}
+              accessibilityLabel="Notifications"
+            >
+              <Ionicons name="notifications-outline" size={22} color={colors.text.primary} />
+              {unreadNotifCount > 0 ? (
+                <View style={styles.badgeDot}>
+                  <AppText style={styles.badgeText}>
+                    {unreadNotifCount > 99 ? '99+' : unreadNotifCount}
+                  </AppText>
+                </View>
+              ) : null}
+            </Pressable>
+            <Pressable
+              onPress={() => router.push('/(tabs)/chat')}
+              style={({ pressed }) => [styles.mapControlBtn, pressed && { opacity: 0.88 }]}
+              accessibilityLabel="Messages"
+            >
+              <Ionicons name="people-outline" size={22} color={colors.text.primary} />
+            </Pressable>
+          </View>
         </View>
-      </SafeAreaView>
+        {nearbyOthers.length > 0 ? (
+          <Pressable
+            onPress={() => void refetchNearby()}
+            style={({ pressed }) => [styles.nearbyPill, pressed && { opacity: 0.9 }]}
+          >
+            <View style={styles.nearbyDot} />
+            <AppText style={styles.nearbyPillText}>{nearbyLabel}</AppText>
+          </Pressable>
+        ) : null}
+        {locationError ? (
+          <AppText
+            style={{
+              marginTop: 8,
+              fontSize: 11,
+              color: colors.error,
+              paddingHorizontal: 4,
+              fontFamily: fonts.medium,
+            }}
+          >
+            {locationError}
+          </AppText>
+        ) : null}
+      </View>
 
-      <View style={[styles.locateWrap, { bottom: 100 + insets.bottom }]}>
+      <View style={styles.recenterWrap} pointerEvents="box-none">
         <Pressable
           onPress={centerOnUser}
           accessibilityLabel="Center map on my location"
           android_ripple={{ color: hexToRgba(colors.primary.default, 0.12) }}
-          style={({ pressed }) => [styles.locateButton, pressed && { opacity: 0.9 }]}
+          style={({ pressed }) => [styles.recenterButton, pressed && { opacity: 0.9 }]}
         >
-          <Ionicons name="locate" size={22} color={colors.primary.default} />
+          <Ionicons name="navigate" size={24} color={colors.primary.default} />
         </Pressable>
       </View>
+
+      <DiscoverNotificationsPanel visible={notifOpen} onClose={() => setNotifOpen(false)} />
+
+      <Modal visible={searchOpen} animationType="fade" transparent onRequestClose={() => setSearchOpen(false)}>
+        <Pressable
+          style={[StyleSheet.absoluteFillObject, { backgroundColor: colors.overlay }]}
+          onPress={() => {
+            Keyboard.dismiss();
+            setSearchOpen(false);
+          }}
+        >
+          <View style={{ flex: 1, justifyContent: 'center', padding: Spacing.lg }}>
+            <Pressable onPress={(e) => e.stopPropagation()}>
+              <View style={styles.modalCard}>
+                <AppText style={styles.modalTitle}>Search</AppText>
+                <AppText style={styles.modalBody}>
+                  Find people by name or interests — this will be available in a future update.
+                </AppText>
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="Search people…"
+                  placeholderTextColor={colors.text.tertiary}
+                  editable={false}
+                />
+                <Pressable style={styles.modalBtn} onPress={() => setSearchOpen(false)}>
+                  <AppText style={styles.modalBtnText}>OK</AppText>
+                </Pressable>
+              </View>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
+
+      <Modal visible={filterOpen} animationType="fade" transparent onRequestClose={() => setFilterOpen(false)}>
+        <Pressable
+          style={[StyleSheet.absoluteFillObject, { backgroundColor: colors.overlay }]}
+          onPress={() => setFilterOpen(false)}
+        >
+          <View style={{ flex: 1, justifyContent: 'center', padding: Spacing.lg }}>
+            <Pressable onPress={(e) => e.stopPropagation()}>
+              <View style={styles.modalCard}>
+                <AppText style={styles.modalTitle}>Discovery radius</AppText>
+                <AppText style={styles.modalBody}>
+                  Your map uses a {formatDistanceMeters(radius)} radius. Change it anytime from your profile.
+                </AppText>
+                <Pressable
+                  style={styles.modalBtn}
+                  onPress={() => {
+                    setFilterOpen(false);
+                    router.push('/(tabs)/profile');
+                  }}
+                >
+                  <AppText style={styles.modalBtnText}>Open profile</AppText>
+                </Pressable>
+                <Pressable
+                  style={[styles.modalBtn, { marginTop: 10, backgroundColor: colors.background.tertiary }]}
+                  onPress={() => setFilterOpen(false)}
+                >
+                  <AppText style={[styles.modalBtnText, { color: colors.text.primary }]}>Close</AppText>
+                </Pressable>
+              </View>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 }

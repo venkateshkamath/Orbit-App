@@ -10,7 +10,10 @@ async function nearby(req, res) {
     return;
   }
 
-  const { radius, candidates } = await getSortedDiscoveryCandidates(currentUser, req);
+  const { radius, candidates } = await getSortedDiscoveryCandidates(currentUser, req, {
+    includeAlreadyLiked: true,
+    includeMatchedUsers: true,
+  });
   res.json({
     count: candidates.length,
     radius,
@@ -93,7 +96,7 @@ async function likeUser(req, res) {
   }
 
   res.status(201).json({
-    message: match ? "It's a match!" : 'Like sent',
+    message: match ? 'You have a new match.' : 'Like sent',
     is_match: Boolean(match),
     match,
   });

@@ -5,7 +5,6 @@
 import React, { useMemo } from 'react';
 import {
   View,
-  Text,
   Image,
   StyleSheet,
   Dimensions,
@@ -21,6 +20,7 @@ import Animated, {
 import { Ionicons } from '@expo/vector-icons';
 import { BorderRadius, FontSizes, FontWeights, Spacing } from '../../constants/Colors';
 import { useOrbitTheme } from '../theme';
+import { AppText } from '../ui/AppText';
 import { NearbyUser } from '../types';
 import InterestTag from './InterestTag';
 
@@ -254,23 +254,23 @@ export const UserCard: React.FC<UserCardProps> = ({
         {/* Profile Image - intentionally blurred/hidden to encourage meeting offline */}
         <View style={styles.imageContainer}>
           <View style={styles.imagePlaceholder}>
-            <Text style={styles.placeholderText}>
+            <AppText style={styles.placeholderText}>
               {user.username.charAt(0).toUpperCase()}
-            </Text>
-            <Text style={styles.hiddenPhotoLabel}>Photo unlocks on match</Text>
+            </AppText>
+            <AppText style={styles.hiddenPhotoLabel}>Photo unlocks on match</AppText>
           </View>
           
           {/* Match Score Badge */}
           <View style={[styles.matchBadge, { backgroundColor: getMatchColor(user.match_score) }]}>
-            <Text style={styles.matchText}>{user.match_score}</Text>
-            <Text style={styles.matchLabel}>Orbit score</Text>
+            <AppText style={styles.matchText}>{user.match_score}</AppText>
+            <AppText style={styles.matchLabel}>Orbit score</AppText>
           </View>
 
           {/* Online Status */}
           {user.is_online && (
             <View style={styles.onlineBadge}>
               <View style={styles.onlineDot} />
-              <Text style={styles.onlineText}>Online</Text>
+              <AppText style={styles.onlineText}>Online</AppText>
             </View>
           )}
 
@@ -279,14 +279,14 @@ export const UserCard: React.FC<UserCardProps> = ({
           {/* User Info Overlay */}
           <View style={styles.userInfoOverlay}>
             <View style={styles.nameRow}>
-              <Text style={styles.username}>{user.username}</Text>
+              <AppText style={styles.username}>{user.username}</AppText>
               {user.is_verified && (
                 <Ionicons name="checkmark-circle" size={20} color={colors.info} />
               )}
             </View>
             <View style={styles.distanceRow}>
               <Ionicons name="location" size={14} color={colors.primary.default} />
-              <Text style={styles.distance}>{getDistanceText(user.distance)}</Text>
+              <AppText style={styles.distance}>{getDistanceText(user.distance)}</AppText>
             </View>
           </View>
         </View>
@@ -294,15 +294,15 @@ export const UserCard: React.FC<UserCardProps> = ({
         {/* Bio */}
         {user.bio && (
           <View style={styles.bioContainer}>
-            <Text style={styles.bio} numberOfLines={2}>
+            <AppText style={styles.bio} numberOfLines={2}>
               {user.bio}
-            </Text>
+            </AppText>
           </View>
         )}
 
         {/* Interests */}
         <View style={styles.interestsContainer}>
-          <Text style={styles.interestsLabel}>Common Interests</Text>
+          <AppText style={styles.interestsLabel}>Common Interests</AppText>
           <View style={styles.interestsList}>
             {user.interests.slice(0, 4).map((interest) => (
               <InterestTag
@@ -314,7 +314,7 @@ export const UserCard: React.FC<UserCardProps> = ({
             ))}
             {user.interests.length > 4 && (
               <View style={styles.moreInterests}>
-                <Text style={styles.moreText}>+{user.interests.length - 4}</Text>
+                <AppText style={styles.moreText}>+{user.interests.length - 4}</AppText>
               </View>
             )}
           </View>

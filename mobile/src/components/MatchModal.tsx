@@ -2,26 +2,18 @@
  * MatchModal - Celebration modal for matches
  */
 
-import React, { useEffect, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   Modal,
   Dimensions,
   TouchableOpacity,
 } from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  withSequence,
-  withDelay,
-  runOnJS,
-} from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { BorderRadius, FontSizes, FontWeights, Spacing } from '../../constants/Colors';
 import { useOrbitTheme } from '../theme';
+import { AppText } from '../ui/AppText';
 import { PublicUser } from '../types';
 import Avatar from './Avatar';
 import GradientButton from './GradientButton';
@@ -41,7 +33,7 @@ export const MatchModal: React.FC<MatchModalProps> = ({
   onClose,
   onMessage,
 }) => {
-  const { colors, shadows } = useOrbitTheme();
+  const { colors } = useOrbitTheme();
   const styles = useMemo(
     () =>
       StyleSheet.create({
@@ -116,47 +108,8 @@ export const MatchModal: React.FC<MatchModalProps> = ({
           fontSize: FontSizes.md,
         },
       }),
-    [colors, shadows]
+    [colors]
   );
-
-  const scale = useSharedValue(0);
-  const heartScale = useSharedValue(0);
-  const avatarScale1 = useSharedValue(0);
-  const avatarScale2 = useSharedValue(0);
-
-  useEffect(() => {
-    if (visible) {
-      scale.value = withSpring(1, { damping: 10 });
-      heartScale.value = withSequence(
-        withDelay(200, withSpring(1.3, { damping: 8 })),
-        withSpring(1, { damping: 10 })
-      );
-      avatarScale1.value = withDelay(100, withSpring(1, { damping: 12 }));
-      avatarScale2.value = withDelay(150, withSpring(1, { damping: 12 }));
-    } else {
-      scale.value = 0;
-      heartScale.value = 0;
-      avatarScale1.value = 0;
-      avatarScale2.value = 0;
-    }
-  }, [visible]);
-
-  const containerStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-    opacity: scale.value,
-  }));
-
-  const heartStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: heartScale.value }],
-  }));
-
-  const avatar1Style = useAnimatedStyle(() => ({
-    transform: [{ scale: avatarScale1.value }],
-  }));
-
-  const avatar2Style = useAnimatedStyle(() => ({
-    transform: [{ scale: avatarScale2.value }],
-  }));
 
   if (!user) return null;
 
@@ -168,32 +121,32 @@ export const MatchModal: React.FC<MatchModalProps> = ({
       statusBarTranslucent
     >
       <View style={styles.overlay}>
-        <Animated.View style={[styles.container, containerStyle]}>
+        <View style={styles.container}>
           <View style={styles.sheet}>
             <TouchableOpacity style={styles.closeButton} onPress={onClose}>
               <Ionicons name="close" size={24} color={colors.text.secondary} />
             </TouchableOpacity>
 
             <View style={styles.heartsContainer}>
-              <Animated.View style={avatar1Style}>
+              <View>
                 <Avatar uri={null} name="You" size={80} />
-              </Animated.View>
+              </View>
 
-              <Animated.View style={[styles.heartIcon, heartStyle]}>
+              <View style={styles.heartIcon}>
                 <View style={styles.heartCircle}>
                   <Ionicons name="heart" size={28} color="#FAFAFA" />
                 </View>
-              </Animated.View>
+              </View>
 
-              <Animated.View style={avatar2Style}>
+              <View>
                 <Avatar uri={user.avatar} name={user.username} size={80} />
-              </Animated.View>
+              </View>
             </View>
 
-            <Text style={styles.title}>It's a match</Text>
-            <Text style={styles.subtitle}>
-              You and {user.username} liked each other
-            </Text>
+            <AppText style={styles.title}>New match</AppText>
+            <AppText style={styles.subtitle}>
+              You and {user.username} are now connected.
+            </AppText>
 
             <View style={styles.actions}>
               <GradientButton
@@ -203,11 +156,11 @@ export const MatchModal: React.FC<MatchModalProps> = ({
                 style={styles.messageButton}
               />
               <TouchableOpacity onPress={onClose} style={styles.keepBrowsingButton}>
-                <Text style={styles.keepBrowsingText}>Keep browsing</Text>
+                <AppText style={styles.keepBrowsingText}>Keep browsing</AppText>
               </TouchableOpacity>
             </View>
           </View>
-        </Animated.View>
+        </View>
       </View>
     </Modal>
   );

@@ -5,7 +5,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   FlatList,
   Image,
@@ -28,6 +27,7 @@ import { FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/C
 import { useOrbitTheme, type OrbitThemeColors } from '../../src/theme';
 import { Avatar, CommentsModal } from '../../src/components';
 import { useCreatePostMutation, useFeedQuery, useToggleLikeMutation } from '../../src/hooks/useOrbitApi';
+import { AppText } from '../../src/ui/AppText';
 import { Post } from '../../src/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -73,9 +73,9 @@ function PostItem({
         <View style={styles.headerLeft}>
           <Avatar uri={post.author.avatar} name={post.author.username} size={32} />
           <View style={styles.headerInfo}>
-            <Text style={styles.username}>{post.author.username}</Text>
+            <AppText style={styles.username}>{post.author.username}</AppText>
             {post.location_name && (
-              <Text style={styles.locationText}>{post.location_name}</Text>
+              <AppText style={styles.locationText}>{post.location_name}</AppText>
             )}
           </View>
         </View>
@@ -112,37 +112,37 @@ function PostItem({
 
       <View style={styles.postContent}>
         {likeCount > 0 && (
-          <Text style={styles.likesText}>{likeCount.toLocaleString()} likes</Text>
+          <AppText style={styles.likesText}>{likeCount.toLocaleString()} likes</AppText>
         )}
         
         {post.caption && (
           <View style={styles.captionContainer}>
-            <Text style={styles.captionText}>
-              <Text style={styles.usernameInline}>{post.author.username}</Text> {post.caption}
-            </Text>
+            <AppText style={styles.captionText}>
+              <AppText style={styles.usernameInline}>{post.author.username}</AppText> {post.caption}
+            </AppText>
           </View>
         )}
 
         {post.comment_count >= 0 && (
           <TouchableOpacity onPress={onComment}>
-            <Text style={styles.viewComments}>
+            <AppText style={styles.viewComments}>
               {post.comment_count === 0 
                 ? 'Add a comment...' 
                 : `View all ${post.comment_count} comments`}
-            </Text>
+            </AppText>
           </TouchableOpacity>
         )}
 
-        <Text style={styles.timestamp}>
+        <AppText style={styles.timestamp}>
           {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
-        </Text>
+        </AppText>
       </View>
     </View>
   );
 }
 
 export default function FeedScreen() {
-  const { colors, resolvedScheme } = useOrbitTheme();
+  const { colors, resolvedScheme, fonts } = useOrbitTheme();
   const insets = useSafeAreaInsets();
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [caption, setCaption] = useState('');
@@ -265,6 +265,7 @@ export default function FeedScreen() {
           fontWeight: '700',
           color: colors.text.primary,
           letterSpacing: -0.5,
+          fontFamily: fonts.bold,
         },
         headerCompose: {
           width: 40,
@@ -301,11 +302,13 @@ export default function FeedScreen() {
           color: colors.text.primary,
           fontSize: FontSizes.sm,
           fontWeight: FontWeights.semibold,
+          fontFamily: fonts.semibold,
         },
         locationText: {
           color: colors.text.secondary,
           fontSize: 11,
           marginTop: 1,
+          fontFamily: fonts.regular,
         },
         postImage: {
           width: SCREEN_WIDTH,
@@ -336,6 +339,7 @@ export default function FeedScreen() {
           fontSize: FontSizes.sm,
           fontWeight: FontWeights.medium,
           marginBottom: 6,
+          fontFamily: fonts.medium,
         },
         captionContainer: {
           marginBottom: 4,
@@ -344,20 +348,24 @@ export default function FeedScreen() {
           color: colors.text.primary,
           fontSize: FontSizes.sm,
           lineHeight: 18,
+          fontFamily: fonts.regular,
         },
         usernameInline: {
           fontWeight: FontWeights.semibold,
+          fontFamily: fonts.semibold,
         },
         viewComments: {
           color: colors.text.tertiary,
           fontSize: FontSizes.sm,
           marginTop: 4,
           marginBottom: 4,
+          fontFamily: fonts.regular,
         },
         timestamp: {
           color: colors.text.muted,
           fontSize: FontSizes.xs,
           marginTop: 6,
+          fontFamily: fonts.regular,
         },
         emptyContainer: {
           flex: 1,
@@ -372,12 +380,14 @@ export default function FeedScreen() {
           fontSize: FontSizes.xl,
           fontWeight: FontWeights.bold,
           marginTop: Spacing.lg,
+          fontFamily: fonts.bold,
         },
         emptySubtext: {
           color: colors.text.secondary,
           fontSize: FontSizes.md,
           textAlign: 'center',
           marginTop: Spacing.xs,
+          fontFamily: fonts.regular,
         },
         createButton: {
           marginTop: Spacing.xl,
@@ -390,6 +400,7 @@ export default function FeedScreen() {
           color: '#FFFFFF',
           fontSize: FontSizes.md,
           fontWeight: FontWeights.semibold,
+          fontFamily: fonts.semibold,
         },
   
         // Modal Styles
@@ -410,6 +421,7 @@ export default function FeedScreen() {
           fontSize: FontSizes.lg,
           fontWeight: FontWeights.semibold,
           color: colors.text.primary,
+          fontFamily: fonts.semibold,
         },
         shareButton: {
           paddingHorizontal: Spacing.lg,
@@ -424,6 +436,7 @@ export default function FeedScreen() {
           color: '#FFFFFF',
           fontSize: FontSizes.sm,
           fontWeight: FontWeights.semibold,
+          fontFamily: fonts.semibold,
         },
         imagePickerContainer: {
           width: SCREEN_WIDTH,
@@ -445,6 +458,7 @@ export default function FeedScreen() {
           marginTop: Spacing.md,
           fontSize: FontSizes.sm,
           fontWeight: FontWeights.medium,
+          fontFamily: fonts.medium,
         },
         captionSection: {
           flex: 1,
@@ -456,15 +470,17 @@ export default function FeedScreen() {
           fontSize: FontSizes.md,
           textAlignVertical: 'top',
           lineHeight: 22,
+          fontFamily: fonts.regular,
         },
         characterCount: {
           color: colors.text.tertiary,
           fontSize: 12,
           textAlign: 'right',
           marginTop: Spacing.sm,
+          fontFamily: fonts.regular,
         },
       }),
-    [colors]
+    [colors, fonts]
   );
 
   const feedListHeader = (
@@ -478,7 +494,7 @@ export default function FeedScreen() {
       ]}
     >
       <View style={styles.headerRow}>
-        <Text style={styles.headerTitle}>Feed</Text>
+        <AppText style={styles.headerTitle}>Feed</AppText>
         <TouchableOpacity
           style={styles.headerCompose}
           onPress={() => setCreateModalVisible(true)}
@@ -536,13 +552,13 @@ export default function FeedScreen() {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="images-outline" size={64} color={colors.text.tertiary} />
-            <Text style={styles.emptyText}>No posts yet</Text>
-            <Text style={styles.emptySubtext}>Share your first moment</Text>
+            <AppText style={styles.emptyText}>No posts yet</AppText>
+            <AppText style={styles.emptySubtext}>Share your first moment</AppText>
             <TouchableOpacity
               style={styles.createButton}
               onPress={() => setCreateModalVisible(true)}
             >
-              <Text style={styles.createButtonText}>New post</Text>
+              <AppText style={styles.createButtonText}>New post</AppText>
             </TouchableOpacity>
           </View>
         }
@@ -570,7 +586,7 @@ export default function FeedScreen() {
                 >
                   <Ionicons name="close" size={28} color={colors.text.primary} />
                 </TouchableOpacity>
-                <Text style={styles.modalTitle}>New Post</Text>
+                <AppText style={styles.modalTitle}>New Post</AppText>
                 <TouchableOpacity
                   onPress={handleCreatePost}
                   disabled={createPostMutation.isPending || (!caption.trim() && !selectedImage)}
@@ -580,9 +596,9 @@ export default function FeedScreen() {
                       styles.shareButtonDisabled,
                   ]}
                 >
-                  <Text style={styles.shareText}>
+                  <AppText style={styles.shareText}>
                     {createPostMutation.isPending ? 'Posting…' : 'Post'}
-                  </Text>
+                  </AppText>
                 </TouchableOpacity>
               </View>
 
@@ -596,7 +612,7 @@ export default function FeedScreen() {
               ) : (
                 <View style={styles.imagePlaceholder}>
                   <Ionicons name="image-outline" size={48} color={colors.text.tertiary} />
-                  <Text style={styles.imagePlaceholderText}>Tap to add a photo</Text>
+                  <AppText style={styles.imagePlaceholderText}>Tap to add a photo</AppText>
                 </View>
               )}
             </TouchableOpacity>
@@ -612,7 +628,7 @@ export default function FeedScreen() {
                 onChangeText={setCaption}
                 maxLength={2200}
               />
-              <Text style={styles.characterCount}>{caption.length}/2200</Text>
+              <AppText style={styles.characterCount}>{caption.length}/2200</AppText>
             </View>
           </View>
         </Modal>

@@ -1,5 +1,13 @@
-import React, { createContext, useContext, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, useMemo } from 'react';
 import { View, StyleSheet, useColorScheme } from 'react-native';
+import {
+  useFonts,
+  PlusJakartaSans_400Regular,
+  PlusJakartaSans_500Medium,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+} from '@expo-google-fonts/plus-jakarta-sans';
+import * as SplashScreen from 'expo-splash-screen';
 import {
   darkPalette,
   lightPalette,
@@ -9,6 +17,9 @@ import {
   type OrbitThemeColors,
 } from './palettes';
 import { useThemeStore, type ThemePreference } from '../stores/themeStore';
+import { orbitFontFamily, orbitFontFamilyFallback, type OrbitFontFamilyMap } from './typography';
+
+void SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export type OrbitThemeContextValue = {
   colors: OrbitThemeColors;
@@ -16,17 +27,40 @@ export type OrbitThemeContextValue = {
   resolvedScheme: 'light' | 'dark';
   preference: ThemePreference;
   setPreference: (p: ThemePreference) => void;
+  /** Custom UI font when loaded; otherwise `undefined` entries (system default). */
+  fonts: OrbitFontFamilyMap | typeof orbitFontFamilyFallback;
+  fontsReady: boolean;
 };
 
 const ThemeContext = createContext<OrbitThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const [fontsLoaded, fontError] = useFonts({
+    PlusJakartaSans_400Regular,
+    PlusJakartaSans_500Medium,
+    PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold,
+  });
+
+  useEffect(() => {
+    if (fontsLoaded || fontError) {
+      void SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [fontsLoaded, fontError]);
+
   const preference = useThemeStore((s) => s.preference);
   const setPreference = useThemeStore((s) => s.setPreference);
   const systemScheme = useColorScheme();
 
   const resolvedScheme: 'light' | 'dark' =
     preference === 'system' ? (systemScheme === 'light' ? 'light' : 'dark') : preference;
+
+  const fonts = useMemo(
+    () => (fontsLoaded && !fontError ? orbitFontFamily : orbitFontFamilyFallback),
+    [fontsLoaded, fontError]
+  );
+
+  const fontsReady = fontsLoaded && !fontError;
 
   const value = useMemo<OrbitThemeContextValue>(() => {
     const colors = resolvedScheme === 'dark' ? darkPalette : lightPalette;
@@ -37,8 +71,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       resolvedScheme,
       preference,
       setPreference,
+      fonts,
+      fontsReady,
     };
-  }, [resolvedScheme, preference, setPreference]);
+  }, [resolvedScheme, preference, setPreference, fonts, fontsReady]);
+
+  if (!fontsLoaded && !fontError) {
+    return <View style={[styles.boot, { backgroundColor: darkPalette.background.primary }]} />;
+  }
 
   return (
     <ThemeContext.Provider value={value}>
@@ -48,6 +88,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 }
 
 const styles = StyleSheet.create({
+  boot: {
+    flex: 1,
+  },
   root: {
     flex: 1,
   },

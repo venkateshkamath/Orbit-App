@@ -3,17 +3,11 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import {
-  View,
-  TextInput,
-  Text,
-  StyleSheet,
-  TextInputProps,
-  TouchableOpacity,
-} from 'react-native';
+import { View, TextInput, StyleSheet, TextInputProps, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BorderRadius, FontSizes, Spacing, FontWeights } from '../../constants/Colors';
 import { useOrbitTheme } from '../theme';
+import { AppText } from '../ui/AppText';
 
 interface InputProps extends TextInputProps {
   label: string;
@@ -32,7 +26,7 @@ export const Input: React.FC<InputProps> = ({
   onBlur,
   ...props
 }) => {
-  const { colors, resolvedScheme } = useOrbitTheme();
+  const { colors, resolvedScheme, fonts } = useOrbitTheme();
   const isLight = resolvedScheme === 'light';
   const [isFocused, setIsFocused] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -48,6 +42,7 @@ export const Input: React.FC<InputProps> = ({
           fontWeight: FontWeights.medium,
           color: colors.text.secondary,
           marginBottom: Spacing.sm,
+          fontFamily: fonts.medium,
         },
         labelFocused: {
           color: colors.primary.default,
@@ -81,6 +76,7 @@ export const Input: React.FC<InputProps> = ({
           color: colors.text.primary,
           fontSize: FontSizes.md,
           height: '100%',
+          fontFamily: fonts.regular,
         },
         eyeIcon: {
           padding: Spacing.xs,
@@ -91,9 +87,10 @@ export const Input: React.FC<InputProps> = ({
           fontSize: FontSizes.xs,
           marginTop: Spacing.xs,
           marginLeft: Spacing.xs,
+          fontFamily: fonts.regular,
         },
       }),
-    [colors, isLight]
+    [colors, isLight, fonts]
   );
 
   const handleFocus = (e: any) => {
@@ -108,11 +105,11 @@ export const Input: React.FC<InputProps> = ({
 
   return (
     <View style={styles.container}>
-      <Text
+      <AppText
         style={[styles.label, isFocused && styles.labelFocused, error && styles.labelError]}
       >
         {label}
-      </Text>
+      </AppText>
 
       <View
         style={[
@@ -157,7 +154,7 @@ export const Input: React.FC<InputProps> = ({
         )}
       </View>
 
-      {error && <Text style={styles.errorText}>{error}</Text>}
+      {error && <AppText style={styles.errorText}>{error}</AppText>}
     </View>
   );
 };

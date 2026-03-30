@@ -12,3 +12,4 @@ export {
 export type { OrbitThemeColors, OrbitShadowSet } from './palettes';
 export type { ThemePreference } from '../stores/themeStore';
 export { darkPalette, lightPalette, shadowsDark, shadowsLight } from './palettes';
+export { orbitFontFamily, orbitFontFamilyFallback } from './typography';

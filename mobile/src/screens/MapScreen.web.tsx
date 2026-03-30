@@ -5,7 +5,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   SafeAreaView,
   FlatList,
@@ -16,6 +15,7 @@ import * as Location from 'expo-location';
 import { router } from 'expo-router';
 import { FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
 import { useOrbitTheme } from '../theme';
+import { AppText } from '../ui/AppText';
 import { UserCard } from '../components';
 import { useLikeUserMutation, useNearbyUsersQuery, usePassUserMutation } from '../hooks/useOrbitApi';
 import { useAuthStore } from '../stores';
@@ -119,13 +119,13 @@ export default function MapScreen({ variant = 'discover' }: MapScreenProps) {
     <View style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
-          <Text style={styles.title}>{variant === 'discover' ? 'Discover' : 'Map'}</Text>
+          <AppText style={styles.title}>{variant === 'discover' ? 'Discover' : 'Map'}</AppText>
         </View>
 
         <View style={styles.webNotice}>
-          <Text style={styles.webNoticeText}>
+          <AppText style={styles.webNoticeText}>
             Interactive map is available on iOS and Android.
-          </Text>
+          </AppText>
         </View>
 
         <FlatList

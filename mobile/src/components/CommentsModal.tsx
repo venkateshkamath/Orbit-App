@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   Modal,
   FlatList,
@@ -16,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { formatDistanceToNow } from 'date-fns';
 import { FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
 import { useOrbitTheme } from '../theme';
+import { AppText } from '../ui/AppText';
 import { Avatar } from './Avatar';
 import { useAddCommentMutation, usePostCommentsQuery } from '../hooks/useOrbitApi';
 import { Comment } from '../types';
@@ -27,7 +27,7 @@ interface CommentsModalProps {
 }
 
 export const CommentsModal: React.FC<CommentsModalProps> = ({ visible, onClose, postId }) => {
-  const { colors } = useOrbitTheme();
+  const { colors, fonts } = useOrbitTheme();
   const [newComment, setNewComment] = useState('');
   const { data: comments = [], isLoading: loading } = usePostCommentsQuery(postId, visible);
   const addComment = useAddCommentMutation();
@@ -55,6 +55,7 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({ visible, onClose, 
           fontSize: FontSizes.lg,
           fontWeight: FontWeights.bold,
           color: colors.text.primary,
+          fontFamily: fonts.bold,
         },
         listContent: {
           padding: Spacing.md,
@@ -78,15 +79,18 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({ visible, onClose, 
           fontWeight: FontWeights.bold,
           color: colors.text.primary,
           marginRight: Spacing.xs,
+          fontFamily: fonts.bold,
         },
         commentTime: {
           fontSize: 10,
           color: colors.text.tertiary,
+          fontFamily: fonts.regular,
         },
         commentText: {
           fontSize: FontSizes.sm,
           color: colors.text.primary,
           lineHeight: 18,
+          fontFamily: fonts.regular,
         },
         inputContainer: {
           flexDirection: 'row',
@@ -108,6 +112,7 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({ visible, onClose, 
           color: colors.text.primary,
           fontSize: FontSizes.md,
           marginRight: Spacing.sm,
+          fontFamily: fonts.regular,
         },
         postButton: {
           height: 40,
@@ -121,6 +126,7 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({ visible, onClose, 
           color: colors.primary.default,
           fontWeight: FontWeights.bold,
           fontSize: FontSizes.md,
+          fontFamily: fonts.bold,
         },
         loadingContainer: {
           flex: 1,
@@ -138,14 +144,16 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({ visible, onClose, 
           fontWeight: FontWeights.bold,
           color: colors.text.primary,
           marginTop: Spacing.md,
+          fontFamily: fonts.bold,
         },
         emptySubtext: {
           fontSize: FontSizes.sm,
           color: colors.text.tertiary,
           marginTop: 4,
+          fontFamily: fonts.regular,
         },
       }),
-    [colors]
+    [colors, fonts]
   );
 
   const handleAddComment = async () => {
@@ -164,12 +172,12 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({ visible, onClose, 
       <Avatar uri={item.author.avatar} name={item.author.username} size={32} />
       <View style={styles.commentContent}>
         <View style={styles.commentHeader}>
-          <Text style={styles.commentUser}>{item.author.username}</Text>
-          <Text style={styles.commentTime}>
+          <AppText style={styles.commentUser}>{item.author.username}</AppText>
+          <AppText style={styles.commentTime}>
             {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
-          </Text>
+          </AppText>
         </View>
-        <Text style={styles.commentText}>{item.text}</Text>
+        <AppText style={styles.commentText}>{item.text}</AppText>
       </View>
     </View>
   );
@@ -186,7 +194,7 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({ visible, onClose, 
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
             <Ionicons name="chevron-down" size={28} color={colors.text.primary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Comments</Text>
+          <AppText style={styles.headerTitle}>Comments</AppText>
           <View style={{ width: 40 }} />
         </View>
 
@@ -203,8 +211,8 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({ visible, onClose, 
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
                 <Ionicons name="chatbubble-outline" size={48} color={colors.text.tertiary} />
-                <Text style={styles.emptyText}>No comments yet</Text>
-                <Text style={styles.emptySubtext}>Be the first to share your thoughts!</Text>
+                <AppText style={styles.emptyText}>No comments yet</AppText>
+                <AppText style={styles.emptySubtext}>Be the first to share your thoughts!</AppText>
               </View>
             }
           />
@@ -235,7 +243,7 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({ visible, onClose, 
               {addComment.isPending ? (
                 <ActivityIndicator size="small" color={colors.primary.default} />
               ) : (
-                <Text style={styles.postButtonText}>Post</Text>
+                <AppText style={styles.postButtonText}>Post</AppText>
               )}
             </TouchableOpacity>
           </View>

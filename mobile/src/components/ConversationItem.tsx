@@ -3,9 +3,10 @@
  */
 
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { BorderRadius, FontSizes, FontWeights, Spacing } from '../../constants/Colors';
 import { useOrbitTheme } from '../theme';
+import { AppText } from '../ui/AppText';
 import { Conversation } from '../types';
 import Avatar from './Avatar';
 
@@ -110,23 +111,23 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
 
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.name} numberOfLines={1}>
+          <AppText style={styles.name} numberOfLines={1}>
             {other.username}
-          </Text>
+          </AppText>
           {conversation.last_message && (
-            <Text style={styles.time}>{formatTime(conversation.last_message.created_at)}</Text>
+            <AppText style={styles.time}>{formatTime(conversation.last_message.created_at)}</AppText>
           )}
         </View>
 
         <View style={styles.footer}>
-          <Text style={styles.message} numberOfLines={1}>
+          <AppText style={styles.message} numberOfLines={1}>
             {conversation.last_message?.content || 'Start a conversation'}
-          </Text>
+          </AppText>
           {conversation.unread_count > 0 && (
             <View style={styles.badge}>
-              <Text style={styles.badgeText}>
+              <AppText style={styles.badgeText}>
                 {conversation.unread_count > 99 ? '99+' : conversation.unread_count}
-              </Text>
+              </AppText>
             </View>
           )}
         </View>

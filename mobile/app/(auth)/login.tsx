@@ -5,10 +5,10 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
@@ -21,6 +21,7 @@ import { BackHandler } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
 import { useOrbitTheme } from '../../src/theme';
+import { AppText } from '../../src/ui/AppText';
 import { Input, GradientButton } from '../../src/components';
 import { useAuthStore } from '../../src/stores';
 import { leaveAuthScreen } from '../../src/utils/authNavigation';
@@ -40,7 +41,7 @@ export default function LoginScreen() {
 
   const { requestLoginOtp, verifyLoginOtp } = useAuthStore();
 
-  const { colors, resolvedScheme } = useOrbitTheme();
+  const { colors, fonts, resolvedScheme } = useOrbitTheme();
 
   useEffect(() => {
     if (resendIn <= 0) return;
@@ -165,15 +166,18 @@ export default function LoginScreen() {
           color: colors.text.primary,
           marginBottom: Spacing.xs,
           letterSpacing: -0.5,
+          fontFamily: fonts.bold,
         },
         subtitle: {
           fontSize: FontSizes.md,
           color: colors.text.secondary,
           lineHeight: 22,
+          fontFamily: fonts.regular,
         },
         emailEmphasis: {
           color: colors.text.accent,
           fontWeight: FontWeights.semibold,
+          fontFamily: fonts.semibold,
         },
         devHint: {
           fontSize: FontSizes.sm,
@@ -184,6 +188,7 @@ export default function LoginScreen() {
           borderRadius: BorderRadius.md,
           borderWidth: 1,
           borderColor: colors.border,
+          fontFamily: fonts.regular,
         },
         errorContainer: {
           flexDirection: 'row',
@@ -202,6 +207,7 @@ export default function LoginScreen() {
           color: colors.error,
           fontSize: FontSizes.sm,
           lineHeight: 18,
+          fontFamily: fonts.regular,
         },
         form: {
           marginBottom: Spacing.md,
@@ -214,10 +220,10 @@ export default function LoginScreen() {
           fontWeight: FontWeights.semibold,
           color: colors.text.secondary,
           marginBottom: Spacing.sm,
+          fontFamily: fonts.semibold,
         },
         otpInput: {
           fontSize: 32,
-          fontWeight: '700',
           letterSpacing: 8,
           color: colors.text.primary,
           backgroundColor: colors.background.card,
@@ -228,6 +234,7 @@ export default function LoginScreen() {
           paddingHorizontal: Spacing.lg,
           marginBottom: Spacing.lg,
           textAlign: 'center',
+          fontFamily: fonts.bold,
         },
         resendBtn: {
           alignItems: 'center',
@@ -240,24 +247,29 @@ export default function LoginScreen() {
           color: colors.primary.light,
           fontSize: FontSizes.md,
           fontWeight: FontWeights.semibold,
+          fontFamily: fonts.semibold,
         },
         footer: {
           flexDirection: 'row',
+          flexWrap: 'wrap',
           justifyContent: 'center',
+          alignItems: 'center',
           marginTop: 'auto',
           paddingTop: Spacing.xl,
         },
         footerMuted: {
           color: colors.text.secondary,
           fontSize: FontSizes.md,
+          fontFamily: fonts.regular,
         },
         footerLink: {
           color: colors.primary.default,
           fontSize: FontSizes.md,
           fontWeight: FontWeights.semibold,
+          fontFamily: fonts.semibold,
         },
       }),
-    [colors]
+    [colors, fonts]
   );
 
   return (
@@ -277,14 +289,14 @@ export default function LoginScreen() {
             {step === 'email' ? (
               <>
                 <View style={styles.header}>
-                  <Text style={styles.title}>Welcome back</Text>
-                  <Text style={styles.subtitle}>We’ll email you a one-time code to sign in.</Text>
+                  <AppText style={styles.title}>Welcome back</AppText>
+                  <AppText style={styles.subtitle}>We’ll email you a one-time code to sign in.</AppText>
                 </View>
 
                 {errorMessage ? (
                   <View style={styles.errorContainer}>
                     <Ionicons name="alert-circle" size={20} color={colors.error} />
-                    <Text style={styles.errorText}>{errorMessage}</Text>
+                    <AppText style={styles.errorText}>{errorMessage}</AppText>
                   </View>
                 ) : null}
 
@@ -314,23 +326,23 @@ export default function LoginScreen() {
             ) : (
               <>
                 <View style={styles.header}>
-                  <Text style={styles.title}>Check your email</Text>
-                  <Text style={styles.subtitle}>
+                  <AppText style={styles.title}>Check your email</AppText>
+                  <AppText style={styles.subtitle}>
                     Enter the code we sent to{' '}
-                    <Text style={styles.emailEmphasis}>{email.trim()}</Text>
-                  </Text>
+                    <AppText style={styles.emailEmphasis}>{email.trim()}</AppText>
+                  </AppText>
                 </View>
 
-                {devHint ? <Text style={styles.devHint}>{devHint}</Text> : null}
+                {devHint ? <AppText style={styles.devHint}>{devHint}</AppText> : null}
 
                 {errorMessage ? (
                   <View style={styles.errorContainer}>
                     <Ionicons name="alert-circle" size={20} color={colors.error} />
-                    <Text style={styles.errorText}>{errorMessage}</Text>
+                    <AppText style={styles.errorText}>{errorMessage}</AppText>
                   </View>
                 ) : null}
 
-                <Text style={styles.otpLabel}>Sign-in code</Text>
+                <AppText style={styles.otpLabel}>Sign-in code</AppText>
                 <TextInput
                   style={styles.otpInput}
                   value={otp}
@@ -360,19 +372,22 @@ export default function LoginScreen() {
                   {sending ? (
                     <ActivityIndicator color={colors.primary.light} />
                   ) : (
-                    <Text style={styles.resendText}>
+                    <AppText style={styles.resendText}>
                       {resendIn > 0 ? `Resend code in ${resendIn}s` : 'Resend code'}
-                    </Text>
+                    </AppText>
                   )}
                 </TouchableOpacity>
               </>
             )}
 
             <View style={styles.footer}>
-              <Text style={styles.footerMuted}>New here? </Text>
-              <TouchableOpacity onPress={() => router.replace('/(auth)/register')}>
-                <Text style={styles.footerLink}>Create an account</Text>
-              </TouchableOpacity>
+              <AppText style={styles.footerMuted}>New here? </AppText>
+              <Pressable
+                onPress={() => router.replace('/(auth)/register')}
+                hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+              >
+                <AppText style={styles.footerLink}>Create an account</AppText>
+              </Pressable>
             </View>
           </View>
         </KeyboardAvoidingView>

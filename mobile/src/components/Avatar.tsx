@@ -3,9 +3,10 @@
  */
 
 import React, { useMemo } from 'react';
-import { View, Image, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import { FontWeights } from '../../constants/Colors';
 import { useOrbitTheme } from '../theme';
+import { AppText } from '../ui/AppText';
 
 interface AvatarProps {
   uri?: string | null;
@@ -72,7 +73,7 @@ export const Avatar: React.FC<AvatarProps> = ({
             { width: size, height: size, borderRadius: size / 2 },
           ]}
         >
-          <Text style={[styles.initials, { fontSize: size * 0.4 }]}>{initials}</Text>
+          <AppText style={[styles.initials, { fontSize: size * 0.4 }]}>{initials}</AppText>
         </View>
       )}
 

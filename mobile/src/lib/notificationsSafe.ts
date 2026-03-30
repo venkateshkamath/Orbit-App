@@ -18,8 +18,17 @@ export const ORBIT_NOTIFICATION_CHANNEL_ID = 'orbit-default';
 
 let notificationsRef: ExpoNotifications | null | undefined;
 
+/** SDK 53+ Expo Go on Android throws when the native module loads — avoid `require` entirely. */
+function isExpoGoAndroid(): boolean {
+  return Platform.OS === 'android' && Constants.appOwnership === 'expo';
+}
+
 function getNotifications(): ExpoNotifications | null {
   if (Platform.OS === 'web') return null;
+  if (isExpoGoAndroid()) {
+    notificationsRef = null;
+    return null;
+  }
   if (notificationsRef === null) return null;
   if (notificationsRef !== undefined) return notificationsRef;
 

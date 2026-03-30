@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const {
   User,
   UserBlock,
@@ -5,7 +6,7 @@ const {
   Match,
   Pass,
 } = require('../models');
-const { haversineDistance, matchPercentage } = require('../utils/geo');
+const { matchPercentage } = require('../utils/geo');
 const { serializePublicUser } = require('../serializers/user');
 
 const LOCATION_STALE_MS = 60 * 60 * 1000;
@@ -14,73 +15,85 @@ const MAX_DISCOVERY_RADIUS_M = 10000;
 
 /**
  * Returns sorted discovery candidates (highest match_score first, then nearest).
+ * Uses MongoDB $geoNear on `location` instead of loading all discoverable users.
  * @param {import('mongoose').Document} currentUser
  * @param {import('express').Request} req
+ * @param {{ includeAlreadyLiked?: boolean, includeMatchedUsers?: boolean }} [options]
+ *        `includeMatchedUsers` — when true, people you already matched with stay in results (map pins).
  */
-async function getSortedDiscoveryCandidates(currentUser, req) {
+async function getSortedDiscoveryCandidates(currentUser, req, options = {}) {
+  const { includeAlreadyLiked = false, includeMatchedUsers = false } = options;
   const radius = Math.min(
     Number(req.query.radius || currentUser.discovery_radius || DEFAULT_DISCOVERY_RADIUS_M),
     MAX_DISCOVERY_RADIUS_M
   );
   const threshold = Date.now() - LOCATION_STALE_MS;
 
-  const allUsers = await User.find({
-    _id: { $ne: currentUser._id },
-    is_discoverable: true,
-    latitude: { $ne: null },
-    longitude: { $ne: null },
-    location_updated_at: { $ne: null },
-  });
-
   const blockedRows = await UserBlock.find({
     $or: [{ blocker: currentUser._id }, { blocked: currentUser._id }],
   });
   const passedRows = await Pass.find({ from_user: currentUser._id });
-  const likedRows = await Like.find({ from_user: currentUser._id });
-  const matchRows = await Match.find({
-    $or: [{ user1: currentUser._id }, { user2: currentUser._id }],
-  });
+  const likedRows = includeAlreadyLiked ? [] : await Like.find({ from_user: currentUser._id });
+  /** Swipe deck excludes matches; map nearby should still show matched people so pins stay after you connect. */
+  const matchRows =
+    includeMatchedUsers
+      ? []
+      : await Match.find({
+          $or: [{ user1: currentUser._id }, { user2: currentUser._id }],
+        });
 
-  const passedSet = new Set(passedRows.map((row) => String(row.to_user)));
-  const likedSet = new Set(likedRows.map((row) => String(row.to_user)));
-  const matchedSet = new Set(
-    matchRows.map((row) =>
+  const excludeSet = new Set([String(currentUser._id)]);
+  for (const row of passedRows) excludeSet.add(String(row.to_user));
+  for (const row of likedRows) excludeSet.add(String(row.to_user));
+  for (const row of matchRows) {
+    excludeSet.add(
       String(row.user1) === String(currentUser._id) ? String(row.user2) : String(row.user1)
-    )
-  );
-  const blockedSet = new Set();
-  for (const row of blockedRows) {
-    blockedSet.add(String(row.blocker));
-    blockedSet.add(String(row.blocked));
+    );
   }
-  blockedSet.delete(String(currentUser._id));
+  for (const row of blockedRows) {
+    excludeSet.add(String(row.blocker));
+    excludeSet.add(String(row.blocked));
+  }
+
+  /** Always $nin self — deleting currentUser from this set omitted $nin and returned the viewer as “nearby”. */
+  const excludeIds = [...excludeSet].map((id) => new mongoose.Types.ObjectId(id));
+
+  const geoResults = await User.aggregate([
+    {
+      $geoNear: {
+        near: {
+          type: 'Point',
+          coordinates: [Number(currentUser.longitude), Number(currentUser.latitude)],
+        },
+        distanceField: 'geoDistanceMeters',
+        maxDistance: radius,
+        spherical: true,
+        key: 'location',
+        query: {
+          _id: { $nin: excludeIds },
+          is_discoverable: true,
+          location_updated_at: { $gte: new Date(threshold) },
+        },
+      },
+    },
+  ]);
+
+  if (geoResults.length === 0) {
+    return { radius, candidates: [] };
+  }
+
+  const ids = geoResults.map((r) => r._id);
+  const users = await User.find({ _id: { $in: ids } }).populate('interest_ids');
+  const byId = new Map(users.map((u) => [String(u._id), u]));
 
   const currentInterestIds = (currentUser.interest_ids || []).map(String);
   const candidates = [];
 
-  for (const otherUser of allUsers) {
-    const otherId = String(otherUser._id);
-    if (
-      blockedSet.has(otherId) ||
-      passedSet.has(otherId) ||
-      likedSet.has(otherId) ||
-      matchedSet.has(otherId)
-    ) {
-      continue;
-    }
-    if (!otherUser.location_updated_at || otherUser.location_updated_at.getTime() < threshold) {
-      continue;
-    }
+  for (const row of geoResults) {
+    const otherUser = byId.get(String(row._id));
+    if (!otherUser) continue;
 
-    const distance = haversineDistance(
-      Number(currentUser.latitude),
-      Number(currentUser.longitude),
-      Number(otherUser.latitude),
-      Number(otherUser.longitude)
-    );
-    if (distance > radius) {
-      continue;
-    }
+    const distance = row.geoDistanceMeters;
 
     const otherInterestIds = (otherUser.interest_ids || []).map(String);
     const baseMatchPercentage = matchPercentage(currentInterestIds, otherInterestIds);

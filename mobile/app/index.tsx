@@ -5,7 +5,6 @@
 import React, { useEffect, useMemo } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   TouchableOpacity,
   Platform,
@@ -23,6 +22,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { FontSizes, Spacing, BorderRadius } from '../constants/Colors';
 import { useOrbitTheme } from '../src/theme';
+import { AppText } from '../src/ui/AppText';
 
 export default function WelcomeScreen() {
   const { colors, resolvedScheme } = useOrbitTheme();
@@ -174,10 +174,10 @@ export default function WelcomeScreen() {
                 </View>
               </LinearGradient>
 
-              <Text style={styles.headline}>Find your people,{'\n'}nearby.</Text>
-              <Text style={styles.sub}>
+              <AppText style={styles.headline}>Find your people,{'\n'}nearby.</AppText>
+              <AppText style={styles.sub}>
                 Connect with people who share your interests. Chat when it feels right.
-              </Text>
+              </AppText>
             </View>
           </Animated.View>
         </View>
@@ -194,7 +194,7 @@ export default function WelcomeScreen() {
               end={{ x: 1, y: 0 }}
               style={styles.primaryInner}
             >
-              <Text style={styles.primaryLabel}>Get started</Text>
+              <AppText style={styles.primaryLabel}>Get started</AppText>
             </LinearGradient>
           </TouchableOpacity>
 
@@ -203,7 +203,7 @@ export default function WelcomeScreen() {
             onPress={() => router.push('/(auth)/login')}
             activeOpacity={0.7}
           >
-            <Text style={styles.secondaryLabel}>Already have an account? Sign in</Text>
+            <AppText style={styles.secondaryLabel}>Already have an account? Sign in</AppText>
           </TouchableOpacity>
         </Animated.View>
       </View>

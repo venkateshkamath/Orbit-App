@@ -3,7 +3,7 @@
  */
 
 import React, { useMemo } from 'react';
-import { TouchableOpacity, Text, StyleSheet, View } from 'react-native';
+import { TouchableOpacity, StyleSheet, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -11,6 +11,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { BorderRadius, FontSizes, Spacing } from '../../constants/Colors';
 import { useOrbitTheme } from '../theme';
+import { AppText } from '../ui/AppText';
 import { Interest } from '../types';
 
 interface InterestTagProps {
@@ -114,8 +115,8 @@ export const InterestTag: React.FC<InterestTagProps> = ({
       ]}
       activeOpacity={0.85}
     >
-      <Text style={styles.emoji}>{interest.emoji}</Text>
-      <Text
+      <AppText style={styles.emoji}>{interest.emoji}</AppText>
+      <AppText
         style={[
           styles.text,
           { fontSize: sizeStyles[size].fontSize },
@@ -123,10 +124,10 @@ export const InterestTag: React.FC<InterestTagProps> = ({
         ]}
       >
         {interest.name}
-      </Text>
+      </AppText>
       {selected && (
         <View style={[styles.checkmark, { backgroundColor: interest.color }]}>
-          <Text style={styles.checkmarkText}>✓</Text>
+          <AppText style={styles.checkmarkText}>✓</AppText>
         </View>
       )}
     </AnimatedTouchable>

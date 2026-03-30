@@ -6,7 +6,6 @@ import React, { useCallback, useMemo } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
-  Text,
   StyleSheet,
   FlatList,
   ScrollView,
@@ -20,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
 import { useOrbitTheme } from '../../src/theme';
 import { ConversationItem, Avatar } from '../../src/components';
+import { AppText } from '../../src/ui/AppText';
 import {
   useConversationsQuery,
   useMatchesQuery,
@@ -41,7 +41,7 @@ export default function ChatScreen() {
   const startConversationMut = useStartConversationMutation();
   const likeMut = useLikeUserMutation();
 
-  const { colors } = useOrbitTheme();
+  const { colors, fonts } = useOrbitTheme();
 
   const styles = useMemo(
     () =>
@@ -62,6 +62,7 @@ export default function ChatScreen() {
     fontWeight: '700',
     color: colors.text.primary,
     letterSpacing: -0.5,
+    fontFamily: fonts.bold,
   },
   listContent: {
     paddingHorizontal: Spacing.lg,
@@ -76,6 +77,7 @@ export default function ChatScreen() {
     color: colors.text.primary,
     marginBottom: Spacing.md,
     marginTop: Spacing.md,
+    fontFamily: fonts.semibold,
   },
   messagesTitle: {
     marginTop: Spacing.lg,
@@ -105,12 +107,14 @@ export default function ChatScreen() {
     color: '#08061A',
     fontSize: 9,
     fontWeight: FontWeights.bold,
+    fontFamily: fonts.bold,
   },
   matchName: {
     fontSize: FontSizes.sm,
     color: colors.text.secondary,
     marginTop: Spacing.xs,
     textAlign: 'center',
+    fontFamily: fonts.regular,
   },
   emptyMatches: {
     paddingVertical: Spacing.lg,
@@ -122,6 +126,7 @@ export default function ChatScreen() {
     color: colors.text.tertiary,
     fontSize: FontSizes.sm,
     textAlign: 'center',
+    fontFamily: fonts.regular,
   },
   requestsList: {
     paddingRight: Spacing.md,
@@ -138,6 +143,7 @@ export default function ChatScreen() {
     marginTop: Spacing.xs,
     textAlign: 'center',
     width: '100%',
+    fontFamily: fonts.regular,
   },
   acceptBtn: {
     marginTop: Spacing.sm,
@@ -150,6 +156,7 @@ export default function ChatScreen() {
     color: colors.text.primary,
     fontSize: FontSizes.xs,
     fontWeight: FontWeights.semibold,
+    fontFamily: fonts.semibold,
   },
   emptyContainer: {
     alignItems: 'center',
@@ -170,14 +177,16 @@ export default function ChatScreen() {
     fontWeight: FontWeights.bold,
     color: colors.text.primary,
     marginBottom: Spacing.sm,
+    fontFamily: fonts.bold,
   },
   emptySubtitle: {
     fontSize: FontSizes.md,
     color: colors.text.secondary,
     textAlign: 'center',
+    fontFamily: fonts.regular,
   },
       }),
-    [colors]
+    [colors, fonts]
   );
 
   const onRefresh = useCallback(async () => {
@@ -229,12 +238,12 @@ export default function ChatScreen() {
             isOnline={item.matched_user?.is_online}
           />
           <View style={styles.newBadge}>
-            <Text style={styles.newBadgeText}>NEW</Text>
+            <AppText style={styles.newBadgeText}>NEW</AppText>
           </View>
         </View>
-        <Text style={styles.matchName} numberOfLines={1}>
+        <AppText style={styles.matchName} numberOfLines={1}>
           {item.matched_user?.username}
-        </Text>
+        </AppText>
       </TouchableOpacity>
     );
   };
@@ -245,15 +254,15 @@ export default function ChatScreen() {
     return (
       <View style={styles.requestItem}>
         <Avatar uri={from.avatar} name={from.username} size={56} showOnline isOnline={from.is_online} />
-        <Text style={styles.requestName} numberOfLines={1}>
+        <AppText style={styles.requestName} numberOfLines={1}>
           {from.username}
-        </Text>
+        </AppText>
         <TouchableOpacity
           style={styles.acceptBtn}
           onPress={() => likeMut.mutate(from.id)}
           disabled={likeMut.isPending}
         >
-          <Text style={styles.acceptBtnText}>Accept</Text>
+          <AppText style={styles.acceptBtnText}>Accept</AppText>
         </TouchableOpacity>
       </View>
     );
@@ -261,7 +270,7 @@ export default function ChatScreen() {
 
   const renderHeader = () => (
     <View style={styles.matchesSection}>
-      <Text style={styles.sectionTitle}>Join orbit requests</Text>
+      <AppText style={styles.sectionTitle}>Join orbit requests</AppText>
       {pendingOrbits.length > 0 ? (
         <ScrollView
           horizontal
@@ -275,11 +284,11 @@ export default function ChatScreen() {
         </ScrollView>
       ) : (
         <View style={styles.emptyMatches}>
-          <Text style={styles.emptyMatchesText}>No pending requests right now.</Text>
+          <AppText style={styles.emptyMatchesText}>No pending requests right now.</AppText>
         </View>
       )}
 
-      <Text style={styles.sectionTitle}>New Matches</Text>
+      <AppText style={styles.sectionTitle}>New Matches</AppText>
       {matches.length > 0 ? (
         <ScrollView
           horizontal
@@ -293,13 +302,13 @@ export default function ChatScreen() {
         </ScrollView>
       ) : (
         <View style={styles.emptyMatches}>
-          <Text style={styles.emptyMatchesText}>
+          <AppText style={styles.emptyMatchesText}>
             Explore Discover on the map to meet people nearby.
-          </Text>
+          </AppText>
         </View>
       )}
       
-      <Text style={[styles.sectionTitle, styles.messagesTitle]}>Messages</Text>
+      <AppText style={[styles.sectionTitle, styles.messagesTitle]}>Messages</AppText>
     </View>
   );
 
@@ -308,10 +317,10 @@ export default function ChatScreen() {
       <View style={styles.emptyIcon}>
         <Ionicons name="chatbubbles-outline" size={48} color={colors.primary.default} />
       </View>
-      <Text style={styles.emptyTitle}>No messages yet</Text>
-      <Text style={styles.emptySubtitle}>
+      <AppText style={styles.emptyTitle}>No messages yet</AppText>
+      <AppText style={styles.emptySubtitle}>
         Match with someone to start chatting!
-      </Text>
+      </AppText>
     </View>
   );
 
@@ -319,7 +328,7 @@ export default function ChatScreen() {
     <View style={[styles.container, { backgroundColor: colors.background.primary }]}>
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <View style={styles.header}>
-          <Text style={styles.title}>Messages</Text>
+          <AppText style={styles.title}>Messages</AppText>
         </View>
 
         {/* Conversations List */}

@@ -3,6 +3,7 @@ const { serializeUser, serializePublicUser } = require('../serializers/user');
 const { deleteFile } = require('../utils/media');
 const { asNumber, parseIdList } = require('../utils/validation');
 const { haversineDistance } = require('../utils/geo');
+const { syncUserGeoPoint } = require('../utils/userLocation');
 
 async function getMe(req, res) {
   const user = await User.findById(req.user._id);
@@ -71,6 +72,8 @@ async function patchMe(req, res) {
     user.location_updated_at = new Date();
   }
 
+  syncUserGeoPoint(user);
+
   if (interestIds.length > 0 || updates.interest_ids !== undefined || updates['interest_ids[]'] !== undefined) {
     const interests = await Interest.find({ _id: { $in: interestIds } });
     user.interest_ids = interests.map((interest) => interest._id);
@@ -104,6 +107,7 @@ async function updateLocation(req, res) {
   user.latitude = nextLatitude;
   user.longitude = nextLongitude;
   user.location_updated_at = updatedAt;
+  syncUserGeoPoint(user);
   await user.save();
 
   res.json({

@@ -5,10 +5,10 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
@@ -24,6 +24,7 @@ import { format, parse, isValid } from 'date-fns';
 import { Ionicons } from '@expo/vector-icons';
 import { FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
 import { useOrbitTheme } from '../../src/theme';
+import { AppText } from '../../src/ui/AppText';
 import { Input, GradientButton } from '../../src/components';
 import { useAuthStore } from '../../src/stores';
 import { leaveAuthScreen } from '../../src/utils/authNavigation';
@@ -62,7 +63,7 @@ export default function RegisterScreen() {
 
   const { requestSignupOtp, verifySignupOtp } = useAuthStore();
 
-  const { colors, resolvedScheme } = useOrbitTheme();
+  const { colors, fonts, resolvedScheme } = useOrbitTheme();
 
   const maxDob = new Date();
   const minDob = minDobDate();
@@ -233,15 +234,18 @@ export default function RegisterScreen() {
     color: colors.text.primary,
     marginBottom: Spacing.xs,
     letterSpacing: -0.5,
+    fontFamily: fonts.bold,
   },
   subtitle: {
     fontSize: FontSizes.md,
     color: colors.text.secondary,
     lineHeight: 22,
+    fontFamily: fonts.regular,
   },
   emailEmphasis: {
     color: colors.text.accent,
     fontWeight: FontWeights.semibold,
+    fontFamily: fonts.semibold,
   },
   devHint: {
     fontSize: FontSizes.sm,
@@ -252,6 +256,7 @@ export default function RegisterScreen() {
     borderRadius: BorderRadius.md,
     borderWidth: 1,
     borderColor: colors.border,
+    fontFamily: fonts.regular,
   },
   errorContainer: {
     flexDirection: 'row',
@@ -270,6 +275,7 @@ export default function RegisterScreen() {
     color: colors.error,
     fontSize: FontSizes.sm,
     lineHeight: 18,
+    fontFamily: fonts.regular,
   },
   form: {
     marginBottom: Spacing.md,
@@ -282,6 +288,7 @@ export default function RegisterScreen() {
     fontWeight: FontWeights.semibold,
     color: colors.text.secondary,
     marginBottom: Spacing.xs,
+    fontFamily: fonts.semibold,
   },
   dobRow: {
     flexDirection: 'row',
@@ -302,17 +309,20 @@ export default function RegisterScreen() {
     fontSize: FontSizes.md,
     color: colors.text.primary,
     fontWeight: FontWeights.medium,
+    fontFamily: fonts.medium,
   },
   dobWebInput: {
     flex: 1,
     fontSize: FontSizes.md,
     color: colors.text.primary,
     paddingVertical: 0,
+    fontFamily: fonts.regular,
   },
   dobHint: {
     fontSize: FontSizes.xs,
     color: colors.text.muted,
     marginTop: Spacing.xs,
+    fontFamily: fonts.regular,
   },
   iosModalBackdrop: {
     flex: 1,
@@ -338,11 +348,13 @@ export default function RegisterScreen() {
     fontSize: FontSizes.lg,
     fontWeight: FontWeights.semibold,
     color: colors.text.primary,
+    fontFamily: fonts.semibold,
   },
   iosModalDone: {
     fontSize: FontSizes.md,
     fontWeight: FontWeights.bold,
     color: colors.primary.default,
+    fontFamily: fonts.bold,
   },
   iosPicker: {
     height: 216,
@@ -356,10 +368,10 @@ export default function RegisterScreen() {
     fontWeight: FontWeights.semibold,
     color: colors.text.secondary,
     marginBottom: Spacing.sm,
+    fontFamily: fonts.semibold,
   },
   otpInput: {
     fontSize: 32,
-    fontWeight: '700',
     letterSpacing: 8,
     color: colors.text.primary,
     backgroundColor: colors.background.card,
@@ -370,6 +382,7 @@ export default function RegisterScreen() {
     paddingHorizontal: Spacing.lg,
     marginBottom: Spacing.lg,
     textAlign: 'center',
+    fontFamily: fonts.bold,
   },
   resendBtn: {
     alignItems: 'center',
@@ -382,30 +395,35 @@ export default function RegisterScreen() {
     color: colors.primary.light,
     fontSize: FontSizes.md,
     fontWeight: FontWeights.semibold,
+    fontFamily: fonts.semibold,
   },
   footer: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'center',
+    alignItems: 'center',
     marginTop: 'auto',
     paddingTop: Spacing.xl,
   },
   footerMuted: {
     color: colors.text.secondary,
     fontSize: FontSizes.md,
+    fontFamily: fonts.regular,
   },
   footerLink: {
     color: colors.primary.default,
     fontSize: FontSizes.md,
     fontWeight: FontWeights.semibold,
+    fontFamily: fonts.semibold,
   },
     }),
-    [colors]
+    [colors, fonts]
   );
   const renderDobField = () => {
     if (Platform.OS === 'web') {
       return (
         <View style={styles.dobBlock}>
-          <Text style={styles.dobLabel}>Date of birth</Text>
+          <AppText style={styles.dobLabel}>Date of birth</AppText>
           <View style={styles.dobRow}>
             <Ionicons name="calendar-outline" size={20} color={colors.text.tertiary} style={styles.dobIcon} />
             <TextInput
@@ -420,21 +438,21 @@ export default function RegisterScreen() {
               autoCapitalize="none"
             />
           </View>
-          <Text style={styles.dobHint}>Use format YYYY-MM-DD</Text>
+          <AppText style={styles.dobHint}>Use format YYYY-MM-DD</AppText>
         </View>
       );
     }
 
     return (
       <View style={styles.dobBlock}>
-        <Text style={styles.dobLabel}>Date of birth</Text>
+        <AppText style={styles.dobLabel}>Date of birth</AppText>
         <TouchableOpacity
           style={styles.dobRow}
           onPress={openNativeDatePicker}
           activeOpacity={0.75}
         >
           <Ionicons name="calendar-outline" size={20} color={colors.text.tertiary} style={styles.dobIcon} />
-          <Text style={styles.dobValue}>{format(dobDate, 'MMMM d, yyyy')}</Text>
+          <AppText style={styles.dobValue}>{format(dobDate, 'MMMM d, yyyy')}</AppText>
           <Ionicons name="chevron-down" size={20} color={colors.text.tertiary} />
         </TouchableOpacity>
 
@@ -458,9 +476,9 @@ export default function RegisterScreen() {
           <TouchableOpacity style={styles.iosModalBackdrop} activeOpacity={1} onPress={() => setIosPickerOpen(false)}>
             <TouchableOpacity activeOpacity={1} style={styles.iosModalCard} onPress={(e) => e.stopPropagation()}>
               <View style={styles.iosModalHeader}>
-                <Text style={styles.iosModalTitle}>Date of birth</Text>
+                <AppText style={styles.iosModalTitle}>Date of birth</AppText>
                 <TouchableOpacity onPress={() => setIosPickerOpen(false)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-                  <Text style={styles.iosModalDone}>Done</Text>
+                  <AppText style={styles.iosModalDone}>Done</AppText>
                 </TouchableOpacity>
               </View>
               <DateTimePicker
@@ -499,14 +517,14 @@ export default function RegisterScreen() {
             {step === 'details' ? (
               <>
                 <View style={styles.header}>
-                  <Text style={styles.title}>Create account</Text>
-                  <Text style={styles.subtitle}>We’ll email you a code to verify it’s you.</Text>
+                  <AppText style={styles.title}>Create account</AppText>
+                  <AppText style={styles.subtitle}>We’ll email you a code to verify it’s you.</AppText>
                 </View>
 
                 {errorMessage ? (
                   <View style={styles.errorContainer}>
                     <Ionicons name="alert-circle" size={20} color={colors.error} />
-                    <Text style={styles.errorText}>{errorMessage}</Text>
+                    <AppText style={styles.errorText}>{errorMessage}</AppText>
                   </View>
                 ) : null}
 
@@ -548,23 +566,23 @@ export default function RegisterScreen() {
             ) : (
               <>
                 <View style={styles.header}>
-                  <Text style={styles.title}>Check your email</Text>
-                  <Text style={styles.subtitle}>
+                  <AppText style={styles.title}>Check your email</AppText>
+                  <AppText style={styles.subtitle}>
                     Enter the 6-digit code we sent to{' '}
-                    <Text style={styles.emailEmphasis}>{email.trim()}</Text>
-                  </Text>
+                    <AppText style={styles.emailEmphasis}>{email.trim()}</AppText>
+                  </AppText>
                 </View>
 
-                {devHint ? <Text style={styles.devHint}>{devHint}</Text> : null}
+                {devHint ? <AppText style={styles.devHint}>{devHint}</AppText> : null}
 
                 {errorMessage ? (
                   <View style={styles.errorContainer}>
                     <Ionicons name="alert-circle" size={20} color={colors.error} />
-                    <Text style={styles.errorText}>{errorMessage}</Text>
+                    <AppText style={styles.errorText}>{errorMessage}</AppText>
                   </View>
                 ) : null}
 
-                <Text style={styles.otpLabel}>Verification code</Text>
+                <AppText style={styles.otpLabel}>Verification code</AppText>
                 <TextInput
                   style={styles.otpInput}
                   value={otp}
@@ -594,19 +612,22 @@ export default function RegisterScreen() {
                   {sending ? (
                     <ActivityIndicator color={colors.primary.light} />
                   ) : (
-                    <Text style={styles.resendText}>
+                    <AppText style={styles.resendText}>
                       {resendIn > 0 ? `Resend code in ${resendIn}s` : 'Resend code'}
-                    </Text>
+                    </AppText>
                   )}
                 </TouchableOpacity>
               </>
             )}
 
             <View style={styles.footer}>
-              <Text style={styles.footerMuted}>Already have an account? </Text>
-              <TouchableOpacity onPress={() => router.replace('/(auth)/login')}>
-                <Text style={styles.footerLink}>Sign in</Text>
-              </TouchableOpacity>
+              <AppText style={styles.footerMuted}>Already have an account? </AppText>
+              <Pressable
+                onPress={() => router.replace('/(auth)/login')}
+                hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+              >
+                <AppText style={styles.footerLink}>Sign in</AppText>
+              </Pressable>
             </View>
           </View>
         </KeyboardAvoidingView>

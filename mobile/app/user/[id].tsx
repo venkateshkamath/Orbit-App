@@ -5,7 +5,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
@@ -18,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
 import { useOrbitTheme } from '../../src/theme';
+import { AppText } from '../../src/ui/AppText';
 import { Avatar, GradientButton, InterestTag, MatchModal } from '../../src/components';
 import {
   usePublicProfileQuery,
@@ -164,7 +164,7 @@ export default function UserProfileScreen() {
   if (!id) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.muted}>Invalid profile.</Text>
+        <AppText style={styles.muted}>Invalid profile.</AppText>
       </View>
     );
   }
@@ -180,9 +180,9 @@ export default function UserProfileScreen() {
   if (error || !data) {
     return (
       <View style={[styles.centered, { paddingTop: insets.top }]}>
-        <Text style={styles.muted}>Could not load this profile.</Text>
+        <AppText style={styles.muted}>Could not load this profile.</AppText>
         <TouchableOpacity onPress={() => router.back()} style={styles.backLink}>
-          <Text style={styles.backLinkText}>Go back</Text>
+          <AppText style={styles.backLinkText}>Go back</AppText>
         </TouchableOpacity>
       </View>
     );
@@ -230,9 +230,9 @@ export default function UserProfileScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Avatar uri={user.avatar} name={user.username} size={96} showOnline isOnline={user.is_online} />
-        <Text style={styles.username}>{user.username}</Text>
-        <Text style={styles.distance}>{formatDistanceMeters(distance_m)}</Text>
-        {user.bio ? <Text style={styles.bio}>{user.bio}</Text> : null}
+        <AppText style={styles.username}>{user.username}</AppText>
+        <AppText style={styles.distance}>{formatDistanceMeters(distance_m)}</AppText>
+        {user.bio ? <AppText style={styles.bio}>{user.bio}</AppText> : null}
 
         {user.interests.length > 0 && (
           <View style={styles.interests}>

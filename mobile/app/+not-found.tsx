@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { Link, Stack } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useOrbitTheme } from '../src/theme';
+import { AppText } from '../src/ui/AppText';
 
 export default function NotFoundScreen() {
   const { colors } = useOrbitTheme();
@@ -36,10 +37,10 @@ export default function NotFoundScreen() {
     <>
       <Stack.Screen options={{ title: 'Oops!' }} />
       <View style={styles.container}>
-        <Text style={styles.title}>This screen doesn't exist.</Text>
+        <AppText style={styles.title}>This screen doesn't exist.</AppText>
 
         <Link href="/" style={styles.link}>
-          <Text style={styles.linkText}>Go to home screen!</Text>
+          <AppText style={styles.linkText}>Go to home screen!</AppText>
         </Link>
       </View>
     </>
