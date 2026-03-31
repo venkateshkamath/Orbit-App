@@ -50,104 +50,107 @@ export type OrbitShadowSet = {
 };
 
 /*
- * Navy Orbit — derived from the Navy app icon variant.
- * Deep indigo dark mode, purple accent, gold secondary.
+ * Orbit — social / discovery product colors:
+ * - Primary: indigo-violet (brand, CTAs, links, map accents)
+ * - Secondary: warm coral (hearts, “new”, tab pings — attention, not errors)
+ * - Success / online: teal (positive state, separate from coral)
+ * - Backgrounds: neutral slate so photos, map, avatars stay the hero
  */
 
 export const darkPalette: OrbitThemeColors = {
   primary: {
-    start: '#8B7BF2',
-    end: '#6C5CE7',
-    default: '#7C6BEF',
-    light: '#A99AF5',
-    dark: '#5B4BD6',
+    start: '#A5A8FC',
+    end: '#6D73F5',
+    default: '#8188FA',
+    light: '#C7CAFE',
+    dark: '#555CD6',
   },
   secondary: {
-    start: '#F0C040',
-    end: '#E5A820',
-    default: '#EDBE44',
+    start: '#FDA4AF',
+    end: '#FB7185',
+    default: '#FF9F8A',
   },
   background: {
-    primary: '#08061A',
-    secondary: '#0E0C24',
-    tertiary: '#18163A',
-    card: '#110F2A',
-    elevated: '#18163A',
+    primary: '#0B0D12',
+    secondary: '#12151C',
+    tertiary: '#1A1F2A',
+    card: '#161B24',
+    elevated: '#1E2430',
   },
   text: {
-    primary: '#F0EEFF',
-    secondary: '#8F8BB5',
-    tertiary: '#5E5A86',
-    muted: '#3D3968',
-    accent: '#B8AEFF',
+    primary: '#F4F6FB',
+    secondary: '#9BA3B4',
+    tertiary: '#6B7280',
+    muted: '#4B5563',
+    accent: '#C7CAFE',
   },
-  success: '#6EE7B7',
-  warning: '#EDBE44',
-  error: '#F87171',
-  info: '#93C5FD',
-  border: 'rgba(140,130,240,0.08)',
-  borderLight: 'rgba(140,130,240,0.14)',
-  overlay: 'rgba(8,6,26,0.88)',
+  success: '#34D399',
+  warning: '#FBBF24',
+  error: '#F43F5E',
+  info: '#7DD3FC',
+  border: 'rgba(255,255,255,0.06)',
+  borderLight: 'rgba(255,255,255,0.10)',
+  overlay: 'rgba(6,8,12,0.88)',
   glass: {
-    background: 'rgba(17,15,42,0.96)',
-    border: 'rgba(140,130,240,0.08)',
+    background: 'rgba(22,27,36,0.92)',
+    border: 'rgba(255,255,255,0.08)',
   },
-  online: '#6EE7B7',
-  offline: '#5E5A86',
+  online: '#34D399',
+  offline: '#6B7280',
 };
 
 export const lightPalette: OrbitThemeColors = {
   primary: {
-    start: '#6C5CE7',
-    end: '#8B7BF2',
-    default: '#6C5CE7',
-    light: '#8B7BF2',
-    dark: '#5B4BD6',
+    start: '#6366F1',
+    end: '#7C3AED',
+    default: '#6D5AE8',
+    light: '#8B7FF5',
+    dark: '#5B21B6',
   },
   secondary: {
-    start: '#E5A820',
-    end: '#F0C040',
-    default: '#D4990A',
+    start: '#FDA4AF',
+    end: '#F43F5E',
+    default: '#FB7185',
   },
   background: {
-    primary: '#FFFFFF',
-    secondary: '#F9F8FD',
-    tertiary: '#F1F0F8',
+    primary: '#EEF2FA',
+    secondary: '#E4EAF6',
+    tertiary: '#DCE4F2',
     card: '#FFFFFF',
     elevated: '#FFFFFF',
   },
   text: {
-    primary: '#08061A',
-    secondary: '#4A4672',
-    tertiary: '#8F8BB5',
-    muted: '#C4C1DA',
-    accent: '#6C5CE7',
+    primary: '#0F172A',
+    secondary: '#475569',
+    tertiary: '#64748B',
+    muted: '#94A3B8',
+    accent: '#6D5AE8',
   },
   success: '#059669',
-  warning: '#D4990A',
-  error: '#DC2626',
+  warning: '#D97706',
+  error: '#E11D48',
   info: '#2563EB',
-  border: 'rgba(8,6,26,0.06)',
-  borderLight: 'rgba(8,6,26,0.10)',
-  overlay: 'rgba(8,6,26,0.4)',
+  border: 'rgba(15,23,42,0.06)',
+  borderLight: 'rgba(15,23,42,0.09)',
+  overlay: 'rgba(15,23,42,0.45)',
   glass: {
-    background: 'rgba(255,255,255,0.94)',
-    border: 'rgba(8,6,26,0.06)',
+    background: 'rgba(255,255,255,0.92)',
+    border: 'rgba(15,23,42,0.06)',
   },
   online: '#059669',
-  offline: '#8F8BB5',
+  offline: '#94A3B8',
 };
 
 export const shadowsDark: OrbitShadowSet = {
-  sm: { shadowColor: '#040312', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.5, shadowRadius: 3, elevation: 2 },
-  md: { shadowColor: '#040312', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.5, shadowRadius: 8, elevation: 4 },
-  lg: { shadowColor: '#040312', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.55, shadowRadius: 16, elevation: 8 },
-  glow: { shadowColor: '#7C6BEF', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.3, shadowRadius: 16, elevation: 4 },
+  sm: { shadowColor: '#000000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.35, shadowRadius: 6, elevation: 3 },
+  md: { shadowColor: '#000000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 14, elevation: 6 },
+  lg: { shadowColor: '#000000', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.45, shadowRadius: 24, elevation: 10 },
+  glow: { shadowColor: '#8188FA', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.3, shadowRadius: 18, elevation: 5 },
 };
 
 export const shadowsLight: OrbitShadowSet = {
-  sm: { shadowColor: '#08061A', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1 },
-  md: { shadowColor: '#08061A', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },
-  lg: { shadowColor: '#08061A', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.08, shadowRadius: 20, elevation: 4 },
-  glow: { shadowColor: '#6C5CE7', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 3 },
+  sm: { shadowColor: '#64748B', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 8, elevation: 2 },
+  md: { shadowColor: '#64748B', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.09, shadowRadius: 16, elevation: 4 },
+  lg: { shadowColor: '#64748B', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.11, shadowRadius: 28, elevation: 6 },
+  glow: { shadowColor: '#6D5AE8', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.2, shadowRadius: 16, elevation: 4 },
 };

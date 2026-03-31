@@ -19,6 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useRouter } from 'expo-router';
 import { FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
 import { useOrbitTheme } from '../../src/theme';
@@ -34,6 +35,7 @@ function formatDiscoveryRadiusMeters(m?: number | null) {
 }
 
 export default function ProfileScreen() {
+  const tabBarHeight = useBottomTabBarHeight();
   const { colors, shadows, preference, setPreference, fonts } = useOrbitTheme();
   const { user, logout, updateProfile } = useAuthStore();
   const { data: matches = [] } = useMatchesQuery();
@@ -185,7 +187,6 @@ export default function ProfileScreen() {
     },
     scrollContent: {
       paddingHorizontal: Spacing.lg,
-      paddingBottom: Spacing.xxl,
     },
     heroWrap: {
       marginHorizontal: -Spacing.lg,
@@ -642,7 +643,10 @@ export default function ProfileScreen() {
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: Spacing.xxl + tabBarHeight },
+          ]}
         >
           {/* Hero */}
           <View style={styles.heroWrap}>

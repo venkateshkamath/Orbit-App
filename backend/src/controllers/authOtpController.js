@@ -94,8 +94,6 @@ async function sendOtp(req, res) {
     date_of_birth: purpose === 'signup' ? String(date_of_birth).trim() : null,
   });
 
-  await sendOtpEmail(em, code, purpose);
-
   const payload = {
     message:
       purpose === 'signup'
@@ -106,6 +104,13 @@ async function sendOtp(req, res) {
   if (env.OTP_DEBUG_RESPONSE) {
     payload.debug_otp = code;
   }
+
+  try {
+    await sendOtpEmail(em, code, purpose);
+  } catch (emailErr) {
+    console.error('[OTP] Email send failed:', emailErr.message || emailErr);
+  }
+
   res.status(200).json(payload);
 }
 

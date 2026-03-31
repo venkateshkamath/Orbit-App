@@ -19,6 +19,7 @@ import {
   StatusBar,
   Share,
 } from 'react-native';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
@@ -141,9 +142,12 @@ function PostItem({
   );
 }
 
+const CARD_INSET = Spacing.lg * 2;
+
 export default function FeedScreen() {
-  const { colors, resolvedScheme, fonts } = useOrbitTheme();
+  const { colors, resolvedScheme, fonts, shadows } = useOrbitTheme();
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [caption, setCaption] = useState('');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -237,7 +241,7 @@ export default function FeedScreen() {
           backgroundColor: colors.background.primary,
         },
         listContent: {
-          paddingBottom: Spacing.xxl,
+          paddingTop: Spacing.sm,
         },
         listContentEmpty: {
           flexGrow: 1,
@@ -249,9 +253,8 @@ export default function FeedScreen() {
           backgroundColor: colors.background.primary,
         },
         feedHeader: {
-          backgroundColor: colors.background.primary,
-          borderBottomWidth: StyleSheet.hairlineWidth,
-          borderBottomColor: colors.border,
+          backgroundColor: 'transparent',
+          paddingBottom: Spacing.xs,
         },
         headerRow: {
           flexDirection: 'row',
@@ -268,19 +271,27 @@ export default function FeedScreen() {
           fontFamily: fonts.bold,
         },
         headerCompose: {
-          width: 40,
-          height: 40,
-          borderRadius: 20,
-          backgroundColor: colors.background.tertiary,
+          width: 44,
+          height: 44,
+          borderRadius: BorderRadius.full,
+          backgroundColor: colors.background.card,
           alignItems: 'center',
           justifyContent: 'center',
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: colors.borderLight,
+          ...shadows.sm,
         },
         postCard: {
-          width: SCREEN_WIDTH,
-          backgroundColor: colors.background.primary,
-          borderBottomWidth: StyleSheet.hairlineWidth,
-          borderBottomColor: colors.border,
+          width: SCREEN_WIDTH - CARD_INSET,
+          alignSelf: 'center',
+          marginBottom: Spacing.md,
+          backgroundColor: colors.background.card,
+          borderRadius: BorderRadius.xl,
+          overflow: 'hidden',
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: colors.border,
           paddingBottom: Spacing.sm,
+          ...shadows.sm,
         },
         postHeader: {
           flexDirection: 'row',
@@ -311,7 +322,7 @@ export default function FeedScreen() {
           fontFamily: fonts.regular,
         },
         postImage: {
-          width: SCREEN_WIDTH,
+          width: SCREEN_WIDTH - CARD_INSET,
           aspectRatio: 1,
           backgroundColor: colors.background.secondary,
         },
@@ -480,7 +491,7 @@ export default function FeedScreen() {
           fontFamily: fonts.regular,
         },
       }),
-    [colors, fonts]
+    [colors, fonts, shadows]
   );
 
   const feedListHeader = (
@@ -528,6 +539,7 @@ export default function FeedScreen() {
         ListHeaderComponent={feedListHeader}
         contentContainerStyle={[
           styles.listContent,
+          { paddingBottom: Spacing.xxl + tabBarHeight },
           posts.length === 0 && styles.listContentEmpty,
         ]}
         renderItem={({ item }) => (

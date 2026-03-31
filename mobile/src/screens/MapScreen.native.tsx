@@ -5,6 +5,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import {
   View,
   StyleSheet,
@@ -19,6 +20,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker, Circle, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
 import * as Location from 'expo-location';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
@@ -38,7 +40,7 @@ const DEFAULT_REGION: Region = {
 
 function hexToRgba(hex: string, alpha: number): string {
   const h = hex.replace('#', '');
-  if (h.length !== 6) return `rgba(109, 90, 230, ${alpha})`;
+  if (h.length !== 6) return `rgba(109, 114, 250, ${alpha})`;
   const r = parseInt(h.slice(0, 2), 16);
   const g = parseInt(h.slice(2, 4), 16);
   const b = parseInt(h.slice(4, 6), 16);
@@ -78,6 +80,7 @@ export type MapScreenProps = {
 export default function MapScreen({ variant: _variant = 'discover' }: MapScreenProps) {
   const { colors, shadows, resolvedScheme, fonts } = useOrbitTheme();
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
   const mapRef = useRef<MapView>(null);
   const mapReadyRef = useRef(false);
   const iosCompassHideScheduledRef = useRef(false);
@@ -135,11 +138,8 @@ export default function MapScreen({ variant: _variant = 'discover' }: MapScreenP
   const radiusStroke = useMemo(() => hexToRgba(colors.primary.default, 0.28), [colors.primary.default]);
 
   /**
-   * Discover map is only the tab **scene** (fills space above the custom tab bar). The bar is
-   * not inside this view — so mapPadding must NOT include tab-bar height. Doing that double-
-   * insets MKMapView, shrinks the layout margin rect, and MapKit parks the logo/Legal stack
-   * near the vertical middle. Insets here are only for in-map chrome (status + floating header,
-   * bottom-right FAB, legal line).
+   * Tab bar is absolutely positioned over the map; padding bottom must include its measured
+   * height so Google / Apple legal and controls stay above the glass dock.
    */
   const mapPadding = useMemo(() => {
     if (Platform.OS === 'ios') {
@@ -147,16 +147,16 @@ export default function MapScreen({ variant: _variant = 'discover' }: MapScreenP
         top: insets.top + 12,
         right: 10,
         left: 10,
-        bottom: 28,
+        bottom: 28 + tabBarHeight,
       };
     }
     return {
       top: insets.top + 56,
       right: 10,
       left: 16,
-      bottom: 44,
+      bottom: 44 + tabBarHeight,
     };
-  }, [insets.top]);
+  }, [insets.top, tabBarHeight]);
 
   /** iOS: nudge MKAttributionLabel (“Legal”) to bottom-leading inside the map view. */
   const legalLabelInsets = useMemo(() => {
@@ -167,9 +167,9 @@ export default function MapScreen({ variant: _variant = 'discover' }: MapScreenP
       top: 0,
       left: 10,
       right: 0,
-      bottom: 14,
+      bottom: 14 + tabBarHeight,
     };
-  }, []);
+  }, [tabBarHeight]);
 
   useFocusEffect(
     useCallback(() => {
@@ -341,7 +341,7 @@ export default function MapScreen({ variant: _variant = 'discover' }: MapScreenP
           width: 44,
           height: 44,
           borderRadius: 22,
-          backgroundColor: isLight ? 'rgba(255,255,255,0.95)' : 'rgba(24, 22, 58, 0.96)',
+          backgroundColor: isLight ? 'rgba(255,255,255,0.95)' : colors.glass.background,
           borderWidth: StyleSheet.hairlineWidth,
           borderColor: colors.borderLight,
           alignItems: 'center',
@@ -356,7 +356,7 @@ export default function MapScreen({ variant: _variant = 'discover' }: MapScreenP
           height: 16,
           paddingHorizontal: 4,
           borderRadius: 8,
-          backgroundColor: '#E84D4D',
+          backgroundColor: colors.error,
           alignItems: 'center',
           justifyContent: 'center',
         },
@@ -375,7 +375,7 @@ export default function MapScreen({ variant: _variant = 'discover' }: MapScreenP
           paddingVertical: 8,
           paddingHorizontal: 14,
           borderRadius: BorderRadius.full,
-          backgroundColor: isLight ? 'rgba(255,255,255,0.95)' : 'rgba(24, 22, 58, 0.96)',
+          backgroundColor: isLight ? 'rgba(255,255,255,0.95)' : colors.glass.background,
           borderWidth: StyleSheet.hairlineWidth,
           borderColor: colors.borderLight,
           ...shadows.sm,
@@ -399,15 +399,18 @@ export default function MapScreen({ variant: _variant = 'discover' }: MapScreenP
           alignItems: 'flex-end',
         },
         recenterButton: {
-          width: 48,
-          height: 48,
-          borderRadius: 24,
-          backgroundColor: isLight ? 'rgba(255,255,255,0.95)' : 'rgba(24, 22, 58, 0.96)',
-          borderWidth: StyleSheet.hairlineWidth,
-          borderColor: colors.borderLight,
+          width: 52,
+          height: 52,
+          borderRadius: 26,
+          overflow: 'hidden',
           alignItems: 'center',
           justifyContent: 'center',
-          ...shadows.sm,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: isLight ? 'rgba(255,255,255,0.65)' : 'rgba(255,255,255,0.14)',
+          ...shadows.lg,
+        },
+        recenterGrad: {
+          ...StyleSheet.absoluteFillObject,
         },
         modalCard: {
           marginHorizontal: Spacing.lg,
@@ -484,7 +487,7 @@ export default function MapScreen({ variant: _variant = 'discover' }: MapScreenP
   }
 
   const nearbyLabel =
-    nearbyOthers.length >= 100 ? '100+ nearby' : `${nearbyOthers.length} nearby`;
+    nearbyOthers.length >= 100 ? '100+ nearby' : `${nearbyOthers.length} orbitter`;
 
   if (loading) {
     return (
@@ -633,14 +636,20 @@ export default function MapScreen({ variant: _variant = 'discover' }: MapScreenP
         ) : null}
       </View>
 
-      <View style={styles.recenterWrap} pointerEvents="box-none">
+      <View style={[styles.recenterWrap, { bottom: 18 + tabBarHeight }]} pointerEvents="box-none">
         <Pressable
           onPress={centerOnUser}
           accessibilityLabel="Center map on my location"
-          android_ripple={{ color: hexToRgba(colors.primary.default, 0.12) }}
-          style={({ pressed }) => [styles.recenterButton, pressed && { opacity: 0.9 }]}
+          android_ripple={{ color: 'rgba(255,255,255,0.25)' }}
+          style={({ pressed }) => [styles.recenterButton, pressed && { opacity: 0.92 }]}
         >
-          <Ionicons name="navigate" size={24} color={colors.primary.default} />
+          <LinearGradient
+            colors={[colors.primary.light, colors.primary.default]}
+            start={{ x: 0.2, y: 0 }}
+            end={{ x: 0.9, y: 1 }}
+            style={styles.recenterGrad}
+          />
+          <Ionicons name="navigate" size={24} color="#FFFFFF" style={{ transform: [{ rotate: '-42deg' }] }} />
         </Pressable>
       </View>
 

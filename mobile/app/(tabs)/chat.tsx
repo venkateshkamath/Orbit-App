@@ -4,6 +4,7 @@
 
 import React, { useCallback, useMemo } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import {
   View,
   StyleSheet,
@@ -42,6 +43,7 @@ export default function ChatScreen() {
   const likeMut = useLikeUserMutation();
 
   const { colors, fonts } = useOrbitTheme();
+  const tabBarHeight = useBottomTabBarHeight();
 
   const styles = useMemo(
     () =>
@@ -66,7 +68,6 @@ export default function ChatScreen() {
   },
   listContent: {
     paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.xxl,
   },
   matchesSection: {
     marginBottom: Spacing.md,
@@ -343,7 +344,7 @@ export default function ChatScreen() {
           )}
           ListHeaderComponent={renderHeader}
           ListEmptyComponent={!isLoading ? renderEmptyMessages : null}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingBottom: Spacing.xxl + tabBarHeight }]}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl

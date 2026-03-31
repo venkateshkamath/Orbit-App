@@ -21,23 +21,28 @@ export default function TabsLayout() {
               headerShown: false,
               tabBarShowLabel: false,
               tabBarStyle: {
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                bottom: 0,
                 backgroundColor: 'transparent',
                 borderTopWidth: 0,
                 elevation: 0,
                 shadowOpacity: 0,
+                height: undefined,
               },
             }}
           >
             <Tabs.Screen
               name="index"
               options={{
-                title: 'Discover',
+                title: 'Map',
               }}
             />
             <Tabs.Screen
               name="feed"
               options={{
-                title: 'Feed',
+                title: 'Live',
               }}
             />
             <Tabs.Screen
@@ -49,13 +54,13 @@ export default function TabsLayout() {
             <Tabs.Screen
               name="chat"
               options={{
-                title: 'Messages',
+                title: 'Connect',
               }}
             />
             <Tabs.Screen
               name="profile"
               options={{
-                title: 'Me',
+                title: 'Profile',
               }}
             />
           </Tabs>
