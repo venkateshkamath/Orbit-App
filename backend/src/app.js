@@ -36,8 +36,8 @@ function createApp() {
   app.use(routes);
 
   app.use((err, req, res, next) => {
-    if (err.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: 'File too large. Max 10MB.' });
-    if (err.message && err.message.includes('Only JPEG')) return res.status(415).json({ error: err.message });
+    if (err.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: 'File too large.' });
+    if (err.message && err.message.includes('allow')) return res.status(415).json({ error: err.message });
     next(err);
   });
 
