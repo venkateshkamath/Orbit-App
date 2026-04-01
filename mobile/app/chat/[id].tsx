@@ -17,9 +17,11 @@ import {
   Alert,
   Modal,
   Pressable,
+  Keyboard,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import EmojiPicker, { EmojiType } from 'rn-emoji-keyboard';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
 import { useOrbitTheme } from '../../src/theme';
@@ -49,7 +51,7 @@ export default function ChatDetailScreen() {
   const [isNearBottom, setIsNearBottom] = useState(true);
   const [newMessagesCount, setNewMessagesCount] = useState(0);
   const [menuVisible, setMenuVisible] = useState(false);
-  
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [message, setMessage] = useState('');
 
   const { data: conversation } = useConversationQuery(id);
@@ -140,6 +142,7 @@ export default function ChatDetailScreen() {
     
     const messageText = message.trim();
     setMessage('');
+    setEmojiPickerOpen(false);
     
     try {
       await sendMut.mutateAsync({ conversationId: id, content: messageText });
@@ -149,6 +152,15 @@ export default function ChatDetailScreen() {
       Alert.alert('Unable to send', 'This chat is read-only right now.');
     }
   };
+
+  const handleEmojiSelect = useCallback((emoji: EmojiType) => {
+    setMessage((prev) => `${prev}${emoji.emoji}`);
+  }, []);
+
+  const handleToggleEmojiPicker = useCallback(() => {
+    Keyboard.dismiss();
+    setEmojiPickerOpen((prev) => !prev);
+  }, []);
 
   const confirmClearChat = useCallback(() => {
     if (!id) return;
@@ -315,7 +327,8 @@ export default function ChatDetailScreen() {
           alignItems: 'center',
         },
         messagesList: {
-          paddingVertical: Spacing.md,
+          paddingTop: Spacing.xs,
+          paddingBottom: Spacing.md,
           flexGrow: 1,
           justifyContent: 'flex-end',
         },
@@ -641,12 +654,17 @@ export default function ChatDetailScreen() {
                   placeholder="Type a message..."
                   placeholderTextColor={colors.text.muted}
                   value={message}
-                  onChangeText={setMessage}
+                  onChangeText={(text) => {
+                    setMessage(text);
+                    if (emojiPickerOpen) {
+                      setEmojiPickerOpen(false);
+                    }
+                  }}
                   multiline
                   maxLength={1000}
                 />
 
-                <TouchableOpacity style={styles.emojiButton}>
+                <TouchableOpacity style={styles.emojiButton} onPress={handleToggleEmojiPicker}>
                   <Ionicons name="happy-outline" size={24} color={colors.text.tertiary} />
                 </TouchableOpacity>
               </View>
@@ -679,6 +697,11 @@ export default function ChatDetailScreen() {
           )}
         </KeyboardAvoidingView>
       </SafeAreaView>
+      <EmojiPicker
+        open={emojiPickerOpen}
+        onEmojiSelected={handleEmojiSelect}
+        onClose={() => setEmojiPickerOpen(false)}
+      />
       <Modal visible={menuVisible} transparent animationType="fade" onRequestClose={closeChatMenu}>
         <Pressable style={styles.menuBackdrop} onPress={closeChatMenu}>
           <Pressable style={styles.menuContainer} onPress={() => {}}>

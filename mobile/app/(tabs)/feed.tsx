@@ -20,7 +20,7 @@ import {
   Share,
 } from 'react-native';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { formatDistanceToNow } from 'date-fns';
@@ -239,6 +239,9 @@ export default function FeedScreen() {
         container: {
           flex: 1,
           backgroundColor: colors.background.primary,
+        },
+        safeArea: {
+          flex: 1,
         },
         listContent: {
           paddingTop: Spacing.sm,
@@ -499,8 +502,7 @@ export default function FeedScreen() {
       style={[
         styles.feedHeader,
         {
-          paddingTop:
-            insets.top + (Platform.OS === 'android' ? 12 : 8),
+          paddingTop: Platform.OS === 'android' ? 12 : 8,
         },
       ]}
     >
@@ -533,48 +535,50 @@ export default function FeedScreen() {
         backgroundColor="transparent"
       />
 
-      <FlatList
-        data={posts}
-        keyExtractor={(item) => item.id}
-        ListHeaderComponent={feedListHeader}
-        contentContainerStyle={[
-          styles.listContent,
-          { paddingBottom: Spacing.xxl + tabBarHeight },
-          posts.length === 0 && styles.listContentEmpty,
-        ]}
-        renderItem={({ item }) => (
-          <PostItem
-            post={item}
-            onLike={() => toggleLike.mutateAsync(item.id)}
-            onComment={() => handleOpenComments(item.id)}
-            onShare={() => handleShare(item)}
-            styles={styles}
-            colors={colors}
-          />
-        )}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefetching}
-            onRefresh={handleRefresh}
-            tintColor={colors.primary.default}
-            colors={[colors.primary.default]}
-          />
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Ionicons name="images-outline" size={64} color={colors.text.tertiary} />
-            <AppText style={styles.emptyText}>No posts yet</AppText>
-            <AppText style={styles.emptySubtext}>Share your first moment</AppText>
-            <TouchableOpacity
-              style={styles.createButton}
-              onPress={() => setCreateModalVisible(true)}
-            >
-              <AppText style={styles.createButtonText}>New post</AppText>
-            </TouchableOpacity>
-          </View>
-        }
-      />
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <FlatList
+          data={posts}
+          keyExtractor={(item) => item.id}
+          ListHeaderComponent={feedListHeader}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: Spacing.xxl + tabBarHeight },
+            posts.length === 0 && styles.listContentEmpty,
+          ]}
+          renderItem={({ item }) => (
+            <PostItem
+              post={item}
+              onLike={() => toggleLike.mutateAsync(item.id)}
+              onComment={() => handleOpenComments(item.id)}
+              onShare={() => handleShare(item)}
+              styles={styles}
+              colors={colors}
+            />
+          )}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={handleRefresh}
+              tintColor={colors.primary.default}
+              colors={[colors.primary.default]}
+            />
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Ionicons name="images-outline" size={64} color={colors.text.tertiary} />
+              <AppText style={styles.emptyText}>No posts yet</AppText>
+              <AppText style={styles.emptySubtext}>Share your first moment</AppText>
+              <TouchableOpacity
+                style={styles.createButton}
+                onPress={() => setCreateModalVisible(true)}
+              >
+                <AppText style={styles.createButtonText}>New post</AppText>
+              </TouchableOpacity>
+            </View>
+          }
+        />
+      </SafeAreaView>
 
       <CommentsModal
         visible={commentsModalVisible}

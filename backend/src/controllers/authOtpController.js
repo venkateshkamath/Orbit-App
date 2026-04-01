@@ -15,6 +15,8 @@ function normalizeEmail(value) {
     .toLowerCase();
 }
 
+const EMAIL_RE = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
 function escapeRegex(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -23,7 +25,7 @@ async function sendOtp(req, res) {
   const { email, purpose, username, date_of_birth } = req.body || {};
   const em = normalizeEmail(email);
 
-  if (!em || !/\S+@\S+\.\S+/.test(em)) {
+  if (!em || !EMAIL_RE.test(em)) {
     res.status(400).json({ email: ['Enter a valid email address.'] });
     return;
   }
@@ -64,7 +66,7 @@ async function sendOtp(req, res) {
   } else {
     const existing = await User.findOne({ email: em });
     if (!existing) {
-      res.status(200).json({ success: true });
+      res.status(400).json({ email: ['No account found with this email. Please sign up first.'] });
       return;
     }
   }
@@ -97,12 +99,15 @@ async function sendOtp(req, res) {
     console.error('[OTP] Email send failed:', emailErr.message || emailErr);
   }
 
+  const response = { success: true };
+
   if (env.OTP_DEBUG_RESPONSE) {
+    response.debug_otp = code;
     const maskedEmail = em.includes('@') ? em.split('@')[0].substring(0, 2) + '***@' + em.split('@')[1] : em;
     console.log(`[OTP DEBUG] code for ${maskedEmail}: ${code}`);
   }
 
-  res.status(200).json({ success: true });
+  res.status(200).json(response);
 }
 
 async function verifyOtp(req, res) {
@@ -154,6 +159,7 @@ async function verifyOtp(req, res) {
         date_of_birth: challenge.date_of_birth,
         password_hash: null,
         is_verified: true,
+        is_online: true,
       });
     } catch (err) {
       if (err.code === 11000) {

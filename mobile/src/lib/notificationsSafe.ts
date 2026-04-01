@@ -135,32 +135,36 @@ export type RegisterPushOptions = {
   isCancelled?: () => boolean;
 };
 
+export type RegisterPushResult =
+  | { status: 'registered'; token: string }
+  | { status: 'skipped'; reason: string };
+
 /**
  * Registers Expo push token with your API. No-op on web, simulator, Expo Go, or invalid EAS project.
  */
 export async function tryRegisterExpoPushToken(
   registerFn: (token: string) => Promise<void>,
   options?: RegisterPushOptions
-): Promise<void> {
-  if (Platform.OS === 'web') return;
+): Promise<RegisterPushResult> {
+  if (Platform.OS === 'web') return { status: 'skipped', reason: 'web-platform' };
   const cancelled = () => options?.isCancelled?.() === true;
 
   try {
     const { isDevice } = await import('expo-device');
-    if (!isDevice) return;
+    if (!isDevice) return { status: 'skipped', reason: 'not-physical-device' };
   } catch {
-    return;
+    return { status: 'skipped', reason: 'expo-device-unavailable' };
   }
 
   if (isExpoGo()) {
     console.warn(
       '[notifications] Remote push is not available in Expo Go; use a development build (EAS) for FCM/APNs.'
     );
-    return;
+    return { status: 'skipped', reason: 'expo-go' };
   }
 
   const Notifications = getNotifications();
-  if (!Notifications) return;
+  if (!Notifications) return { status: 'skipped', reason: 'notifications-module-unavailable' };
 
   const projectId =
     Constants.expoConfig?.extra?.eas?.projectId ??
@@ -170,11 +174,11 @@ export async function tryRegisterExpoPushToken(
     console.warn(
       '[notifications] Skipping Expo push: set expo.extra.eas.projectId in app.json to your real EAS project UUID.'
     );
-    return;
+    return { status: 'skipped', reason: 'missing-or-invalid-eas-project-id' };
   }
 
   try {
-    if (cancelled()) return;
+    if (cancelled()) return { status: 'skipped', reason: 'cancelled' };
     const { status: existing } = await Notifications.getPermissionsAsync();
     let final = existing;
     if (existing !== 'granted') {
@@ -184,15 +188,18 @@ export async function tryRegisterExpoPushToken(
       });
       final = status;
     }
-    if (final !== 'granted' || cancelled()) return;
+    if (final !== 'granted') return { status: 'skipped', reason: 'notifications-permission-denied' };
+    if (cancelled()) return { status: 'skipped', reason: 'cancelled' };
 
     const tokenRes = await Notifications.getExpoPushTokenAsync({
       projectId: projectId as string,
     });
-    if (cancelled()) return;
+    if (cancelled()) return { status: 'skipped', reason: 'cancelled' };
     if (tokenRes?.data) {
       await registerFn(tokenRes.data);
+      return { status: 'registered', token: tokenRes.data };
     }
+    return { status: 'skipped', reason: 'empty-token-response' };
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     if (Platform.OS === 'android' && /firebase|fcm|google services/i.test(msg)) {
@@ -203,6 +210,7 @@ export async function tryRegisterExpoPushToken(
     } else {
       console.warn('[notifications] Push token registration failed (ignored):', e);
     }
+    return { status: 'skipped', reason: 'registration-error' };
   }
 }
 

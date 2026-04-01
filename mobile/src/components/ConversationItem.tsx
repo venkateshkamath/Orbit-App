@@ -13,11 +13,13 @@ import Avatar from './Avatar';
 interface ConversationItemProps {
   conversation: Conversation;
   onPress: () => void;
+  isFirst?: boolean;
 }
 
 export const ConversationItem: React.FC<ConversationItemProps> = ({
   conversation,
   onPress,
+  isFirst = false,
 }) => {
   const { colors, shadows } = useOrbitTheme();
   const other = conversation.other_participant;
@@ -29,6 +31,7 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
           flexDirection: 'row',
           alignItems: 'center',
           paddingVertical: Spacing.md,
+          paddingTop: isFirst ? Spacing.xs : Spacing.md,
           paddingHorizontal: Spacing.sm,
         },
         content: {
@@ -77,7 +80,7 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
           fontWeight: FontWeights.bold,
         },
       }),
-    [colors, shadows]
+    [colors, isFirst, shadows]
   );
 
   if (!other) return null;

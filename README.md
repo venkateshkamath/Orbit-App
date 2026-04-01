@@ -69,6 +69,7 @@ You can develop and run the app **without** signing up for Expo or linking the p
 - Run `npx expo start` and use **Expo Go** (you can proceed anonymously when prompted) or an emulator.
 - **Chat in realtime** uses your backend **WebSocket** (`/ws`), not Expo’s servers.
 - **Local notifications** (e.g. new message while you’re on another screen) can still work if the user allows notifications; the app **does not crash** if remote push is unavailable.
+- **Background remote push** is not supported in Expo Go. Use an EAS development build (or production/TestFlight build) on a physical device to validate background notifications.
 
 **Optional later:** If you create an Expo account and want push delivered through Expo’s service, you can set `EAS_PROJECT_ID` in `mobile/.env` (see `.env.example`) and use EAS builds. That is **not** required for local development or for WebSocket chat.
 

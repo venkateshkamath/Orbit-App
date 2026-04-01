@@ -115,7 +115,7 @@ export default function RegisterScreen() {
       setErrorMessage('Please enter your name (at least 2 characters).');
       return false;
     }
-    if (!/\S+@\S+\.\S+/.test(email.trim())) {
+    if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email.trim())) {
       setErrorMessage('Please enter a valid email address.');
       return false;
     }

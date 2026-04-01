@@ -191,6 +191,21 @@ async function registerExpoPushToken(req, res) {
   res.json({ ok: true });
 }
 
+async function updatePresence(req, res) {
+  const { is_online } = req.body || {};
+  if (typeof is_online !== 'boolean') {
+    res.status(400).json({ detail: 'is_online must be a boolean.' });
+    return;
+  }
+
+  const patch = is_online
+    ? { is_online: true }
+    : { is_online: false, last_seen: new Date() };
+
+  await User.updateOne({ _id: req.user._id }, { $set: patch });
+  res.json({ ok: true, is_online });
+}
+
 module.exports = {
   getMe,
   patchMe,
@@ -199,4 +214,5 @@ module.exports = {
   getUserById,
   getPublicProfile,
   registerExpoPushToken,
+  updatePresence,
 };
