@@ -19,7 +19,7 @@ async function serializePost(post, currentUserId, req) {
     author: {
       id: String(comment.author._id),
       username: comment.author.username,
-      avatar: fullMediaUrl(req, comment.author.avatar),
+      avatar: comment.author.avatar,
     },
     text: comment.text,
     parent: comment.parent ? String(comment.parent) : null,
@@ -32,11 +32,11 @@ async function serializePost(post, currentUserId, req) {
     author: {
       id: String(post.author._id),
       username: post.author.username,
-      avatar: fullMediaUrl(req, post.author.avatar),
+      avatar: post.author.avatar,
     },
     caption: post.caption || '',
-    image: fullMediaUrl(req, post.image),
-    image_url: fullMediaUrl(req, post.image),
+    image: post.image,
+    image_url: post.image,
     interests: post.interest_ids.map((interest) => ({
       id: String(interest._id),
       name: interest.name,

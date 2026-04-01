@@ -36,9 +36,16 @@ async function userPosts(req, res) {
 }
 
 async function createPost(req, res) {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No image file received by server.' });
+  }
+  const imagePath = req.file.path;
+  if (!imagePath) {
+    return res.status(500).json({ error: 'Cloudinary did not return a valid URL.' });
+  }
+
   const caption = String(req.body?.caption || '');
   const interestIds = parseIdList(req.body?.interest_ids || req.body?.['interest_ids[]']);
-  const imagePath = req.file ? `posts/${req.file.filename}` : null;
 
   const interests = interestIds.length
     ? await Interest.find({ _id: { $in: interestIds } })
@@ -147,7 +154,7 @@ async function listComments(req, res) {
       author: {
         id: String(comment.author._id),
         username: comment.author.username,
-        avatar: fullMediaUrl(req, comment.author.avatar),
+        avatar: comment.author.avatar,
       },
       text: comment.text,
       parent: comment.parent ? String(comment.parent) : null,
@@ -181,7 +188,7 @@ async function createComment(req, res) {
     author: {
       id: String(populated.author._id),
       username: populated.author.username,
-      avatar: fullMediaUrl(req, populated.author.avatar),
+      avatar: populated.author.avatar,
     },
     text: populated.text,
     parent: populated.parent ? String(populated.parent) : null,

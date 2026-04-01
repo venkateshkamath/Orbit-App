@@ -64,10 +64,7 @@ async function sendOtp(req, res) {
   } else {
     const existing = await User.findOne({ email: em });
     if (!existing) {
-      res.status(200).json({
-        message: 'If an account exists for this email, a code was sent.',
-        expires_in: Math.floor(OTP_EXPIRES_MS / 1000),
-      });
+      res.status(200).json({ success: true });
       return;
     }
   }
@@ -94,24 +91,18 @@ async function sendOtp(req, res) {
     date_of_birth: purpose === 'signup' ? String(date_of_birth).trim() : null,
   });
 
-  const payload = {
-    message:
-      purpose === 'signup'
-        ? 'Verification code sent to your email.'
-        : 'If an account exists for this email, a code was sent.',
-    expires_in: Math.floor(OTP_EXPIRES_MS / 1000),
-  };
-  if (env.OTP_DEBUG_RESPONSE) {
-    payload.debug_otp = code;
-  }
-
   try {
     await sendOtpEmail(em, code, purpose);
   } catch (emailErr) {
     console.error('[OTP] Email send failed:', emailErr.message || emailErr);
   }
 
-  res.status(200).json(payload);
+  if (env.OTP_DEBUG_RESPONSE) {
+    const maskedEmail = em.includes('@') ? em.split('@')[0].substring(0, 2) + '***@' + em.split('@')[1] : em;
+    console.log(`[OTP DEBUG] code for ${maskedEmail}: ${code}`);
+  }
+
+  res.status(200).json({ success: true });
 }
 
 async function verifyOtp(req, res) {

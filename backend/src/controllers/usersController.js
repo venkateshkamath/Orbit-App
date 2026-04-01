@@ -39,11 +39,12 @@ async function patchMe(req, res) {
     updates.show_online_status !== undefined
       ? updates.show_online_status === 'true' || updates.show_online_status === true
       : user.show_online_status;
-  const nextAvatar = req.file ? `${req.file.fieldname}s/${req.file.filename}` : user.avatar;
+  const nextAvatar = req.file ? req.file.path : user.avatar;
 
   if (nextUsername !== user.username) {
+    const escapedUsername = String(nextUsername).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const existingUsername = await User.findOne({
-      username: new RegExp(`^${nextUsername}$`, 'i'),
+      username: new RegExp(`^${escapedUsername}$`, 'i'),
       _id: { $ne: user._id },
     });
     if (existingUsername) {

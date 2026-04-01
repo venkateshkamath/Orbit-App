@@ -35,13 +35,14 @@ function createApp() {
 
   app.use(routes);
 
+  app.use((err, req, res, next) => {
+    if (err.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: 'File too large.' });
+    if (err.message && err.message.includes('allow')) return res.status(415).json({ error: err.message });
+    next(err);
+  });
+
   app.use((error, req, res, next) => {
-    if (req.file?.fieldname === 'avatar') {
-      deleteFile(`avatars/${req.file.filename}`);
-    }
-    if (req.file?.fieldname === 'image') {
-      deleteFile(`posts/${req.file.filename}`);
-    }
+    // Cloudinary errors bubble up here. No local file cleanup needed.
     console.error(error);
     res.status(500).json({ detail: 'Internal server error' });
   });
