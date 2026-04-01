@@ -1,22 +1,41 @@
-const path = require('path');
+const cloudinary = require('cloudinary').v2;
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const multer = require('multer');
-const { v4: uuidv4 } = require('uuid');
-const { avatarDir, postDir } = require('../utils/media');
 
-const storage = multer.diskStorage({
-  destination(req, file, callback) {
-    if (file.fieldname === 'avatar') {
-      callback(null, avatarDir);
-      return;
-    }
-    callback(null, postDir);
-  },
-  filename(req, file, callback) {
-    const ext = path.extname(file.originalname || '').toLowerCase() || '.jpg';
-    callback(null, `${uuidv4()}${ext}`);
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key:    process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+const postStorage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: async (req, file) => {
+    return {
+      folder: 'orbit_posts',
+      allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
+      transformation: [{ width: 1080, crop: 'limit', quality: 'auto' }],
+    };
   },
 });
 
-const upload = multer({ storage });
+const avatarStorage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: async (req, file) => {
+    return {
+      folder: 'orbit_avatars',
+      allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
+      transformation: [{ width: 400, height: 400, crop: 'fill', gravity: 'face', quality: 'auto' }],
+    };
+  },
+});
 
-module.exports = { upload };
+const fileFilter = (req, file, cb) => {
+  const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+  allowed.includes(file.mimetype) ? cb(null, true) : cb(new Error('Only JPEG, PNG and WebP images are allowed.'), false);
+};
+
+const uploadPost = multer({ storage: postStorage, limits: { fileSize: 10 * 1024 * 1024, files: 1 }, fileFilter });
+const uploadAvatar = multer({ storage: avatarStorage, limits: { fileSize: 5 * 1024 * 1024, files: 1 }, fileFilter });
+
+module.exports = { uploadPost, uploadAvatar };
