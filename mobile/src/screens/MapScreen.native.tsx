@@ -606,7 +606,7 @@ export default function MapScreen({ variant: _variant = 'discover' }: MapScreenP
             <Pressable
               onPress={() => router.push('/(tabs)/chat')}
               style={({ pressed }) => [styles.mapControlBtn, pressed && { opacity: 0.88 }]}
-              accessibilityLabel="Messages"
+              accessibilityLabel="Chats"
             >
               <Ionicons name="people-outline" size={22} color={colors.text.primary} />
             </Pressable>

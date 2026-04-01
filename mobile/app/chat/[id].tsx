@@ -42,7 +42,7 @@ import { useAuthStore } from '../../src/stores';
 const BOTTOM_THRESHOLD_PX = 80;
 
 export default function ChatDetailScreen() {
-  const { colors, fonts } = useOrbitTheme();
+  const { colors, fonts, resolvedScheme } = useOrbitTheme();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const insets = useSafeAreaInsets();
@@ -257,6 +257,38 @@ export default function ChatDetailScreen() {
     [id, deleteMsgMut]
   );
 
+  const emojiPickerTheme = useMemo(() => {
+    const isDark = resolvedScheme === 'dark';
+    return {
+      backdrop: isDark ? 'rgba(0,0,0,0.55)' : 'rgba(15,23,42,0.4)',
+      knob: colors.borderLight,
+      container: colors.background.card,
+      header: colors.text.primary,
+      skinTonesContainer: colors.background.tertiary,
+      category: {
+        icon: colors.text.secondary,
+        iconActive: colors.primary.default,
+        container: colors.background.tertiary,
+        containerActive: colors.background.elevated,
+      },
+      search: {
+        background: colors.background.tertiary,
+        text: colors.text.primary,
+        placeholder: colors.text.muted,
+        icon: colors.text.primary,
+      },
+      customButton: {
+        icon: colors.text.primary,
+        iconPressed: colors.primary.default,
+        background: colors.background.tertiary,
+        backgroundPressed: colors.background.secondary,
+      },
+      emoji: {
+        selected: colors.background.tertiary,
+      },
+    };
+  }, [colors, resolvedScheme]);
+
   const renderMessage = useCallback(({ item }: { item: any }) => {
     const isOwn = item.sender.id === user?.id;
     return (
@@ -347,8 +379,7 @@ export default function ChatDetailScreen() {
           flexDirection: 'row',
           alignItems: 'flex-end',
           paddingHorizontal: Spacing.md,
-          paddingVertical: Spacing.sm,
-          paddingBottom: Spacing.md,
+          paddingTop: Spacing.sm,
           borderTopWidth: StyleSheet.hairlineWidth,
           borderTopColor: colors.border,
           backgroundColor: colors.background.primary,
@@ -511,12 +542,12 @@ export default function ChatDetailScreen() {
           color: colors.error,
         },
       }),
-    [colors, fonts, insets.top]
+    [colors, fonts, insets.bottom, insets.top]
   );
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background.primary }]}>
-      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
@@ -622,7 +653,12 @@ export default function ChatDetailScreen() {
           )}
 
           {isConversationBlocked ? (
-            <View style={styles.blockedBanner}>
+            <View
+              style={[
+                styles.blockedBanner,
+                { marginBottom: Math.max(insets.bottom, Spacing.sm) },
+              ]}
+            >
               <Ionicons name="lock-closed-outline" size={16} color={colors.text.secondary} />
               <AppText style={styles.blockedBannerText}>
                 {blockedByOther
@@ -643,7 +679,12 @@ export default function ChatDetailScreen() {
             </View>
           ) : (
             /* Input Area */
-            <View style={styles.inputContainer}>
+            <View
+              style={[
+                styles.inputContainer,
+                { paddingBottom: Math.max(insets.bottom, Spacing.md) },
+              ]}
+            >
               <View style={styles.inputWrapper}>
                 <TouchableOpacity style={styles.attachButton}>
                   <Ionicons name="add" size={24} color={colors.text.tertiary} />
@@ -701,6 +742,9 @@ export default function ChatDetailScreen() {
         open={emojiPickerOpen}
         onEmojiSelected={handleEmojiSelect}
         onClose={() => setEmojiPickerOpen(false)}
+        theme={emojiPickerTheme}
+        enableSearchBar
+        hideSearchBarClearIcon={false}
       />
       <Modal visible={menuVisible} transparent animationType="fade" onRequestClose={closeChatMenu}>
         <Pressable style={styles.menuBackdrop} onPress={closeChatMenu}>
