@@ -36,15 +36,11 @@ async function userPosts(req, res) {
 }
 
 async function createPost(req, res) {
-  console.log('[createPost] req.file:', JSON.stringify(req.file, null, 2));
-  console.log('[createPost] req.body keys:', Object.keys(req.body || {}));
-  console.log('[createPost] CLOUDINARY_CLOUD_NAME:', process.env.CLOUDINARY_CLOUD_NAME);
-
   if (!req.file) {
     return res.status(400).json({ error: 'No image file received by server.' });
   }
   const imagePath = req.file.path;
-  if (!imagePath || !imagePath.startsWith('https://')) {
+  if (!imagePath) {
     return res.status(500).json({ error: 'Cloudinary did not return a valid URL.' });
   }
 
