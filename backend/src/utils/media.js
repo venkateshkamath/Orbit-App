@@ -37,6 +37,20 @@ function deleteFile(relativePath) {
   if (!relativePath) {
     return;
   }
+  
+  // Check if it's a remote URL from Cloudinary
+  if (/^https?:\/\//.test(relativePath)) {
+    const match = relativePath.match(/(orbit_posts|orbit_avatars)\/[^.]+/);
+    if (match) {
+      const publicId = match[0];
+      cloudinary.uploader.destroy(publicId).catch(err => {
+        console.error('[Cloudinary] Failed to delete file:', publicId, err.message);
+      });
+    }
+    return;
+  }
+
+  // Local fallback
   const absolutePath = path.join(mediaRoot, relativePath);
   if (absolutePath.startsWith(mediaRoot) && fs.existsSync(absolutePath)) {
     fs.unlinkSync(absolutePath);

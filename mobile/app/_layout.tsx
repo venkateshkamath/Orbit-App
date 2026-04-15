@@ -20,6 +20,7 @@ import {
 import { ThemeProvider, useOrbitTheme } from '../src/theme';
 import { AppText } from '../src/ui/AppText';
 import { authApi } from '../src/api/auth';
+import { usePresenceLifecycle } from '../src/hooks/usePresenceLifecycle';
 
 function RootLayoutNav() {
   const { colors, resolvedScheme, fonts } = useOrbitTheme();
@@ -49,6 +50,9 @@ function RootLayoutNav() {
   const router = useRouter();
   const segments = useSegments();
   const [mounted, setMounted] = useState(false);
+  const shouldTrackPresence = mounted && !isLoading && isAuthenticated && isOnboardingComplete;
+
+  usePresenceLifecycle(shouldTrackPresence);
 
   useEffect(() => {
     setMounted(true);
@@ -96,17 +100,27 @@ function RootLayoutNav() {
     void prepareNotificationEnvironment();
 
     let cancelled = false;
-    void tryRegisterExpoPushToken(
-      async (token) => {
-        if (cancelled) return;
-        try {
-          await authApi.registerExpoPushToken(token);
-        } catch (e) {
-          console.warn('[notifications] registerExpoPushToken API failed:', e);
-        }
-      },
-      { isCancelled: () => cancelled }
-    );
+    void (async () => {
+      const result = await tryRegisterExpoPushToken(
+        async (token) => {
+          if (cancelled) return;
+          try {
+            await authApi.registerExpoPushToken(token);
+          } catch (e) {
+            console.warn('[notifications] registerExpoPushToken API failed:', e);
+            throw e;
+          }
+        },
+        { isCancelled: () => cancelled }
+      );
+
+      if (cancelled) return;
+      if (result.status === 'registered') {
+        console.log('[notifications] Expo push token registered.');
+      } else {
+        console.warn(`[notifications] Expo push registration skipped: ${result.reason}`);
+      }
+    })();
 
     return () => {
       cancelled = true;

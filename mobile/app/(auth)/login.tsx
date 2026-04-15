@@ -70,7 +70,7 @@ export default function LoginScreen() {
 
   const handleSendCode = async () => {
     setErrorMessage('');
-    if (!/\S+@\S+\.\S+/.test(email.trim())) {
+    if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email.trim())) {
       setErrorMessage('Please enter a valid email address.');
       return;
     }

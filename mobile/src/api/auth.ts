@@ -53,6 +53,10 @@ export const authApi = {
     await api.post('/users/me/expo-push-token/', { token });
   },
 
+  updatePresence: async (isOnline: boolean): Promise<void> => {
+    await api.post('/users/me/presence/', { is_online: isOnline });
+  },
+
   getPublicProfile: async (userId: string): Promise<PublicProfileResponse> => {
     const response = await api.get(`/users/${userId}/profile/`);
     return response.data;

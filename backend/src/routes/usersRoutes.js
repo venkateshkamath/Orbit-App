@@ -16,6 +16,7 @@ router.post(
   usersController.registerExpoPushToken
 );
 router.get('/api/users/search', authMiddleware, usersController.searchUsers);
+router.post('/api/users/me/presence/', authMiddleware, usersController.updatePresence);
 router.get('/api/users/:id/profile/', authMiddleware, usersController.getPublicProfile);
 router.get('/api/users/:id/', authMiddleware, usersController.getUserById);
 

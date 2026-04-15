@@ -13,11 +13,17 @@ export function applyRealtimeChatMessage(
   message: Message,
   onThisChat: boolean
 ) {
-  qc.setQueryData<Message[]>(orbitKeys.messages(conversationId), (old) => {
-    const list = old ?? [];
-    if (list.some((m) => m.id === message.id)) return list;
-    return [...list, message];
-  });
+  const existingMessages = qc.getQueryData<Message[]>(orbitKeys.messages(conversationId));
+
+  if (existingMessages !== undefined) {
+    qc.setQueryData<Message[]>(orbitKeys.messages(conversationId), (old) => {
+      const list = old ?? [];
+      if (list.some((m) => m.id === message.id)) return list;
+      return [...list, message];
+    });
+  } else {
+    void qc.invalidateQueries({ queryKey: orbitKeys.messages(conversationId) });
+  }
 
   const convs = qc.getQueryData<Conversation[]>(orbitKeys.conversations());
   const convInList = convs?.some((c) => c.id === conversationId) ?? false;

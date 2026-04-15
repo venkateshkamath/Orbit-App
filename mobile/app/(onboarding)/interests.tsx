@@ -26,7 +26,7 @@ export default function InterestsScreen() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
-  const { updateProfile, setOnboardingComplete } = useAuthStore();
+  const { user, updateProfile, setOnboardingComplete } = useAuthStore();
   const { data: interests = [], isLoading: loading, error: interestsError } = useInterestsQuery();
 
   useEffect(() => {
@@ -34,6 +34,14 @@ export default function InterestsScreen() {
       Alert.alert('Error', 'Failed to load interests');
     }
   }, [interestsError]);
+
+  useEffect(() => {
+    if (selectedIds.length > 0) return;
+    const existingIds = (user?.interests ?? []).map((interest) => interest.id);
+    if (existingIds.length > 0) {
+      setSelectedIds(existingIds);
+    }
+  }, [selectedIds.length, user?.interests]);
 
   const toggleInterest = (id: string) => {
     setSelectedIds((prev) =>

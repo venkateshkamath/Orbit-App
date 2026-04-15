@@ -107,7 +107,7 @@ function ChatBadge({
 }
 
 const badge = StyleSheet.create({
-  wrap: { alignItems: 'center', justifyContent: 'center' },
+  wrap: { width: ICON_SZ, height: ICON_SZ, alignItems: 'center', justifyContent: 'center' },
   dot: {
     position: 'absolute',
     top: -3,

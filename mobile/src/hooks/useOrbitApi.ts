@@ -5,7 +5,7 @@ import { connectionsApi } from '../api/connections';
 import { discoveryApi } from '../api/discovery';
 import { postApi } from '../api/posts';
 import { notificationsApi } from '../api/notifications';
-import type { Conversation, Message, Post } from '../types';
+import type { Conversation, Message, Post, PublicProfileResponse, LikeReceivedItem } from '../types';
 import { useAuthStore } from '../stores';
 import { locationKeyPart, orbitKeys } from './orbitKeys';
 
@@ -20,6 +20,28 @@ export function useToggleLikeMutation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (postId: string) => postApi.likePost(postId),
+    onMutate: async (postId) => {
+      await qc.cancelQueries({ queryKey: ['orbit', 'feed'] });
+      const feedQueries = qc.getQueriesData<Post[]>({ queryKey: ['orbit', 'feed'] });
+      const snapshots = feedQueries.map(([key, data]) => [key, data] as const);
+      for (const [key] of feedQueries) {
+        qc.setQueryData<Post[]>(key, (old) =>
+          (old ?? []).map((p) =>
+            p.id === postId
+              ? { ...p, is_liked: !p.is_liked, like_count: p.like_count + (p.is_liked ? -1 : 1) }
+              : p
+          )
+        );
+      }
+      return { snapshots };
+    },
+    onError: (_err, _postId, ctx) => {
+      if (ctx?.snapshots) {
+        for (const [key, data] of ctx.snapshots) {
+          qc.setQueryData(key, data);
+        }
+      }
+    },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ['orbit', 'feed'] });
     },
@@ -169,6 +191,39 @@ export function useLikeUserMutation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (userId: string) => discoveryApi.likeUser(userId),
+    onMutate: async (userId) => {
+      await qc.cancelQueries({ queryKey: orbitKeys.publicProfile(userId) });
+      const prevProfile = qc.getQueryData<PublicProfileResponse>(orbitKeys.publicProfile(userId));
+
+      if (prevProfile) {
+        const { orbit } = prevProfile;
+        const willMatch = orbit.they_sent_join && !orbit.you_sent_join;
+        qc.setQueryData<PublicProfileResponse>(orbitKeys.publicProfile(userId), {
+          ...prevProfile,
+          orbit: willMatch
+            ? { ...orbit, matched: true, you_sent_join: true }
+            : { ...orbit, you_sent_join: true },
+        });
+      }
+
+      const prevLikes = qc.getQueryData<LikeReceivedItem[]>(orbitKeys.likesReceived());
+      if (prevLikes) {
+        qc.setQueryData<LikeReceivedItem[]>(
+          orbitKeys.likesReceived(),
+          prevLikes.filter((l) => l.from_user.id !== userId)
+        );
+      }
+
+      return { prevProfile, prevLikes };
+    },
+    onError: (_err, userId, ctx) => {
+      if (ctx?.prevProfile) {
+        qc.setQueryData(orbitKeys.publicProfile(userId), ctx.prevProfile);
+      }
+      if (ctx?.prevLikes) {
+        qc.setQueryData(orbitKeys.likesReceived(), ctx.prevLikes);
+      }
+    },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ['orbit', 'discover'] });
       qc.invalidateQueries({ queryKey: orbitKeys.matches() });
@@ -183,6 +238,22 @@ export function usePassUserMutation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (userId: string) => discoveryApi.passUser(userId),
+    onMutate: async () => {
+      await qc.cancelQueries({ queryKey: ['orbit', 'discover'] });
+      const discoverQueries = qc.getQueriesData<{ user: unknown }>({ queryKey: ['orbit', 'discover', 'next'] });
+      const snapshots = discoverQueries.map(([key, data]) => [key, data] as const);
+      for (const [key] of discoverQueries) {
+        qc.setQueryData(key, (old: any) => (old ? { ...old, user: null } : old));
+      }
+      return { snapshots };
+    },
+    onError: (_err, _userId, ctx) => {
+      if (ctx?.snapshots) {
+        for (const [key, data] of ctx.snapshots) {
+          qc.setQueryData(key, data);
+        }
+      }
+    },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ['orbit', 'discover'] });
     },
@@ -318,7 +389,29 @@ export function useMarkReadMutation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (conversationId: string) => chatApi.markAsRead(conversationId),
-    onSuccess: (_, conversationId) => {
+    onMutate: async (conversationId) => {
+      await qc.cancelQueries({ queryKey: orbitKeys.conversations() });
+      const prevConvs = qc.getQueryData<Conversation[]>(orbitKeys.conversations());
+      if (prevConvs) {
+        qc.setQueryData<Conversation[]>(
+          orbitKeys.conversations(),
+          prevConvs.map((c) => (c.id === conversationId ? { ...c, unread_count: 0 } : c))
+        );
+      }
+      const prevConv = qc.getQueryData<Conversation>(orbitKeys.conversation(conversationId));
+      if (prevConv) {
+        qc.setQueryData<Conversation>(orbitKeys.conversation(conversationId), {
+          ...prevConv,
+          unread_count: 0,
+        });
+      }
+      return { prevConvs, prevConv, conversationId };
+    },
+    onError: (_err, conversationId, ctx) => {
+      if (ctx?.prevConvs) qc.setQueryData(orbitKeys.conversations(), ctx.prevConvs);
+      if (ctx?.prevConv) qc.setQueryData(orbitKeys.conversation(conversationId), ctx.prevConv);
+    },
+    onSettled: (_, __, conversationId) => {
       qc.invalidateQueries({ queryKey: orbitKeys.conversations() });
       qc.invalidateQueries({ queryKey: orbitKeys.conversation(conversationId) });
     },
@@ -366,7 +459,36 @@ export function useBlockConversationMutation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (conversationId: string) => chatApi.blockConversationUser(conversationId),
-    onSuccess: (_, conversationId) => {
+    onMutate: async (conversationId) => {
+      await qc.cancelQueries({ queryKey: orbitKeys.conversation(conversationId) });
+      await qc.cancelQueries({ queryKey: orbitKeys.conversations() });
+
+      const prevConv = qc.getQueryData<Conversation>(orbitKeys.conversation(conversationId));
+      if (prevConv) {
+        qc.setQueryData<Conversation>(orbitKeys.conversation(conversationId), {
+          ...prevConv,
+          is_blocked: true,
+          blocked_by_me: true,
+        });
+      }
+
+      const prevConvs = qc.getQueryData<Conversation[]>(orbitKeys.conversations());
+      if (prevConvs) {
+        qc.setQueryData<Conversation[]>(
+          orbitKeys.conversations(),
+          prevConvs.map((c) =>
+            c.id === conversationId ? { ...c, is_blocked: true, blocked_by_me: true } : c
+          )
+        );
+      }
+
+      return { prevConv, prevConvs, conversationId };
+    },
+    onError: (_err, conversationId, ctx) => {
+      if (ctx?.prevConv) qc.setQueryData(orbitKeys.conversation(conversationId), ctx.prevConv);
+      if (ctx?.prevConvs) qc.setQueryData(orbitKeys.conversations(), ctx.prevConvs);
+    },
+    onSettled: (_, __, conversationId) => {
       qc.invalidateQueries({ queryKey: orbitKeys.conversation(conversationId) });
       qc.invalidateQueries({ queryKey: orbitKeys.conversations() });
       qc.invalidateQueries({ queryKey: orbitKeys.matches() });
@@ -379,7 +501,38 @@ export function useUnblockConversationMutation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (conversationId: string) => chatApi.unblockConversationUser(conversationId),
-    onSuccess: (_, conversationId) => {
+    onMutate: async (conversationId) => {
+      await qc.cancelQueries({ queryKey: orbitKeys.conversation(conversationId) });
+      await qc.cancelQueries({ queryKey: orbitKeys.conversations() });
+
+      const prevConv = qc.getQueryData<Conversation>(orbitKeys.conversation(conversationId));
+      if (prevConv) {
+        qc.setQueryData<Conversation>(orbitKeys.conversation(conversationId), {
+          ...prevConv,
+          is_blocked: prevConv.blocked_by_other,
+          blocked_by_me: false,
+        });
+      }
+
+      const prevConvs = qc.getQueryData<Conversation[]>(orbitKeys.conversations());
+      if (prevConvs) {
+        qc.setQueryData<Conversation[]>(
+          orbitKeys.conversations(),
+          prevConvs.map((c) =>
+            c.id === conversationId
+              ? { ...c, is_blocked: c.blocked_by_other, blocked_by_me: false }
+              : c
+          )
+        );
+      }
+
+      return { prevConv, prevConvs, conversationId };
+    },
+    onError: (_err, conversationId, ctx) => {
+      if (ctx?.prevConv) qc.setQueryData(orbitKeys.conversation(conversationId), ctx.prevConv);
+      if (ctx?.prevConvs) qc.setQueryData(orbitKeys.conversations(), ctx.prevConvs);
+    },
+    onSettled: (_, __, conversationId) => {
       qc.invalidateQueries({ queryKey: orbitKeys.conversation(conversationId) });
       qc.invalidateQueries({ queryKey: orbitKeys.conversations() });
       qc.invalidateQueries({ queryKey: orbitKeys.matches() });

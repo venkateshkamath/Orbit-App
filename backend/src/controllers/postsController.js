@@ -1,6 +1,6 @@
 const { Post, Interest, PostLike, Comment, Match } = require('../models');
 const { serializePost } = require('../serializers/post');
-const { deleteFile, fullMediaUrl, uploadToCloudinary, deleteFromCloudinary } = require('../utils/media');
+const { deleteFile, fullMediaUrl, deleteFromCloudinary } = require('../utils/media');
 const { asNumber, parseIdList } = require('../utils/validation');
 
 async function feed(req, res) {

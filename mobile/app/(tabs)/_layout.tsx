@@ -54,7 +54,7 @@ export default function TabsLayout() {
             <Tabs.Screen
               name="chat"
               options={{
-                title: 'Connect',
+                title: 'Chats',
               }}
             />
             <Tabs.Screen
