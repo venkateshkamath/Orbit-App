@@ -37,6 +37,7 @@ async function serializePost(post, currentUserId, req) {
     caption: post.caption || '',
     image: post.image,
     image_url: post.image,
+    privacy: post.privacy,
     interests: post.interest_ids.map((interest) => ({
       id: String(interest._id),
       name: interest.name,
