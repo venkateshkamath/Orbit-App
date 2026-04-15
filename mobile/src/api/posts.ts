@@ -10,7 +10,9 @@ export const postApi = {
     const response = await api.get('/posts/feed/', {
       params: { interest: interestId }
     });
-    return response.data;
+    // Backend now returns { posts: [...], pagination: {...} }
+    // Fall back to response.data if it's already an array (backward compat)
+    return Array.isArray(response.data) ? response.data : response.data.posts ?? [];
   },
 
   getMyPosts: async (): Promise<Post[]> => {

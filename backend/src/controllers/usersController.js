@@ -181,6 +181,65 @@ async function getPublicProfile(req, res) {
   });
 }
 
+/** GET /api/users/search?q=<term>
+ *  Search users by username, bio, or interest name. Excludes self.
+ *  Returns up to 30 results, each enriched with the current user's orbit state.
+ */
+async function searchUsers(req, res) {
+  try {
+    const q = String(req.query.q || '').trim();
+    if (q.length < 2) {
+      return res.json({ results: [] });
+    }
+
+    const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(escaped, 'i');
+
+    // Find interests whose name matches the query
+    const matchingInterests = await Interest.find({ name: regex }).lean();
+    const interestIds = matchingInterests.map((i) => i._id);
+
+    const orClauses = [{ username: regex }, { bio: regex }];
+    if (interestIds.length) orClauses.push({ interest_ids: { $in: interestIds } });
+
+    const users = await User.find({
+      _id: { $ne: req.user._id },
+      $or: orClauses,
+    }).limit(30);
+
+    const results = [];
+    for (const target of users) {
+      const publicUser = await serializePublicUser(target, req);
+
+      const [likeFromMe, likeFromThem, matchRow] = await Promise.all([
+        Like.findOne({ from_user: req.user._id, to_user: target._id }),
+        Like.findOne({ from_user: target._id, to_user: req.user._id }),
+        Match.findOne({
+          $or: [
+            { user1: req.user._id, user2: target._id },
+            { user1: target._id, user2: req.user._id },
+          ],
+        }),
+      ]);
+
+      results.push({
+        ...publicUser,
+        orbit: {
+          you_sent_join: !!likeFromMe,
+          they_sent_join: !!likeFromThem,
+          matched: !!matchRow,
+          match_id: matchRow ? String(matchRow._id) : null,
+        },
+      });
+    }
+
+    res.json({ results });
+  } catch (err) {
+    console.error('[searchUsers]', err);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+}
+
 async function registerExpoPushToken(req, res) {
   const { token } = req.body || {};
   if (!token || typeof token !== 'string') {
@@ -213,6 +272,7 @@ module.exports = {
   updateLocation,
   getUserById,
   getPublicProfile,
+  searchUsers,
   registerExpoPushToken,
   updatePresence,
 };

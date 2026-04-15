@@ -37,7 +37,6 @@ export default function LoginScreen() {
   const [sending, setSending] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [resendIn, setResendIn] = useState(0);
-  const [devHint, setDevHint] = useState<string | null>(null);
 
   const { requestLoginOtp, verifyLoginOtp } = useAuthStore();
 
@@ -54,7 +53,6 @@ export default function LoginScreen() {
       setStep('email');
       setOtp('');
       setErrorMessage('');
-      setDevHint(null);
       return;
     }
     leaveAuthScreen();
@@ -72,7 +70,6 @@ export default function LoginScreen() {
 
   const handleSendCode = async () => {
     setErrorMessage('');
-    setDevHint(null);
     if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email.trim())) {
       setErrorMessage('Please enter a valid email address.');
       return;
@@ -80,12 +77,9 @@ export default function LoginScreen() {
 
     setSending(true);
     try {
-      const res = await requestLoginOtp(email.trim());
+      await requestLoginOtp(email.trim());
       setStep('otp');
       setResendIn(60);
-      if (res.debug_otp) {
-        setDevHint(`Dev build: code is ${res.debug_otp}`);
-      }
     } catch (e: unknown) {
       setErrorMessage(formatApiError(e));
     } finally {
@@ -96,14 +90,10 @@ export default function LoginScreen() {
   const handleResend = async () => {
     if (resendIn > 0 || sending) return;
     setErrorMessage('');
-    setDevHint(null);
     setSending(true);
     try {
-      const res = await requestLoginOtp(email.trim());
+      await requestLoginOtp(email.trim());
       setResendIn(60);
-      if (res.debug_otp) {
-        setDevHint(`Dev build: code is ${res.debug_otp}`);
-      }
     } catch (e: unknown) {
       setErrorMessage(formatApiError(e));
     } finally {
@@ -333,8 +323,6 @@ export default function LoginScreen() {
                   </AppText>
                 </View>
 
-                {devHint ? <AppText style={styles.devHint}>{devHint}</AppText> : null}
-
                 {errorMessage ? (
                   <View style={styles.errorContainer}>
                     <Ionicons name="alert-circle" size={20} color={colors.error} />
@@ -352,6 +340,8 @@ export default function LoginScreen() {
                   }}
                   keyboardType="number-pad"
                   maxLength={6}
+                  autoComplete="one-time-code"
+                  textContentType="oneTimeCode"
                   placeholder="000000"
                   placeholderTextColor={colors.text.muted}
                 />

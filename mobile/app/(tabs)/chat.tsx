@@ -54,15 +54,23 @@ export default function ChatScreen() {
           flex: 1,
           paddingTop: Platform.OS === 'android' ? Spacing.sm : Spacing.xs,
         },
+        header: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingHorizontal: Spacing.lg,
+          paddingTop: Platform.OS === 'android' ? Spacing.md : Spacing.md,
+          paddingBottom: Spacing.sm,
+        },
         screenTitle: {
           fontSize: FontSizes.xxxl,
           fontWeight: FontWeights.bold,
           color: colors.text.primary,
           letterSpacing: -0.6,
           fontFamily: fonts.bold,
-          paddingHorizontal: Spacing.lg,
-          paddingTop: Spacing.md,
-          paddingBottom: Spacing.sm,
+        },
+        searchIconBtn: {
+          padding: 4,
         },
         searchWrap: {
           flexDirection: 'row',
@@ -220,7 +228,16 @@ export default function ChatScreen() {
     <View style={[styles.container, { backgroundColor: colors.background.primary }]}>
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <View style={styles.main}>
-          <AppText style={styles.screenTitle}>Chats</AppText>
+          <View style={styles.header}>
+            <AppText style={styles.screenTitle}>Messages</AppText>
+            <TouchableOpacity
+              onPress={() => router.push('/search')}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={styles.searchIconBtn}
+            >
+              <Ionicons name="person-add-outline" size={24} color={colors.text.primary} />
+            </TouchableOpacity>
+          </View>
 
           <View style={styles.searchWrap}>
             <Ionicons

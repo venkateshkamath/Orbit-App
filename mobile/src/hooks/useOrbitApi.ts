@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { authApi } from '../api/auth';
 import { chatApi } from '../api/chat';
+import { connectionsApi } from '../api/connections';
 import { discoveryApi } from '../api/discovery';
 import { postApi } from '../api/posts';
 import { notificationsApi } from '../api/notifications';
@@ -52,6 +53,29 @@ export function useCreatePostMutation() {
   return useMutation({
     mutationFn: (formData: FormData) => postApi.createPost(formData),
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['orbit', 'feed'] });
+    },
+  });
+}
+
+export function useDeletePostMutation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (postId: string) => postApi.deletePost(postId),
+    onMutate: async (postId: string) => {
+      await qc.cancelQueries({ queryKey: ['orbit', 'feed'] });
+      const previousFeed = qc.getQueryData<Post[]>(orbitKeys.feed());
+      qc.setQueryData<Post[]>(orbitKeys.feed(), (old) =>
+        (old ?? []).filter((p) => p.id !== postId)
+      );
+      return { previousFeed };
+    },
+    onError: (_err, _postId, ctx) => {
+      if (ctx?.previousFeed !== undefined) {
+        qc.setQueryData(orbitKeys.feed(), ctx.previousFeed);
+      }
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: ['orbit', 'feed'] });
     },
   });
@@ -513,6 +537,27 @@ export function useUnblockConversationMutation() {
       qc.invalidateQueries({ queryKey: orbitKeys.conversations() });
       qc.invalidateQueries({ queryKey: orbitKeys.matches() });
       qc.invalidateQueries({ queryKey: orbitKeys.likesReceived() });
+    },
+  });
+}
+
+export function useSearchUsersQuery(q: string) {
+  return useQuery({
+    queryKey: orbitKeys.searchUsers(q),
+    queryFn: () => authApi.searchUsers(q),
+    enabled: q.trim().length >= 2,
+    staleTime: 15 * 1000,
+  });
+}
+
+export function useSendConnectionRequestMutation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (targetUserId: string) => connectionsApi.sendRequest(targetUserId),
+    onSuccess: (_data, targetUserId) => {
+      // Refresh all open search result pages so orbit state updates
+      qc.invalidateQueries({ queryKey: ['orbit', 'users', 'search'] });
+      qc.invalidateQueries({ queryKey: orbitKeys.publicProfile(targetUserId) });
     },
   });
 }

@@ -29,3 +29,8 @@ backend/node_modules/
 backend/media/
 backend/.coverage
 backend/htmlcov/
+
+
+.claude/
+backend/jest.config.js
+backend/tests/

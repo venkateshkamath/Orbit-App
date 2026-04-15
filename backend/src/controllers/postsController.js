@@ -1,20 +1,69 @@
-const { Post, Interest, PostLike, Comment } = require('../models');
+const { Post, Interest, PostLike, Comment, Match } = require('../models');
 const { serializePost } = require('../serializers/post');
-const { deleteFile, fullMediaUrl } = require('../utils/media');
+const { deleteFile, fullMediaUrl, deleteFromCloudinary } = require('../utils/media');
 const { asNumber, parseIdList } = require('../utils/validation');
 
 async function feed(req, res) {
-  const interestId = req.query.interest;
-  const filter = {};
-  if (interestId) {
-    filter.interest_ids = interestId;
+  try {
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(parseInt(req.query.limit, 10) || 20, 50);
+    const skip = (page - 1) * limit;
+
+    const interestId = req.query.interest;
+
+    // Find all users this person is matched/connected with
+    const matches = await Match.find({
+      $or: [{ user1: req.user._id }, { user2: req.user._id }],
+    }).lean();
+
+    const connectedUserIds = matches.map((m) =>
+      String(m.user1) === String(req.user._id) ? String(m.user2) : String(m.user1)
+    );
+
+    // Build the privacy filter
+    const privacyFilter = {
+      $or: [
+        { privacy: 'public' },
+        { author: req.user._id }, // always see own posts
+        {
+          $and: [
+            { privacy: 'connections' },
+            { author: { $in: connectedUserIds } },
+          ],
+        },
+      ],
+    };
+
+    if (interestId) {
+      privacyFilter.interest_ids = interestId;
+    }
+
+    const [postRows, total] = await Promise.all([
+      Post.find(privacyFilter)
+        .sort({ created_at: -1 })
+        .skip(skip)
+        .limit(limit),
+      Post.countDocuments(privacyFilter),
+    ]);
+
+    const results = [];
+    for (const post of postRows) {
+      results.push(await serializePost(post, req.user._id, req));
+    }
+
+    res.json({
+      posts: results,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (err) {
+    console.error('[feed]', err);
+    res.status(500).json({ error: 'Internal server error.' });
   }
-  const postRows = await Post.find(filter).sort({ created_at: -1 });
-  const results = [];
-  for (const post of postRows) {
-    results.push(await serializePost(post, req.user._id, req));
-  }
-  res.json(results);
 }
 
 async function myPosts(req, res) {
@@ -27,7 +76,26 @@ async function myPosts(req, res) {
 }
 
 async function userPosts(req, res) {
-  const postRows = await Post.find({ author: req.params.userId }).sort({ created_at: -1 });
+  const targetUserId = req.params.userId;
+  const isOwn = String(targetUserId) === String(req.user._id);
+
+  let privacyFilter;
+  if (isOwn) {
+    privacyFilter = { author: targetUserId };
+  } else {
+    const match = await Match.findOne({
+      $or: [
+        { user1: req.user._id, user2: targetUserId },
+        { user1: targetUserId, user2: req.user._id },
+      ],
+    });
+    privacyFilter = {
+      author: targetUserId,
+      privacy: { $in: match ? ['public', 'connections'] : ['public'] },
+    };
+  }
+
+  const postRows = await Post.find(privacyFilter).sort({ created_at: -1 });
   const results = [];
   for (const post of postRows) {
     results.push(await serializePost(post, req.user._id, req));
@@ -36,32 +104,48 @@ async function userPosts(req, res) {
 }
 
 async function createPost(req, res) {
-  if (!req.file) {
-    return res.status(400).json({ error: 'No image file received by server.' });
+  try {
+    const privacy = req.body?.privacy;
+    const VALID_PRIVACY = ['public', 'connections', 'private'];
+    const postPrivacy = VALID_PRIVACY.includes(privacy) ? privacy : 'public';
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'No image file received by server.' });
+    }
+
+    // multer-storage-cloudinary already uploaded the file to Cloudinary.
+    // req.file.path = Cloudinary secure URL, req.file.filename = public_id
+    const mediaUrl = req.file.path;
+    const mediaPublicId = req.file.filename || null;
+
+    if (!mediaUrl || !mediaUrl.startsWith('https://')) {
+      return res.status(500).json({ error: 'Cloudinary did not return a valid URL.' });
+    }
+
+    const caption = String(req.body?.caption || '');
+    const interestIds = parseIdList(req.body?.interest_ids || req.body?.['interest_ids[]']);
+
+    const interests = interestIds.length
+      ? await Interest.find({ _id: { $in: interestIds } })
+      : [];
+
+    const post = await Post.create({
+      author: req.user._id,
+      caption,
+      image: mediaUrl,
+      mediaPublicId,
+      privacy: postPrivacy,
+      location_name: String(req.body?.location_name || ''),
+      latitude: asNumber(req.body?.latitude),
+      longitude: asNumber(req.body?.longitude),
+      interest_ids: interests.map((i) => i._id),
+    });
+
+    res.status(201).json(await serializePost(post, req.user._id, req));
+  } catch (err) {
+    console.error('[createPost]', err);
+    res.status(500).json({ error: 'Internal server error.' });
   }
-  const imagePath = req.file.path;
-  if (!imagePath) {
-    return res.status(500).json({ error: 'Cloudinary did not return a valid URL.' });
-  }
-
-  const caption = String(req.body?.caption || '');
-  const interestIds = parseIdList(req.body?.interest_ids || req.body?.['interest_ids[]']);
-
-  const interests = interestIds.length
-    ? await Interest.find({ _id: { $in: interestIds } })
-    : [];
-
-  const post = await Post.create({
-    author: req.user._id,
-    caption,
-    image: imagePath,
-    location_name: String(req.body?.location_name || ''),
-    latitude: asNumber(req.body?.latitude),
-    longitude: asNumber(req.body?.longitude),
-    interest_ids: interests.map((i) => i._id),
-  });
-
-  res.status(201).json(await serializePost(post, req.user._id, req));
 }
 
 async function getPost(req, res) {
@@ -70,6 +154,27 @@ async function getPost(req, res) {
     res.status(404).json({ error: 'Post not found' });
     return;
   }
+
+  const isOwn = String(post.author) === String(req.user._id);
+  if (!isOwn) {
+    if (post.privacy === 'private') {
+      res.status(404).json({ error: 'Post not found' });
+      return;
+    }
+    if (post.privacy === 'connections') {
+      const match = await Match.findOne({
+        $or: [
+          { user1: req.user._id, user2: post.author },
+          { user1: post.author, user2: req.user._id },
+        ],
+      });
+      if (!match) {
+        res.status(404).json({ error: 'Post not found' });
+        return;
+      }
+    }
+  }
+
   res.json(await serializePost(post, req.user._id, req));
 }
 
@@ -110,7 +215,13 @@ async function deletePost(req, res) {
     return;
   }
   if (post.image) {
-    deleteFile(post.image);
+    if (post.mediaPublicId) {
+      deleteFromCloudinary(post.mediaPublicId).catch((e) =>
+        console.error('[deletePost] Cloudinary deletion failed:', e)
+      );
+    } else {
+      deleteFile(post.image);
+    }
   }
   await PostLike.deleteMany({ post: post._id });
   await Comment.deleteMany({ post: post._id });

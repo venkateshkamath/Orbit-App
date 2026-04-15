@@ -15,6 +15,7 @@ export const orbitKeys = {
   publicProfile: (userId: string) => ['orbit', 'users', 'profile', userId] as const,
   likesReceived: () => ['orbit', 'discover', 'likes-received'] as const,
   notifications: () => ['orbit', 'notifications'] as const,
+  searchUsers: (q: string) => ['orbit', 'users', 'search', q] as const,
 };
 
 export function locationKeyPart(lat: number | null | undefined, lng: number | null | undefined) {

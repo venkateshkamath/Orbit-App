@@ -68,11 +68,12 @@ function RootLayoutNav() {
     const inTabsGroup = segments[0] === '(tabs)';
     const inChatStack = segments[0] === 'chat';
     const inUserStack = segments[0] === 'user';
+    const inSearchStack = segments[0] === 'search';
     /** Lets completed users open interests from Profile without being forced back to tabs. */
     const inOnboardingInterests =
       segments[0] === '(onboarding)' && segments[1] === 'interests';
     const inMainApp =
-      inTabsGroup || inChatStack || inUserStack || inOnboardingInterests;
+      inTabsGroup || inChatStack || inUserStack || inSearchStack || inOnboardingInterests;
 
     // Redirect logic
     if (!isAuthenticated) {

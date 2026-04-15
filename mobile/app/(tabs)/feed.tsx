@@ -27,7 +27,8 @@ import { formatDistanceToNow } from 'date-fns';
 import { FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
 import { useOrbitTheme, type OrbitThemeColors } from '../../src/theme';
 import { Avatar, CommentsModal } from '../../src/components';
-import { useCreatePostMutation, useFeedQuery, useToggleLikeMutation } from '../../src/hooks/useOrbitApi';
+import { useCreatePostMutation, useDeletePostMutation, useFeedQuery, useToggleLikeMutation } from '../../src/hooks/useOrbitApi';
+import { useAuthStore } from '../../src/stores';
 import { AppText } from '../../src/ui/AppText';
 import { Post } from '../../src/types';
 
@@ -35,21 +36,26 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 function PostItem({
   post,
+  currentUserId,
   onLike,
   onComment,
   onShare,
+  onDelete,
   styles,
   colors,
 }: {
   post: Post;
+  currentUserId: string | undefined;
   onLike: () => Promise<unknown>;
   onComment: () => void;
   onShare: () => void;
+  onDelete: () => void;
   styles: Record<string, any>;
   colors: OrbitThemeColors;
 }) {
   const [isLiked, setIsLiked] = useState(post.is_liked);
   const [likeCount, setLikeCount] = useState(post.like_count);
+  const isOwn = currentUserId != null && post.author.id === currentUserId;
 
   useEffect(() => {
     setIsLiked(post.is_liked);
@@ -68,6 +74,13 @@ function PostItem({
     }
   };
 
+  const handleDelete = () => {
+    Alert.alert('Delete post', 'Are you sure you want to delete this post?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: onDelete },
+    ]);
+  };
+
   return (
     <View style={styles.postCard}>
       <View style={styles.postHeader}>
@@ -75,14 +88,31 @@ function PostItem({
           <Avatar uri={post.author.avatar} name={post.author.username} size={32} />
           <View style={styles.headerInfo}>
             <AppText style={styles.username}>{post.author.username}</AppText>
-            {post.location_name && (
+            {post.location_name ? (
               <AppText style={styles.locationText}>{post.location_name}</AppText>
-            )}
+            ) : null}
           </View>
         </View>
-        <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Ionicons name="ellipsis-horizontal" size={18} color={colors.text.tertiary} />
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          {post.privacy !== 'public' && (
+            <AppText style={styles.privacyBadge}>
+              {post.privacy === 'connections' ? 'Connections' : 'Private'}
+            </AppText>
+          )}
+          {isOwn ? (
+            <TouchableOpacity
+              onPress={handleDelete}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={styles.deleteButton}
+            >
+              <Ionicons name="trash-outline" size={18} color={colors.error} />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Ionicons name="ellipsis-horizontal" size={18} color={colors.text.tertiary} />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {post.image_url && (
@@ -151,12 +181,15 @@ export default function FeedScreen() {
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [caption, setCaption] = useState('');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [privacy, setPrivacy] = useState<'public' | 'connections'>('public');
   const [commentsModalVisible, setCommentsModalVisible] = useState(false);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
 
+  const currentUser = useAuthStore((s) => s.user);
   const { data: posts = [], isLoading, isRefetching, refetch } = useFeedQuery();
   const toggleLike = useToggleLikeMutation();
   const createPostMutation = useCreatePostMutation();
+  const deletePostMutation = useDeletePostMutation();
 
   const handleOpenComments = (postId: string) => {
     setSelectedPostId(postId);
@@ -195,23 +228,25 @@ export default function FeedScreen() {
     try {
       const formData = new FormData();
       formData.append('caption', caption);
-      
+      formData.append('privacy', privacy);
+
       if (selectedImage) {
         const uriParts = selectedImage.split('.');
         const fileType = uriParts[uriParts.length - 1];
-        
+
         formData.append('image', {
           uri: selectedImage,
           name: `post_${Date.now()}.${fileType}`,
           type: `image/${fileType}`,
         } as any);
       }
-      
+
       await createPostMutation.mutateAsync(formData);
-      
+
       setCreateModalVisible(false);
       setCaption('');
       setSelectedImage(null);
+      setPrivacy('public');
     } catch (error) {
       console.error('Error creating post:', error);
       Alert.alert('Error', 'Failed to create post. Please try again.');
@@ -417,6 +452,25 @@ export default function FeedScreen() {
           fontFamily: fonts.semibold,
         },
   
+        // Post header right cluster
+        headerRight: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: Spacing.sm,
+        },
+        privacyBadge: {
+          fontSize: 10,
+          color: colors.text.tertiary,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: colors.borderLight,
+          borderRadius: BorderRadius.full,
+          paddingHorizontal: 6,
+          paddingVertical: 2,
+        },
+        deleteButton: {
+          padding: 2,
+        },
+
         // Modal Styles
         modalContainer: {
           flex: 1,
@@ -493,6 +547,49 @@ export default function FeedScreen() {
           marginTop: Spacing.sm,
           fontFamily: fonts.regular,
         },
+
+        // Privacy picker in create modal
+        privacyRow: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingHorizontal: Spacing.lg,
+          paddingVertical: Spacing.sm,
+          borderTopWidth: StyleSheet.hairlineWidth,
+          borderTopColor: colors.border,
+        },
+        privacyLabel: {
+          color: colors.text.secondary,
+          fontSize: FontSizes.sm,
+          fontFamily: fonts.regular,
+        },
+        privacyOptions: {
+          flexDirection: 'row',
+          gap: Spacing.sm,
+        },
+        privacyOption: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 4,
+          paddingHorizontal: Spacing.sm,
+          paddingVertical: 5,
+          borderRadius: BorderRadius.full,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: colors.borderLight,
+          backgroundColor: colors.background.secondary,
+        },
+        privacyOptionActive: {
+          backgroundColor: colors.primary.default,
+          borderColor: colors.primary.default,
+        },
+        privacyOptionText: {
+          color: colors.text.secondary,
+          fontSize: FontSizes.xs,
+          fontFamily: fonts.medium,
+        },
+        privacyOptionTextActive: {
+          color: '#fff',
+        },
       }),
     [colors, fonts, shadows]
   );
@@ -548,9 +645,11 @@ export default function FeedScreen() {
           renderItem={({ item }) => (
             <PostItem
               post={item}
+              currentUserId={currentUser?.id}
               onLike={() => toggleLike.mutateAsync(item.id)}
               onComment={() => handleOpenComments(item.id)}
               onShare={() => handleShare(item)}
+              onDelete={() => deletePostMutation.mutate(item.id)}
               styles={styles}
               colors={colors}
             />
@@ -632,6 +731,52 @@ export default function FeedScreen() {
                 </View>
               )}
             </TouchableOpacity>
+
+            {/* Privacy Picker */}
+            <View style={styles.privacyRow}>
+              <AppText style={styles.privacyLabel}>Who can see this?</AppText>
+              <View style={styles.privacyOptions}>
+                <TouchableOpacity
+                  style={[styles.privacyOption, privacy === 'public' && styles.privacyOptionActive]}
+                  onPress={() => setPrivacy('public')}
+                >
+                  <Ionicons
+                    name="globe-outline"
+                    size={14}
+                    color={privacy === 'public' ? '#fff' : colors.text.secondary}
+                  />
+                  <AppText
+                    style={[
+                      styles.privacyOptionText,
+                      privacy === 'public' && styles.privacyOptionTextActive,
+                    ]}
+                  >
+                    Public
+                  </AppText>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.privacyOption,
+                    privacy === 'connections' && styles.privacyOptionActive,
+                  ]}
+                  onPress={() => setPrivacy('connections')}
+                >
+                  <Ionicons
+                    name="people-outline"
+                    size={14}
+                    color={privacy === 'connections' ? '#fff' : colors.text.secondary}
+                  />
+                  <AppText
+                    style={[
+                      styles.privacyOptionText,
+                      privacy === 'connections' && styles.privacyOptionTextActive,
+                    ]}
+                  >
+                    Connections
+                  </AppText>
+                </TouchableOpacity>
+              </View>
+            </View>
 
             {/* Caption Input */}
             <View style={styles.captionSection}>

@@ -1,7 +1,73 @@
 const { User, Like, Match, Pass } = require('../models');
 const { serializePublicUser } = require('../serializers/user');
-const { getSortedDiscoveryCandidates } = require('../services/discoveryService');
+const { getSortedDiscoveryCandidates, getDiscoveryCandidates } = require('../services/discoveryService');
 const { notifyOrbitJoinRecipient } = require('../services/notificationService');
+
+// GET /api/discovery?radius=10000&limit=20
+async function getDiscoveryFeed(req, res) {
+  try {
+    const radiusMeters = parseInt(req.query.radius, 10) || 20000;
+    const limit = Math.min(parseInt(req.query.limit, 10) || 20, 100);
+
+    const currentUser = await User.findById(req.user._id);
+    if (!currentUser.location || !currentUser.location.coordinates || currentUser.location.coordinates.length < 2) {
+      return res.status(400).json({
+        error: 'Location not set. Please update your location first.',
+      });
+    }
+
+    const candidates = await getDiscoveryCandidates(currentUser, { radiusMeters, limit });
+    res.json({ count: candidates.length, users: candidates });
+  } catch (err) {
+    console.error('[getDiscoveryFeed]', err);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+}
+
+// GET /api/discovery/nearby?radius=5000
+async function getNearbyUsers(req, res) {
+  try {
+    const radiusMeters = Math.min(
+      parseInt(req.query.radius, 10) || 5000,
+      50000 // hard cap at 50 km
+    );
+
+    const currentUser = await User.findById(req.user._id);
+    if (!currentUser.location || !currentUser.location.coordinates || currentUser.location.coordinates.length < 2) {
+      return res.status(400).json({ error: 'Location not set.' });
+    }
+
+    const nearby = await User.aggregate([
+      {
+        $geoNear: {
+          near: {
+            type: 'Point',
+            coordinates: currentUser.location.coordinates,
+          },
+          distanceField: 'distanceMeters',
+          maxDistance: radiusMeters,
+          spherical: true,
+          query: { _id: { $ne: currentUser._id }, is_discoverable: true },
+        },
+      },
+      { $limit: 100 },
+      {
+        $project: {
+          username: 1,
+          avatar: 1,
+          interest_ids: 1,
+          location: 1,
+          distanceMeters: 1,
+        },
+      },
+    ]);
+
+    res.json({ count: nearby.length, users: nearby });
+  } catch (err) {
+    console.error('[getNearbyUsers]', err);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+}
 
 async function nearby(req, res) {
   const currentUser = await User.findById(req.user._id);
@@ -201,4 +267,6 @@ module.exports = {
   listMatches,
   deleteMatch,
   likesReceived,
+  getDiscoveryFeed,
+  getNearbyUsers,
 };

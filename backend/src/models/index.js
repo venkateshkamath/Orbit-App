@@ -79,6 +79,11 @@ const likeSchema = new mongoose.Schema(
   {
     from_user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     to_user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    status: {
+      type: String,
+      enum: ['pending', 'accepted', 'rejected'],
+      default: 'pending',
+    },
   },
   { timestamps: { createdAt: 'created_at', updatedAt: false } }
 );
@@ -111,9 +116,20 @@ const postSchema = new mongoose.Schema(
     latitude: { type: Number, default: null },
     longitude: { type: Number, default: null },
     interest_ids: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Interest' }],
+    privacy: {
+      type: String,
+      enum: ['public', 'connections', 'private'],
+      default: 'public',
+    },
+    mediaPublicId: {
+      type: String,
+      default: null,
+    },
   },
   { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
 );
+postSchema.index({ privacy: 1, author: 1 });
+postSchema.index({ author: 1, created_at: -1 });
 
 const postLikeSchema = new mongoose.Schema(
   {
