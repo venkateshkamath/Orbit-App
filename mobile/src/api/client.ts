@@ -99,7 +99,7 @@ const storage = {
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: 60000, // 60s — image uploads to Cloudinary need more than 10s
   headers: {
     'Content-Type': 'application/json',
   },

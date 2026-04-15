@@ -55,9 +55,15 @@ export default function ChatScreen() {
     flex: 1,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg,
     paddingTop: Platform.OS === 'android' ? Spacing.md : Spacing.md,
     paddingBottom: Spacing.sm,
+  },
+  searchIcon: {
+    padding: 4,
   },
   title: {
     fontSize: 28,
@@ -330,6 +336,13 @@ export default function ChatScreen() {
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <View style={styles.header}>
           <AppText style={styles.title}>Messages</AppText>
+          <TouchableOpacity
+            onPress={() => router.push('/search')}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={styles.searchIcon}
+          >
+            <Ionicons name="person-add-outline" size={24} color={colors.text.primary} />
+          </TouchableOpacity>
         </View>
 
         {/* Conversations List */}

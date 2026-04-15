@@ -144,6 +144,7 @@ export interface Post {
   caption: string;
   image: string | null;
   image_url: string | null;
+  privacy: 'public' | 'connections' | 'private';
   interests: Interest[];
   location_name: string;
   latitude: number | null;
@@ -154,6 +155,11 @@ export interface Post {
   recent_comments: Comment[];
   created_at: string;
   updated_at: string;
+}
+
+/** A user returned from the people-search endpoint, augmented with the viewer's orbit state. */
+export interface SearchUserResult extends PublicUser {
+  orbit: OrbitState;
 }
 
 export interface Comment {

@@ -3,7 +3,7 @@
  */
 
 import api from './client';
-import { AuthResponse, User, Interest, PublicProfileResponse } from '../types';
+import { AuthResponse, User, Interest, PublicProfileResponse, SearchUserResult } from '../types';
 
 export interface OtpSendResponse {
   message: string;
@@ -104,6 +104,11 @@ export const authApi = {
       return response.data.results;
     }
     return response.data;
+  },
+
+  searchUsers: async (q: string): Promise<SearchUserResult[]> => {
+    const response = await api.get('/users/search', { params: { q } });
+    return response.data.results ?? [];
   },
 };
 
