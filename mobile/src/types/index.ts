@@ -52,7 +52,7 @@ export interface Message {
   id: string;
   conversation: string;
   sender: PublicUser;
-  message_type: 'text' | 'image' | 'location' | 'emoji';
+  message_type: 'text' | 'image' | 'location' | 'emoji' | 'event' | 'event_join';
   content: string;
   image: string | null;
   latitude: number | null;
@@ -65,6 +65,9 @@ export interface Message {
 
 export interface Conversation {
   id: string;
+  kind: 'direct' | 'event';
+  name: string;
+  event: string | null;
   participants: PublicUser[];
   other_participant: PublicUser | null;
   last_message: Message | null;
@@ -192,6 +195,9 @@ export interface OrbitEvent {
   distance_m?: number;
   category: EventCategory;
   image_url: string | null;
+  attendee_count: number;
+  conversation_id: string | null;
+  has_joined: boolean;
   is_own: boolean;
   created_at: string;
 }
@@ -207,4 +213,3 @@ export interface LocationSearchResult {
   lat: number;
   lng: number;
 }
-

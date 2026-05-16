@@ -18,6 +18,8 @@ export const orbitKeys = {
   searchUsers: (q: string) => ['orbit', 'users', 'search', q] as const,
   nearbyEvents: (lat: number | string, lng: number | string, radius: number) =>
     ['orbit', 'events', 'nearby', lat, lng, radius] as const,
+  eventsFeed: () => ['orbit', 'events', 'feed'] as const,
+  event: (id: string) => ['orbit', 'events', 'detail', id] as const,
 };
 
 export function locationKeyPart(lat: number | null | undefined, lng: number | null | undefined) {

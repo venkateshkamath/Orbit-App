@@ -17,6 +17,7 @@ export function AppText({ style, ...props }: TextProps) {
 
     const parsed = typeof weight === 'string' ? Number.parseInt(weight, 10) : weight;
     if (typeof parsed === 'number' && Number.isFinite(parsed)) {
+      if (parsed >= 800) return fonts.extrabold;
       if (parsed >= 700) return fonts.bold;
       if (parsed >= 600) return fonts.semibold;
       if (parsed >= 500) return fonts.medium;

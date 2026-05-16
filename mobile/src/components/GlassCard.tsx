@@ -28,7 +28,7 @@ export const GlassCard: React.FC<GlassCardProps> = ({
           borderRadius: BorderRadius.lg,
           backgroundColor: colors.background.card,
           borderWidth: StyleSheet.hairlineWidth,
-          borderColor: colors.border,
+          borderColor: colors.borderLight,
           ...shadows.sm,
         },
       }),

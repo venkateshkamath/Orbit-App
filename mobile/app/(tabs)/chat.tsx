@@ -21,15 +21,18 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
 import { useOrbitTheme } from '../../src/theme';
-import { ConversationItem } from '../../src/components';
+import { ConversationItem, JoinRequestsListHeader } from '../../src/components';
 import { AppText } from '../../src/ui/AppText';
 import { useConversationsQuery } from '../../src/hooks/useOrbitApi';
+import { useQueryClient } from '@tanstack/react-query';
+import { orbitKeys } from '../../src/hooks/orbitKeys';
 import type { Conversation } from '../../src/types';
 
 const LIST_AVATAR = 56;
 const ROW_TEXT_INSET = Spacing.lg + LIST_AVATAR + Spacing.md;
 
 export default function ChatScreen() {
+  const queryClient = useQueryClient();
   const {
     data: conversations = [],
     isLoading,
@@ -59,15 +62,15 @@ export default function ChatScreen() {
           alignItems: 'center',
           justifyContent: 'space-between',
           paddingHorizontal: Spacing.lg,
-          paddingTop: Platform.OS === 'android' ? Spacing.md : Spacing.md,
+          paddingTop: Spacing.md,
           paddingBottom: Spacing.sm,
         },
         screenTitle: {
           fontSize: FontSizes.xxxl,
-          fontWeight: FontWeights.bold,
+          fontWeight: '800',
           color: colors.text.primary,
-          letterSpacing: -0.6,
-          fontFamily: fonts.bold,
+          letterSpacing: 0,
+          fontFamily: fonts.extrabold,
         },
         searchIconBtn: {
           padding: 4,
@@ -163,20 +166,24 @@ export default function ChatScreen() {
   const onRefresh = useCallback(async () => {
     setIsManualRefreshing(true);
     try {
-      await refetchConversations();
+      await Promise.all([
+        refetchConversations(),
+        queryClient.invalidateQueries({ queryKey: orbitKeys.likesReceived() }),
+      ]);
     } finally {
       setIsManualRefreshing(false);
     }
-  }, [refetchConversations]);
+  }, [refetchConversations, queryClient]);
 
   useFocusEffect(
     useCallback(() => {
       void refetchConversations();
-    }, [refetchConversations])
+      void queryClient.invalidateQueries({ queryKey: orbitKeys.likesReceived() });
+    }, [refetchConversations, queryClient])
   );
 
   const conversationsWithOther = useMemo(
-    () => conversations.filter((c) => c.other_participant),
+    () => conversations.filter((c) => c.other_participant || c.kind === 'event'),
     [conversations]
   );
 
@@ -184,7 +191,7 @@ export default function ChatScreen() {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return conversationsWithOther;
     return conversationsWithOther.filter((c) => {
-      const name = c.other_participant?.username?.toLowerCase() ?? '';
+      const name = (c.kind === 'event' ? c.name : c.other_participant?.username)?.toLowerCase() ?? '';
       const preview = c.last_message?.content?.toLowerCase() ?? '';
       return name.includes(q) || preview.includes(q);
     });
@@ -231,9 +238,11 @@ export default function ChatScreen() {
           <View style={styles.header}>
             <AppText style={styles.screenTitle}>Messages</AppText>
             <TouchableOpacity
-              onPress={() => router.push('/search')}
+              onPress={() => router.push('/search' as never)}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               style={styles.searchIconBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Find people"
             >
               <Ionicons name="person-add-outline" size={24} color={colors.text.primary} />
             </TouchableOpacity>
@@ -275,6 +284,7 @@ export default function ChatScreen() {
             data={filteredConversations}
             keyExtractor={(item) => item.id}
             keyboardShouldPersistTaps="handled"
+            ListHeaderComponent={JoinRequestsListHeader}
             renderItem={({ item, index }: ListRenderItemInfo<Conversation>) => (
               <ConversationItem
                 conversation={item}

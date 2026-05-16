@@ -4,6 +4,7 @@
 
 import React, { useMemo } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { BorderRadius, FontSizes, FontWeights, Spacing } from '../../constants/Colors';
 import { useOrbitTheme } from '../theme';
 import { AppText } from '../ui/AppText';
@@ -41,6 +42,7 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
 }) => {
   const { colors, fonts } = useOrbitTheme();
   const other = conversation.other_participant;
+  const isEventGroup = conversation.kind === 'event';
   const hasUnread = (conversation.unread_count ?? 0) > 0;
   const lastAt = conversation.last_message?.created_at;
 
@@ -75,7 +77,7 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
           fontSize: FontSizes.md,
           fontWeight: FontWeights.semibold,
           color: colors.text.primary,
-          letterSpacing: -0.2,
+          letterSpacing: 0,
           fontFamily: fonts.semibold,
           marginBottom: 2,
         },
@@ -97,28 +99,30 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
           fontWeight: FontWeights.medium,
         },
         time: {
-          fontSize: FontSizes.xs,
-          color: colors.text.tertiary,
+          fontSize: 11,
+          color: colors.text.muted,
           fontFamily: fonts.regular,
+          letterSpacing: 0.1,
         },
         rightCol: {
           alignSelf: 'stretch',
-          justifyContent: 'center',
+          justifyContent: 'space-between',
           alignItems: 'flex-end',
           paddingLeft: Spacing.sm,
-          minWidth: 28,
+          paddingVertical: Spacing.md,
+          minWidth: 48,
         },
         badge: {
-          minWidth: 24,
-          height: 24,
+          minWidth: 22,
+          height: 22,
           paddingHorizontal: 6,
-          borderRadius: 12,
-          backgroundColor: colors.success,
+          borderRadius: 11,
+          backgroundColor: colors.primary.default,
           alignItems: 'center',
           justifyContent: 'center',
         },
         badgeText: {
-          color: '#FFFFFF',
+          color: colors.text.primary,
           fontSize: 11,
           fontWeight: FontWeights.bold,
           fontFamily: fonts.bold,
@@ -127,10 +131,11 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
     [colors, fonts, isFirst]
   );
 
-  if (!other) return null;
+  if (!other && !isEventGroup) return null;
 
   const previewText =
     conversation.last_message?.content?.trim() || 'Start a conversation';
+  const title = isEventGroup ? conversation.name || 'Event group' : other?.username || 'Chat';
 
   return (
     <Pressable
@@ -140,13 +145,19 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
     >
       <View style={[styles.row, isFirst && styles.rowFirst]}>
         <View style={styles.avatarWrap}>
-          <Avatar
-            uri={other.avatar}
-            name={other.username}
-            size={AVATAR_SIZE}
-            showOnline
-            isOnline={other.is_online}
-          />
+          {isEventGroup ? (
+            <View style={[styles.badge, { width: AVATAR_SIZE, height: AVATAR_SIZE, borderRadius: AVATAR_SIZE / 2 }]}>
+              <Ionicons name="calendar-outline" size={24} color={colors.text.primary} />
+            </View>
+          ) : (
+            <Avatar
+              uri={other!.avatar}
+              name={other!.username}
+              size={AVATAR_SIZE}
+              showOnline
+              isOnline={other!.is_online}
+            />
+          )}
         </View>
 
         <View style={styles.middle}>
@@ -154,7 +165,7 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
             style={[styles.name, !hasUnread && styles.nameMuted]}
             numberOfLines={1}
           >
-            {other.username}
+            {title}
           </AppText>
           <AppText
             style={[styles.preview, hasUnread && styles.previewUnread]}
@@ -162,19 +173,19 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
           >
             {previewText}
           </AppText>
-          {lastAt ? (
-            <AppText style={styles.time}>{formatShortRelative(lastAt)}</AppText>
-          ) : null}
         </View>
 
         <View style={styles.rightCol}>
+          {lastAt ? (
+            <AppText style={styles.time}>{formatShortRelative(lastAt)}</AppText>
+          ) : <View />}
           {hasUnread ? (
             <View style={styles.badge}>
               <AppText style={styles.badgeText}>
                 {conversation.unread_count > 99 ? '99+' : conversation.unread_count}
               </AppText>
             </View>
-          ) : null}
+          ) : <View />}
         </View>
       </View>
     </Pressable>

@@ -26,7 +26,7 @@ export default function WelcomeScreen() {
   const insets = useSafeAreaInsets();
   const { height: winH } = useWindowDimensions();
 
-  const accent = colors.primary.light;
+  const accent = colors.primary.dark;
   const RING = 52;
   const BORDER = 3.5;
   const DOT = 11;
@@ -34,7 +34,7 @@ export default function WelcomeScreen() {
   const s = useMemo(
     () =>
       StyleSheet.create({
-        root: { flex: 1, backgroundColor: '#08090F' },
+        root: { flex: 1, backgroundColor: colors.background.primary },
 
         safe: {
           flex: 1,
@@ -44,7 +44,6 @@ export default function WelcomeScreen() {
           justifyContent: 'space-between',
         },
 
-        /* ---- top: logo + wordmark ---- */
         brand: {
           alignItems: 'center',
           paddingTop: Math.min(winH * 0.08, 72),
@@ -52,7 +51,7 @@ export default function WelcomeScreen() {
         logoTile: {
           width: 96,
           height: 96,
-          borderRadius: 28,
+          borderRadius: 30,
           alignItems: 'center',
           justifyContent: 'center',
           marginBottom: 20,
@@ -72,7 +71,7 @@ export default function WelcomeScreen() {
           height: RING,
           borderRadius: RING / 2,
           borderWidth: BORDER,
-          borderColor: '#FFF',
+          borderColor: colors.background.card,
         },
         dot1: {
           position: 'absolute',
@@ -95,33 +94,29 @@ export default function WelcomeScreen() {
         wordmark: {
           fontSize: 24,
           fontWeight: FontWeights.bold,
-          letterSpacing: 10,
+          letterSpacing: 6,
           textAlign: 'center',
           fontFamily: fonts.bold,
-          color: 'rgba(255,255,255,0.92)',
+          color: colors.text.primary,
         },
 
-        /* ---- middle: fills space ---- */
         spacer: { flex: 1 },
 
-        /* ---- bottom: headline, sub, CTA, sign in ---- */
-        bottom: {
-          paddingBottom: 4,
-        },
+        bottom: { paddingBottom: 4 },
         headline: {
-          fontSize: 36,
+          fontSize: 32,
           fontWeight: '800',
-          letterSpacing: -1.2,
-          lineHeight: 42,
+          letterSpacing: 0,
+          lineHeight: 38,
           fontFamily: fonts.extrabold,
-          color: '#FFFFFF',
+          color: colors.text.primary,
         },
         sub: {
           marginTop: 16,
           fontSize: 16,
           lineHeight: 24,
-          color: 'rgba(255,255,255,0.6)',
-          maxWidth: 280,
+          color: colors.text.secondary,
+          maxWidth: 310,
         },
         cta: {
           marginTop: 36,
@@ -144,7 +139,7 @@ export default function WelcomeScreen() {
           justifyContent: 'center',
         },
         ctaLabel: {
-          color: '#FFFFFF',
+          color: colors.text.primary,
           fontSize: 16,
           fontWeight: '700',
           letterSpacing: 0.3,
@@ -156,34 +151,24 @@ export default function WelcomeScreen() {
         },
         signInMuted: {
           fontSize: FontSizes.sm,
-          color: 'rgba(255,255,255,0.45)',
+          color: colors.text.tertiary,
         },
         signInLink: {
           fontSize: FontSizes.sm,
           fontWeight: FontWeights.semibold,
-          color: 'rgba(255,255,255,0.85)',
+          color: colors.text.primary,
         },
       }),
-    [accent, colors.primary.default, fonts.bold, insets, winH]
+    [accent, colors, fonts, insets, winH]
   );
 
   return (
     <View style={s.root}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
 
       <LinearGradient
-        colors={[
-          '#08090F',
-          '#0B0C1C',
-          '#0F1028',
-          '#121230',
-          '#141334',
-          '#121230',
-          '#0F1028',
-          '#0B0C1C',
-          '#08090F',
-        ]}
-        locations={[0, 0.12, 0.25, 0.38, 0.5, 0.62, 0.75, 0.88, 1]}
+        colors={['#FFFFFF', '#FFF9EA', '#F8EFD1', '#F0DEB9']}
+        locations={[0, 0.34, 0.72, 1]}
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
         style={StyleSheet.absoluteFillObject}
@@ -192,7 +177,7 @@ export default function WelcomeScreen() {
       <View style={s.safe}>
         <View style={s.brand}>
           <LinearGradient
-            colors={['#3A2B8C', '#1E1558']}
+            colors={['#8EAA78', '#5F8654']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={s.logoTile}
@@ -202,27 +187,16 @@ export default function WelcomeScreen() {
               <View style={s.dot2} />
             </View>
           </LinearGradient>
-
-          <AppText style={s.wordmark} accessibilityRole="header">
-            ORBIT
-          </AppText>
+          <AppText style={s.wordmark} accessibilityRole="header">ORBIT</AppText>
         </View>
 
         <View style={s.spacer} />
 
         <View style={s.bottom}>
-          <AppText style={s.headline}>
-            Find your{'\n'}people, nearby.
-          </AppText>
-          <AppText style={s.sub}>
-            Connect with people who share your interests. Chat when it feels right.
-          </AppText>
+          <AppText style={s.headline}>Find your{'\n'}people, nearby.</AppText>
+          <AppText style={s.sub}>A warmer way to discover plans, people, and conversations around you.</AppText>
 
-          <TouchableOpacity
-            activeOpacity={0.9}
-            onPress={() => router.push('/(auth)/register')}
-            style={s.cta}
-          >
+          <TouchableOpacity activeOpacity={0.9} onPress={() => router.push('/(auth)/register')} style={s.cta}>
             <LinearGradient
               colors={[colors.primary.start, colors.primary.end]}
               start={{ x: 0, y: 0 }}
@@ -235,10 +209,7 @@ export default function WelcomeScreen() {
 
           <View style={s.signInRow}>
             <AppText style={s.signInMuted}>Already have an account? </AppText>
-            <Pressable
-              onPress={() => router.push('/(auth)/login')}
-              hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
-            >
+            <Pressable onPress={() => router.push('/(auth)/login')} hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}>
               <AppText style={s.signInLink}>Sign in</AppText>
             </Pressable>
           </View>

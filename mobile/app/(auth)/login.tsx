@@ -14,6 +14,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
@@ -40,7 +41,7 @@ export default function LoginScreen() {
 
   const { requestLoginOtp, verifyLoginOtp } = useAuthStore();
 
-  const { colors, fonts, resolvedScheme } = useOrbitTheme();
+  const { colors, fonts } = useOrbitTheme();
 
   useEffect(() => {
     if (resendIn <= 0) return;
@@ -137,26 +138,29 @@ export default function LoginScreen() {
           paddingBottom: Spacing.lg,
         },
         backButton: {
-          width: 40,
-          height: 40,
-          borderRadius: 20,
-          backgroundColor: colors.background.tertiary,
+          width: 42,
+          height: 42,
+          borderRadius: 21,
           alignItems: 'center',
           justifyContent: 'center',
           marginTop: Platform.OS === 'android' ? Spacing.sm : Spacing.md,
           alignSelf: 'flex-start',
+          marginLeft: -Spacing.xs,
+          backgroundColor: colors.background.elevated,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: colors.borderLight,
         },
         header: {
           marginTop: Spacing.xl,
           marginBottom: Spacing.lg,
         },
         title: {
-          fontSize: 32,
-          fontWeight: '700',
+          fontSize: 30,
+          fontWeight: '800',
           color: colors.text.primary,
           marginBottom: Spacing.xs,
-          letterSpacing: -0.5,
-          fontFamily: fonts.bold,
+          letterSpacing: 0,
+          fontFamily: fonts.extrabold,
         },
         subtitle: {
           fontSize: FontSizes.md,
@@ -165,19 +169,19 @@ export default function LoginScreen() {
           fontFamily: fonts.regular,
         },
         emailEmphasis: {
-          color: colors.text.accent,
+          color: colors.text.primary,
           fontWeight: FontWeights.semibold,
           fontFamily: fonts.semibold,
         },
         devHint: {
           fontSize: FontSizes.sm,
-          color: colors.secondary.default,
+          color: colors.primary.dark,
           marginBottom: Spacing.md,
           padding: Spacing.sm,
-          backgroundColor: colors.background.card,
+          backgroundColor: colors.primary.default + '14',
           borderRadius: BorderRadius.md,
           borderWidth: 1,
-          borderColor: colors.border,
+          borderColor: colors.borderLight,
           fontFamily: fonts.regular,
         },
         errorContainer: {
@@ -208,17 +212,19 @@ export default function LoginScreen() {
         otpLabel: {
           fontSize: FontSizes.sm,
           fontWeight: FontWeights.semibold,
-          color: colors.text.secondary,
+          color: colors.text.tertiary,
           marginBottom: Spacing.sm,
           fontFamily: fonts.semibold,
+          letterSpacing: 0.5,
+          textTransform: 'uppercase',
         },
         otpInput: {
-          fontSize: 32,
-          letterSpacing: 8,
+          fontSize: 30,
+          letterSpacing: 6,
           color: colors.text.primary,
           backgroundColor: colors.background.card,
-          borderWidth: 1,
-          borderColor: colors.border,
+          borderWidth: 1.5,
+          borderColor: colors.primary.default,
           borderRadius: BorderRadius.lg,
           paddingVertical: Spacing.md,
           paddingHorizontal: Spacing.lg,
@@ -231,10 +237,10 @@ export default function LoginScreen() {
           paddingVertical: Spacing.md,
         },
         resendDisabled: {
-          opacity: 0.5,
+          opacity: 0.4,
         },
         resendText: {
-          color: colors.primary.light,
+          color: colors.primary.default,
           fontSize: FontSizes.md,
           fontWeight: FontWeights.semibold,
           fontFamily: fonts.semibold,
@@ -248,12 +254,12 @@ export default function LoginScreen() {
           paddingTop: Spacing.xl,
         },
         footerMuted: {
-          color: colors.text.secondary,
+          color: colors.text.tertiary,
           fontSize: FontSizes.md,
           fontFamily: fonts.regular,
         },
         footerLink: {
-          color: colors.primary.default,
+          color: colors.text.primary,
           fontSize: FontSizes.md,
           fontWeight: FontWeights.semibold,
           fontFamily: fonts.semibold,
@@ -264,7 +270,15 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar style={resolvedScheme === 'dark' ? 'light' : 'dark'} />
+      <StatusBar style="dark" />
+
+      <LinearGradient
+        colors={['#FFFFFF', '#FFF9EA', '#F8EFD1', '#F0DEB9']}
+        locations={[0, 0.34, 0.72, 1]}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
+      />
 
       <SafeAreaView style={styles.safeArea}>
         <KeyboardAvoidingView
@@ -280,7 +294,7 @@ export default function LoginScreen() {
               <>
                 <View style={styles.header}>
                   <AppText style={styles.title}>Welcome back</AppText>
-                  <AppText style={styles.subtitle}>We’ll email you a one-time code to sign in.</AppText>
+                  <AppText style={styles.subtitle}>Step back into nearby chats, plans, and familiar faces.</AppText>
                 </View>
 
                 {errorMessage ? (
@@ -360,7 +374,7 @@ export default function LoginScreen() {
                   disabled={resendIn > 0 || sending}
                 >
                   {sending ? (
-                    <ActivityIndicator color={colors.primary.light} />
+                    <ActivityIndicator color={colors.primary.default} />
                   ) : (
                     <AppText style={styles.resendText}>
                       {resendIn > 0 ? `Resend code in ${resendIn}s` : 'Resend code'}

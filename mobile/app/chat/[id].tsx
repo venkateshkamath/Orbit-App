@@ -23,6 +23,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import EmojiPicker, { EmojiType } from 'rn-emoji-keyboard';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
 import { useOrbitTheme } from '../../src/theme';
 import { Avatar, MessageBubble } from '../../src/components';
@@ -248,6 +249,7 @@ export default function ChatDetailScreen() {
   }, []);
 
   const otherUser = conversation?.other_participant;
+  const isEventGroup = conversation?.kind === 'event';
 
   const handleDeleteMessage = useCallback(
     (messageId: string) => {
@@ -317,6 +319,16 @@ export default function ChatDetailScreen() {
           borderBottomWidth: StyleSheet.hairlineWidth,
           borderBottomColor: colors.border,
           backgroundColor: colors.background.primary,
+          ...Platform.select({
+            ios: {
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.08,
+              shadowRadius: 4,
+            },
+            android: { elevation: 2 },
+            default: {},
+          }),
         },
         backButton: {
           width: 40,
@@ -335,9 +347,10 @@ export default function ChatDetailScreen() {
         },
         username: {
           fontSize: FontSizes.md,
-          fontWeight: FontWeights.semibold,
+          fontWeight: FontWeights.bold,
           color: colors.text.primary,
-          fontFamily: fonts.semibold,
+          fontFamily: fonts.bold,
+          letterSpacing: 0,
         },
         status: {
           fontSize: FontSizes.xs,
@@ -390,6 +403,8 @@ export default function ChatDetailScreen() {
           alignItems: 'flex-end',
           backgroundColor: colors.background.tertiary,
           borderRadius: BorderRadius.xl,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: colors.border,
           paddingHorizontal: Spacing.xs,
           paddingVertical: Spacing.xs,
           marginRight: Spacing.sm,
@@ -429,7 +444,7 @@ export default function ChatDetailScreen() {
           borderRadius: 22,
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: colors.primary.default,
+          overflow: 'hidden',
         },
         sendCircleDisabled: {
           backgroundColor: colors.background.tertiary,
@@ -563,27 +578,41 @@ export default function ChatDetailScreen() {
             <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
           </TouchableOpacity>
 
-          {otherUser && (
+          {(otherUser || isEventGroup) && (
             <TouchableOpacity
               style={styles.userInfo}
               onPress={() => {
-                if (otherUser.id) {
+                if (otherUser?.id) {
                   router.push(`/user/${otherUser.id}`);
                 }
               }}
+              disabled={isEventGroup}
               activeOpacity={0.7}
             >
-              <Avatar
-                uri={otherUser.avatar}
-                name={otherUser.username}
-                size={40}
-                showOnline
-                isOnline={otherUser.is_online}
-              />
+              {isEventGroup ? (
+                <View style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: colors.primary.default,
+                }}>
+                  <Ionicons name="calendar-outline" size={20} color={colors.text.primary} />
+                </View>
+              ) : (
+                <Avatar
+                  uri={otherUser!.avatar}
+                  name={otherUser!.username}
+                  size={40}
+                  showOnline
+                  isOnline={otherUser!.is_online}
+                />
+              )}
               <View style={styles.userDetails}>
-                <AppText style={styles.username}>{otherUser.username}</AppText>
+                <AppText style={styles.username}>{isEventGroup ? conversation?.name || 'Event group' : otherUser?.username}</AppText>
                 <AppText style={styles.status}>
-                  {otherUser.is_online ? 'Online' : 'Offline'}
+                  {isEventGroup ? `${conversation?.participants.length ?? 0} members` : otherUser?.is_online ? 'Online' : 'Offline'}
                 </AppText>
               </View>
             </TouchableOpacity>
@@ -716,23 +745,20 @@ export default function ChatDetailScreen() {
                 disabled={!message.trim() || sendMut.isPending}
                 activeOpacity={0.85}
               >
-                <View
-                  style={[
-                    styles.sendCircle,
-                    !message.trim() && styles.sendCircleDisabled,
-                    sendMut.isPending && styles.sendCircleSending,
-                  ]}
-                >
-                  <Ionicons
-                    name="send"
-                    size={20}
-                    color={
-                      message.trim() && !sendMut.isPending
-                        ? colors.text.primary
-                        : colors.text.muted
-                    }
-                  />
-                </View>
+                {message.trim() && !sendMut.isPending ? (
+                  <LinearGradient
+                    colors={[colors.primary.start, colors.primary.end]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.sendCircle}
+                  >
+                    <Ionicons name="send" size={18} color={colors.text.primary} />
+                  </LinearGradient>
+                ) : (
+                  <View style={[styles.sendCircle, sendMut.isPending ? styles.sendCircleSending : styles.sendCircleDisabled]}>
+                    <Ionicons name="send" size={18} color={colors.text.muted} />
+                  </View>
+                )}
               </TouchableOpacity>
             </View>
           )}

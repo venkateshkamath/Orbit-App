@@ -13,6 +13,7 @@ import {
   Platform,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
@@ -34,7 +35,7 @@ function formatDistanceMeters(m: number | null) {
 }
 
 export default function UserProfileScreen() {
-  const { colors } = useOrbitTheme();
+  const { colors, fonts } = useOrbitTheme();
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const id = typeof rawId === 'string' ? rawId : rawId?.[0];
   const insets = useSafeAreaInsets();
@@ -52,37 +53,79 @@ export default function UserProfileScreen() {
           flex: 1,
           backgroundColor: colors.background.primary,
         },
+        /* ── hero ── */
+        heroWrap: {
+          overflow: 'hidden',
+          paddingBottom: Spacing.xl,
+        },
+        heroBg: {
+          ...StyleSheet.absoluteFillObject,
+        },
         topBar: {
           paddingHorizontal: Spacing.sm,
           paddingBottom: Spacing.sm,
           paddingTop: Platform.OS === 'android' ? Spacing.sm : 0,
         },
         iconBtn: {
-          alignSelf: 'flex-start',
-          padding: Spacing.xs,
+          width: 40,
+          height: 40,
+          borderRadius: 20,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: colors.background.elevated,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: colors.borderLight,
         },
+        avatarWrap: {
+          alignSelf: 'center',
+          marginTop: Spacing.md,
+        },
+        avatarRing: {
+          padding: 3,
+          borderRadius: 999,
+        },
+        username: {
+          marginTop: Spacing.md,
+          fontSize: 28,
+          fontWeight: FontWeights.bold,
+          color: colors.text.primary,
+          textAlign: 'center',
+          letterSpacing: 0,
+          fontFamily: fonts.bold,
+          paddingHorizontal: Spacing.lg,
+        },
+        distanceBadge: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          alignSelf: 'center',
+          marginTop: Spacing.sm,
+          paddingHorizontal: Spacing.sm,
+          paddingVertical: 4,
+          borderRadius: BorderRadius.full,
+          backgroundColor: colors.primary.default + '18',
+          borderWidth: 1,
+          borderColor: colors.primary.default + '44',
+          gap: 4,
+        },
+        distanceText: {
+          fontSize: FontSizes.xs,
+          fontWeight: FontWeights.semibold,
+          color: colors.text.primary,
+          fontFamily: fonts.semibold,
+        },
+        /* ── body ── */
         scrollContent: {
           paddingHorizontal: Spacing.xl,
           paddingBottom: Spacing.xxl,
           alignItems: 'center',
         },
-        username: {
-          marginTop: Spacing.lg,
-          fontSize: FontSizes.xxl,
-          fontWeight: FontWeights.bold,
-          color: colors.text.primary,
-        },
-        distance: {
-          marginTop: Spacing.xs,
-          fontSize: FontSizes.sm,
-          color: colors.text.secondary,
-        },
         bio: {
-          marginTop: Spacing.md,
+          marginTop: Spacing.lg,
           fontSize: FontSizes.md,
           color: colors.text.secondary,
           textAlign: 'center',
           lineHeight: 22,
+          fontFamily: fonts.regular,
         },
         interests: {
           flexDirection: 'row',
@@ -95,6 +138,21 @@ export default function UserProfileScreen() {
           marginTop: Spacing.xl,
           alignSelf: 'stretch',
           width: '100%',
+        },
+        secondaryBtn: {
+          marginTop: Spacing.md,
+          alignSelf: 'stretch',
+          paddingVertical: 14,
+          alignItems: 'center',
+          borderRadius: BorderRadius.full,
+          borderWidth: 1.5,
+          borderColor: colors.primary.default,
+        },
+        secondaryBtnText: {
+          color: colors.primary.dark,
+          fontSize: FontSizes.md,
+          fontWeight: FontWeights.semibold,
+          fontFamily: fonts.semibold,
         },
         centered: {
           flex: 1,
@@ -115,7 +173,7 @@ export default function UserProfileScreen() {
           fontSize: FontSizes.md,
         },
       }),
-    [colors]
+    [colors, fonts]
   );
 
   useEffect(() => {
@@ -219,19 +277,44 @@ export default function UserProfileScreen() {
 
   return (
     <View style={styles.root}>
-      <View style={[styles.topBar, { paddingTop: insets.top + (Platform.OS === 'android' ? 16 : 4) }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn} hitSlop={12}>
-          <Ionicons name="chevron-back" size={28} color={colors.text.primary} />
-        </TouchableOpacity>
+      {/* Hero area */}
+      <View style={styles.heroWrap}>
+        <LinearGradient
+          colors={[colors.primary.dark + '55', colors.background.secondary + 'CC', colors.background.primary]}
+          locations={[0, 0.6, 1]}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+          style={styles.heroBg}
+        />
+        <View style={[styles.topBar, { paddingTop: insets.top + (Platform.OS === 'android' ? 16 : 4) }]}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn} hitSlop={12}>
+            <Ionicons name="chevron-back" size={26} color={colors.text.primary} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.avatarWrap}>
+          <LinearGradient
+            colors={[colors.primary.default, colors.primary.dark]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.avatarRing}
+          >
+            <Avatar uri={user.avatar} name={user.username} size={96} showOnline isOnline={user.is_online} />
+          </LinearGradient>
+        </View>
+
+        <AppText style={styles.username}>{user.username}</AppText>
+
+        <View style={styles.distanceBadge}>
+          <Ionicons name="location-outline" size={12} color={colors.primary.default} />
+          <AppText style={styles.distanceText}>{formatDistanceMeters(distance_m)}</AppText>
+        </View>
       </View>
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Avatar uri={user.avatar} name={user.username} size={96} showOnline isOnline={user.is_online} />
-        <AppText style={styles.username}>{user.username}</AppText>
-        <AppText style={styles.distance}>{formatDistanceMeters(distance_m)}</AppText>
         {user.bio ? <AppText style={styles.bio}>{user.bio}</AppText> : null}
 
         {user.interests.length > 0 && (
@@ -249,6 +332,12 @@ export default function UserProfileScreen() {
           loading={likeMut.isPending || startConversationMut.isPending}
           disabled={primaryDisabled}
         />
+
+        {orbit.matched && (
+          <TouchableOpacity style={styles.secondaryBtn} onPress={onMessage} disabled={startConversationMut.isPending}>
+            <AppText style={styles.secondaryBtnText}>View conversation</AppText>
+          </TouchableOpacity>
+        )}
       </ScrollView>
 
       <MatchModal

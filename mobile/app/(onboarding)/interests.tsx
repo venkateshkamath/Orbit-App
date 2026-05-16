@@ -22,7 +22,7 @@ import { Interest } from '../../src/types';
 import { AppText } from '../../src/ui/AppText';
 
 export default function InterestsScreen() {
-  const { colors } = useOrbitTheme();
+  const { colors, fonts } = useOrbitTheme();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -112,9 +112,11 @@ export default function InterestsScreen() {
         },
         title: {
           fontSize: FontSizes.xxxl,
-          fontWeight: FontWeights.bold,
+          fontWeight: '800',
           color: colors.text.primary,
           marginBottom: Spacing.sm,
+          letterSpacing: 0,
+          fontFamily: fonts.extrabold,
         },
         subtitle: {
           fontSize: FontSizes.md,
@@ -168,7 +170,7 @@ export default function InterestsScreen() {
           backgroundColor: colors.background.primary,
         },
       }),
-    [colors]
+    [colors, fonts]
   );
 
   if (loading) {

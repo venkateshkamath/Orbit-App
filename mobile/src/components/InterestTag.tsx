@@ -59,7 +59,7 @@ export const InterestTag: React.FC<InterestTagProps> = ({
           marginLeft: Spacing.xs,
         },
         checkmarkText: {
-          color: '#FFFFFF',
+          color: colors.text.primary,
           fontSize: 10,
           fontWeight: 'bold',
         },
@@ -109,8 +109,8 @@ export const InterestTag: React.FC<InterestTagProps> = ({
         {
           paddingVertical: sizeStyles[size].paddingVertical,
           paddingHorizontal: sizeStyles[size].paddingHorizontal,
-          backgroundColor: selected ? interest.color + '30' : colors.background.tertiary,
-          borderColor: selected ? interest.color + '80' : colors.border,
+          backgroundColor: selected ? colors.primary.default + '18' : colors.background.tertiary,
+          borderColor: selected ? colors.primary.default + '55' : colors.border,
         },
       ]}
       activeOpacity={0.85}
@@ -120,13 +120,13 @@ export const InterestTag: React.FC<InterestTagProps> = ({
         style={[
           styles.text,
           { fontSize: sizeStyles[size].fontSize },
-          selected && { color: interest.color },
+          selected && { color: colors.text.primary },
         ]}
       >
         {interest.name}
       </AppText>
       {selected && (
-        <View style={[styles.checkmark, { backgroundColor: interest.color }]}>
+        <View style={[styles.checkmark, { backgroundColor: colors.primary.default }]}>
           <AppText style={styles.checkmarkText}>✓</AppText>
         </View>
       )}

@@ -63,17 +63,19 @@ function RootLayoutNav() {
   useEffect(() => {
     if (!mounted || isLoading) return;
 
-    const inAuthGroup = segments[0] === '(auth)';
-    const inOnboardingGroup = segments[0] === '(onboarding)';
-    const inTabsGroup = segments[0] === '(tabs)';
-    const inChatStack = segments[0] === 'chat';
-    const inUserStack = segments[0] === 'user';
-    const inSearchStack = segments[0] === 'search';
+    const topSegment = segments[0] as string | undefined;
+    const inAuthGroup = topSegment === '(auth)';
+    const inOnboardingGroup = topSegment === '(onboarding)';
+    const inTabsGroup = topSegment === '(tabs)';
+    const inChatStack = topSegment === 'chat';
+    const inUserStack = topSegment === 'user';
+    const inEventStack = topSegment === 'event';
+    const inSearchStack = topSegment === 'search';
     /** Lets completed users open interests from Profile without being forced back to tabs. */
     const inOnboardingInterests =
       segments[0] === '(onboarding)' && segments[1] === 'interests';
     const inMainApp =
-      inTabsGroup || inChatStack || inUserStack || inSearchStack || inOnboardingInterests;
+      inTabsGroup || inChatStack || inUserStack || inEventStack || inSearchStack || inOnboardingInterests;
 
     // Redirect logic
     if (!isAuthenticated) {

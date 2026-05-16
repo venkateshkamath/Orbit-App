@@ -153,9 +153,13 @@ const commentSchema = new mongoose.Schema(
 const conversationSchema = new mongoose.Schema(
   {
     participants: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }],
+    kind: { type: String, enum: ['direct', 'event'], default: 'direct' },
+    name: { type: String, default: '' },
+    event: { type: mongoose.Schema.Types.ObjectId, ref: 'Event', default: null },
   },
   { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
 );
+conversationSchema.index({ event: 1 }, { sparse: true });
 
 const messageSchema = new mongoose.Schema(
   {
@@ -223,6 +227,8 @@ const eventSchema = new mongoose.Schema(
     },
     image:          { type: String, default: null },
     image_public_id: { type: String, default: null },
+    attendees: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    conversation: { type: mongoose.Schema.Types.ObjectId, ref: 'Conversation', default: null },
   },
   { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
 );

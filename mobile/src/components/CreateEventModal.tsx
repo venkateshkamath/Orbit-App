@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -35,16 +35,16 @@ export type CategoryMeta = {
 };
 
 export const EVENT_CATEGORY_META: Record<EventCategory, CategoryMeta> = {
-  music:     { label: 'Music',     icon: 'musical-notes', gradient: ['#FF6B6B', '#EE0979'] },
-  sports:    { label: 'Sports',    icon: 'fitness',       gradient: ['#11998E', '#38EF7D'] },
-  food:      { label: 'Food',      icon: 'restaurant',    gradient: ['#F7971E', '#FFD200'] },
-  arts:      { label: 'Arts',      icon: 'color-palette', gradient: ['#8E2DE2', '#4A00E0'] },
-  tech:      { label: 'Tech',      icon: 'code-slash',    gradient: ['#4facfe', '#00f2fe'] },
-  social:    { label: 'Social',    icon: 'people',        gradient: ['#f953c6', '#b91d73'] },
-  outdoors:  { label: 'Outdoors',  icon: 'leaf',          gradient: ['#11998E', '#38EF7D'] },
-  wellness:  { label: 'Wellness',  icon: 'heart',         gradient: ['#FDBB2D', '#22C1C3'] },
-  education: { label: 'Education', icon: 'book',          gradient: ['#56CCF2', '#2F80ED'] },
-  gaming:    { label: 'Gaming',    icon: 'game-controller', gradient: ['#7F00FF', '#E100FF'] },
+  music:     { label: 'Music',     icon: 'musical-notes', gradient: ['#9BAF63', '#6F8B49'] },
+  sports:    { label: 'Sports',    icon: 'fitness',       gradient: ['#7F9A56', '#526E38'] },
+  food:      { label: 'Food',      icon: 'restaurant',    gradient: ['#D8B86B', '#B88D3E'] },
+  arts:      { label: 'Arts',      icon: 'color-palette', gradient: ['#B9A86F', '#8F7D4F'] },
+  tech:      { label: 'Tech',      icon: 'code-slash',    gradient: ['#8FB8B2', '#6E9991'] },
+  social:    { label: 'Social',    icon: 'people',        gradient: ['#D98C7F', '#B96B5C'] },
+  outdoors:  { label: 'Outdoors',  icon: 'leaf',          gradient: ['#8FAA63', '#5E8050'] },
+  wellness:  { label: 'Wellness',  icon: 'heart',         gradient: ['#B9C981', '#7F9A56'] },
+  education: { label: 'Education', icon: 'book',          gradient: ['#A0B7A8', '#78967E'] },
+  gaming:    { label: 'Gaming',    icon: 'game-controller', gradient: ['#9A916E', '#6F7B52'] },
 };
 
 const CATEGORIES = Object.keys(EVENT_CATEGORY_META) as EventCategory[];
@@ -61,6 +61,7 @@ function CategoryChip({
   onPress: () => void;
 }) {
   const meta = EVENT_CATEGORY_META[cat];
+  const { colors } = useOrbitTheme();
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -70,24 +71,16 @@ function CategoryChip({
       <View
         style={[
           chipStyles.wrap,
-          selected && { borderColor: 'transparent' },
+          selected && { borderColor: colors.primary.default + '55', backgroundColor: colors.primary.default + '20' },
         ]}
       >
-        {selected && (
-          <LinearGradient
-            colors={meta.gradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={StyleSheet.absoluteFillObject}
-          />
-        )}
         <Ionicons
           name={meta.icon}
           size={14}
-          color={selected ? '#fff' : '#888'}
+          color={selected ? colors.primary.dark : colors.text.tertiary}
           style={{ marginRight: 5 }}
         />
-        <AppText style={[chipStyles.label, selected && { color: '#fff' }]}>
+        <AppText style={[chipStyles.label, { color: colors.text.tertiary }, selected && { color: colors.text.primary }]}>
           {meta.label}
         </AppText>
       </View>
@@ -103,13 +96,13 @@ const chipStyles = StyleSheet.create({
     paddingVertical: 7,
     borderRadius: BorderRadius.full,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderColor: 'rgba(35,48,31,0.12)',
     overflow: 'hidden',
   },
   label: {
     fontSize: 13,
     fontWeight: '600' as const,
-    color: '#888',
+    color: '#7F8468',
   },
 });
 
@@ -145,6 +138,20 @@ export function CreateEventModal({ visible, onClose, onCreated, initialLat, init
   const [submitting, setSubmitting] = useState(false);
 
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const currentLocationOption = useMemo<LocationSearchResult | null>(() => {
+    if (initialLat == null || initialLng == null) return null;
+    return {
+      display_name: 'My current location',
+      lat: initialLat,
+      lng: initialLng,
+    };
+  }, [initialLat, initialLng]);
+
+  useEffect(() => {
+    if (!visible || !currentLocationOption) return;
+    setSelectedLocation((prev) => prev ?? currentLocationOption);
+    setLocationQuery((prev) => prev || currentLocationOption.display_name);
+  }, [currentLocationOption, visible]);
 
   const reset = useCallback(() => {
     setTitle('');
@@ -155,12 +162,12 @@ export function CreateEventModal({ visible, onClose, onCreated, initialLat, init
     setStartDate(d);
     setShowDatePicker(false);
     setShowTimePicker(false);
-    setLocationQuery('');
+    setLocationQuery(currentLocationOption?.display_name ?? '');
     setLocationResults([]);
-    setSelectedLocation(null);
+    setSelectedLocation(currentLocationOption);
     setImageUri(null);
     setSubmitting(false);
-  }, []);
+  }, [currentLocationOption]);
 
   const handleClose = () => {
     reset();
@@ -180,7 +187,7 @@ export function CreateEventModal({ visible, onClose, onCreated, initialLat, init
       setSearchingLocation(true);
       try {
         const results = await eventsApi.searchLocation(text.trim());
-        setLocationResults(results);
+        setLocationResults(currentLocationOption ? [currentLocationOption, ...results] : results);
       } catch {
         setLocationResults([]);
       } finally {
@@ -233,11 +240,20 @@ export function CreateEventModal({ visible, onClose, onCreated, initialLat, init
       Alert.alert('Missing field', 'Please enter an event name.');
       return;
     }
+    if (!description.trim()) {
+      Alert.alert('Missing field', 'Please add event details.');
+      return;
+    }
 
     const lat = selectedLocation?.lat ?? initialLat;
     const lng = selectedLocation?.lng ?? initialLng;
     if (lat == null || lng == null) {
       Alert.alert('Missing location', 'Please search for and select a location.');
+      return;
+    }
+    const locationName = selectedLocation?.display_name ?? currentLocationOption?.display_name ?? '';
+    if (!locationName.trim()) {
+      Alert.alert('Missing location', 'Please choose a location.');
       return;
     }
 
@@ -250,7 +266,7 @@ export function CreateEventModal({ visible, onClose, onCreated, initialLat, init
       formData.append('start_at',      startDate.toISOString());
       formData.append('latitude',      String(lat));
       formData.append('longitude',     String(lng));
-      formData.append('location_name', selectedLocation?.display_name ?? '');
+      formData.append('location_name', locationName);
 
       if (imageUri) {
         const ext = imageUri.split('.').pop() ?? 'jpg';
@@ -273,6 +289,7 @@ export function CreateEventModal({ visible, onClose, onCreated, initialLat, init
   };
 
   const canSubmit = title.trim().length > 0 &&
+    description.trim().length > 0 &&
     (selectedLocation != null || (initialLat != null && initialLng != null));
 
   const s = useMemo(
@@ -315,7 +332,7 @@ export function CreateEventModal({ visible, onClose, onCreated, initialLat, init
           fontWeight: FontWeights.bold,
           color: colors.text.primary,
           fontFamily: fonts.bold,
-          letterSpacing: -0.4,
+          letterSpacing: 0,
         },
         closeBtn: {
           width: 32,
@@ -342,7 +359,7 @@ export function CreateEventModal({ visible, onClose, onCreated, initialLat, init
           borderColor: colors.borderLight,
           borderRadius: BorderRadius.md,
           paddingHorizontal: Spacing.md,
-          paddingVertical: 13,
+          paddingVertical: 12,
           color: colors.text.primary,
           fontSize: FontSizes.md,
           fontFamily: fonts.regular,
@@ -361,6 +378,29 @@ export function CreateEventModal({ visible, onClose, onCreated, initialLat, init
           flexDirection: 'row',
           gap: Spacing.sm,
         },
+        pickerCard: {
+          backgroundColor: colors.background.card,
+          borderRadius: BorderRadius.lg,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: colors.borderLight,
+          overflow: 'hidden',
+          marginTop: Spacing.sm,
+        },
+        pickerSpinner: {
+          height: 180,
+        },
+        pickerDoneBtn: {
+          borderTopWidth: StyleSheet.hairlineWidth,
+          borderTopColor: colors.border,
+          paddingVertical: 12,
+          alignItems: 'center',
+        },
+        pickerDoneText: {
+          color: colors.primary.default,
+          fontSize: FontSizes.md,
+          fontFamily: fonts.semibold,
+          fontWeight: '600',
+        },
         datePill: {
           flex: 1,
           flexDirection: 'row',
@@ -371,7 +411,7 @@ export function CreateEventModal({ visible, onClose, onCreated, initialLat, init
           borderColor: colors.borderLight,
           borderRadius: BorderRadius.md,
           paddingHorizontal: Spacing.md,
-          paddingVertical: 13,
+          paddingVertical: 12,
         },
         datePillText: {
           fontSize: FontSizes.md,
@@ -430,7 +470,7 @@ export function CreateEventModal({ visible, onClose, onCreated, initialLat, init
         },
         selectedLocationText: {
           fontSize: 12,
-          color: colors.secondary.default,
+          color: colors.primary.default,
           fontFamily: fonts.medium,
           flex: 1,
         },
@@ -457,7 +497,7 @@ export function CreateEventModal({ visible, onClose, onCreated, initialLat, init
         },
         imagePlaceholderText: {
           fontSize: FontSizes.sm,
-          color: colors.text.tertiary,
+          color: colors.text.muted,
           fontFamily: fonts.medium,
           marginTop: 8,
         },
@@ -474,7 +514,7 @@ export function CreateEventModal({ visible, onClose, onCreated, initialLat, init
           justifyContent: 'center',
         },
         submitText: {
-          color: '#FFFFFF',
+          color: colors.text.primary,
           fontSize: FontSizes.md,
           fontWeight: FontWeights.bold,
           fontFamily: fonts.bold,
@@ -563,34 +603,26 @@ export function CreateEventModal({ visible, onClose, onCreated, initialLat, init
                 </TouchableOpacity>
               </View>
 
-              {showDatePicker && (
-                <DateTimePicker
-                  value={startDate}
-                  mode="date"
-                  minimumDate={new Date()}
-                  display={Platform.OS === 'ios' ? 'inline' : 'default'}
-                  onChange={handleDateChange}
-                  themeVariant="dark"
-                />
-              )}
-              {showTimePicker && (
-                <DateTimePicker
-                  value={startDate}
-                  mode="time"
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  onChange={handleTimeChange}
-                  themeVariant="dark"
-                />
-              )}
-              {Platform.OS === 'ios' && (showDatePicker || showTimePicker) && (
-                <TouchableOpacity
-                  onPress={() => { setShowDatePicker(false); setShowTimePicker(false); }}
-                  style={{ alignItems: 'center', paddingVertical: 8 }}
-                >
-                  <AppText style={{ color: colors.primary.default, fontSize: FontSizes.md, fontFamily: fonts.semibold }}>
-                    Done
-                  </AppText>
-                </TouchableOpacity>
+              {(showDatePicker || showTimePicker) && (
+                <View style={s.pickerCard}>
+                  <DateTimePicker
+                    value={startDate}
+                    mode={showDatePicker ? 'date' : 'time'}
+                    minimumDate={showDatePicker ? new Date() : undefined}
+                    display="spinner"
+                    onChange={showDatePicker ? handleDateChange : handleTimeChange}
+                    themeVariant="light"
+                    textColor={colors.text.primary}
+                    accentColor={colors.primary.default}
+                    style={s.pickerSpinner}
+                  />
+                  <TouchableOpacity
+                    onPress={() => { setShowDatePicker(false); setShowTimePicker(false); }}
+                    style={s.pickerDoneBtn}
+                  >
+                    <AppText style={s.pickerDoneText}>Done</AppText>
+                  </TouchableOpacity>
+                </View>
               )}
 
               {/* Location */}
@@ -610,7 +642,7 @@ export function CreateEventModal({ visible, onClose, onCreated, initialLat, init
                     <ActivityIndicator size="small" color={colors.primary.default} />
                   )}
                   {selectedLocation && (
-                    <Ionicons name="checkmark-circle" size={18} color={colors.secondary.default} />
+                    <Ionicons name="checkmark-circle" size={18} color={colors.primary.default} />
                   )}
                 </View>
 
@@ -641,7 +673,7 @@ export function CreateEventModal({ visible, onClose, onCreated, initialLat, init
 
               {selectedLocation && (
                 <View style={s.selectedLocationRow}>
-                  <Ionicons name="checkmark-circle" size={14} color={colors.secondary.default} />
+                  <Ionicons name="checkmark-circle" size={14} color={colors.primary.default} />
                   <AppText style={s.selectedLocationText} numberOfLines={1}>
                     {selectedLocation.display_name}
                   </AppText>
@@ -660,14 +692,14 @@ export function CreateEventModal({ visible, onClose, onCreated, initialLat, init
                   </>
                 ) : (
                   <>
-                    <Ionicons name="image-outline" size={32} color={colors.text.tertiary} />
+                    <Ionicons name="image-outline" size={32} color={colors.text.muted} />
                     <AppText style={s.imagePlaceholderText}>Tap to add a cover photo</AppText>
                   </>
                 )}
               </TouchableOpacity>
 
               {/* Description (optional) */}
-              <AppText style={s.label}>Description <AppText style={{ color: colors.text.muted, textTransform: 'none' }}>(optional)</AppText></AppText>
+              <AppText style={s.label}>Description</AppText>
               <TextInput
                 style={[s.input, s.textArea]}
                 value={description}
@@ -694,7 +726,7 @@ export function CreateEventModal({ visible, onClose, onCreated, initialLat, init
               />
               <View style={s.submitInner}>
                 {submitting ? (
-                  <ActivityIndicator color="#FFFFFF" />
+                  <ActivityIndicator color={colors.background.card} />
                 ) : (
                   <AppText style={s.submitText}>Create Event</AppText>
                 )}
