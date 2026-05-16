@@ -200,7 +200,39 @@ const notificationSchema = new mongoose.Schema(
 );
 notificationSchema.index({ recipient: 1, created_at: -1 });
 
+const EVENT_CATEGORIES = ['music', 'sports', 'food', 'arts', 'tech', 'social', 'outdoors', 'wellness', 'education', 'gaming'];
+
+const eventSchema = new mongoose.Schema(
+  {
+    title:       { type: String, required: true, trim: true, maxlength: 120 },
+    description: { type: String, default: '', maxlength: 1000 },
+    organizer:   { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    start_at:    { type: Date, required: true },
+    end_at:      { type: Date, default: null },
+    location_name: { type: String, default: '' },
+    location: {
+      type:        { type: String, enum: ['Point'] },
+      coordinates: { type: [Number] },
+    },
+    latitude:  { type: Number, required: true },
+    longitude: { type: Number, required: true },
+    category: {
+      type: String,
+      enum: EVENT_CATEGORIES,
+      required: true,
+    },
+    image:          { type: String, default: null },
+    image_public_id: { type: String, default: null },
+  },
+  { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
+);
+eventSchema.index({ location: '2dsphere' });
+eventSchema.index({ organizer: 1, created_at: -1 });
+eventSchema.index({ start_at: 1 });
+
 module.exports = {
+  EVENT_CATEGORIES,
+  Event: mongoose.model('Event', eventSchema),
   Interest: mongoose.model('Interest', interestSchema),
   User: mongoose.model('User', userSchema),
   OtpChallenge: mongoose.model('OtpChallenge', otpChallengeSchema),

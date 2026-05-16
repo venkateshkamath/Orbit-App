@@ -175,3 +175,36 @@ export interface Comment {
   created_at: string;
 }
 
+export type EventCategory =
+  | 'music' | 'sports' | 'food' | 'arts' | 'tech'
+  | 'social' | 'outdoors' | 'wellness' | 'education' | 'gaming';
+
+export interface OrbitEvent {
+  id: string;
+  title: string;
+  description: string;
+  organizer: { id: string; username: string; avatar: string | null } | null;
+  start_at: string;
+  end_at: string | null;
+  location_name: string;
+  latitude: number;
+  longitude: number;
+  distance_m?: number;
+  category: EventCategory;
+  image_url: string | null;
+  is_own: boolean;
+  created_at: string;
+}
+
+export interface NearbyEventsResponse {
+  count: number;
+  radius: number;
+  events: OrbitEvent[];
+}
+
+export interface LocationSearchResult {
+  display_name: string;
+  lat: number;
+  lng: number;
+}
+

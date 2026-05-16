@@ -35,7 +35,17 @@ const fileFilter = (req, file, cb) => {
   allowed.includes(file.mimetype) ? cb(null, true) : cb(new Error('Only JPEG, PNG and WebP images are allowed.'), false);
 };
 
-const uploadPost = multer({ storage: postStorage, limits: { fileSize: 10 * 1024 * 1024, files: 1 }, fileFilter });
-const uploadAvatar = multer({ storage: avatarStorage, limits: { fileSize: 5 * 1024 * 1024, files: 1 }, fileFilter });
+const eventStorage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: async (_req, _file) => ({
+    folder: 'orbit_events',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
+    transformation: [{ width: 1080, crop: 'limit', quality: 'auto' }],
+  }),
+});
 
-module.exports = { uploadPost, uploadAvatar };
+const uploadPost   = multer({ storage: postStorage,   limits: { fileSize: 10 * 1024 * 1024, files: 1 }, fileFilter });
+const uploadAvatar = multer({ storage: avatarStorage, limits: { fileSize:  5 * 1024 * 1024, files: 1 }, fileFilter });
+const uploadEvent  = multer({ storage: eventStorage,  limits: { fileSize: 10 * 1024 * 1024, files: 1 }, fileFilter });
+
+module.exports = { uploadPost, uploadAvatar, uploadEvent };

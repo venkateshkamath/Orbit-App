@@ -129,7 +129,7 @@ function PostItem({
             <Ionicons
               name={isLiked ? 'heart' : 'heart-outline'}
               size={24}
-              color={isLiked ? colors.error : colors.text.secondary}
+              color={isLiked ? colors.secondary.default : colors.text.secondary}
             />
           </TouchableOpacity>
           <TouchableOpacity onPress={onComment} style={styles.actionButton}>
@@ -303,10 +303,10 @@ export default function FeedScreen() {
         },
         headerTitle: {
           fontSize: 28,
-          fontWeight: '700',
+          fontWeight: '800',
           color: colors.text.primary,
-          letterSpacing: -0.5,
-          fontFamily: fonts.bold,
+          letterSpacing: -1,
+          fontFamily: fonts.extrabold,
         },
         headerCompose: {
           width: 44,

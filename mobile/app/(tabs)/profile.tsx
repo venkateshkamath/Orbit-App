@@ -191,13 +191,12 @@ export default function ProfileScreen() {
     heroWrap: {
       marginHorizontal: -Spacing.lg,
       marginBottom: Spacing.lg,
-      backgroundColor: colors.background.secondary,
+      overflow: 'hidden',
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: colors.border,
     },
     heroGradient: {
       ...StyleSheet.absoluteFillObject,
-      opacity: 0.6,
     },
     heroInner: {
       paddingTop: Platform.OS === 'android' ? Spacing.lg : Spacing.lg,
@@ -249,10 +248,10 @@ export default function ProfileScreen() {
       fontSize: FontSizes.display,
       fontWeight: FontWeights.extrabold,
       color: colors.text.primary,
-      letterSpacing: -0.5,
+      letterSpacing: -1,
       marginBottom: Spacing.xs,
       textAlign: 'center',
-      fontFamily: fonts.bold,
+      fontFamily: fonts.extrabold,
     },
     heroEmail: {
       fontSize: FontSizes.sm,
@@ -283,25 +282,28 @@ export default function ProfileScreen() {
     },
     statPill: {
       flex: 1,
-      backgroundColor: colors.background.tertiary,
-      borderRadius: BorderRadius.md,
+      backgroundColor: colors.background.card,
+      borderRadius: BorderRadius.lg,
       paddingVertical: Spacing.md,
       paddingHorizontal: Spacing.xs,
       alignItems: 'center',
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
     },
     statPillValue: {
-      fontSize: FontSizes.lg,
+      fontSize: FontSizes.xl,
       fontWeight: FontWeights.bold,
       color: colors.text.primary,
       marginTop: Spacing.xs,
       fontFamily: fonts.bold,
+      letterSpacing: -0.5,
     },
     statPillLabel: {
       fontSize: 10,
       fontWeight: FontWeights.semibold,
       color: colors.text.tertiary,
       marginTop: 2,
-      letterSpacing: 0.5,
+      letterSpacing: 0.8,
       textTransform: 'uppercase',
       fontFamily: fonts.semibold,
     },
@@ -650,6 +652,15 @@ export default function ProfileScreen() {
         >
           {/* Hero */}
           <View style={styles.heroWrap}>
+            <LinearGradient
+              colors={[
+                colors.primary.dark + '28',
+                colors.background.secondary,
+              ]}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              style={styles.heroGradient}
+            />
             <View style={styles.heroInner}>
               <View style={styles.heroTopRow}>
                 <TouchableOpacity

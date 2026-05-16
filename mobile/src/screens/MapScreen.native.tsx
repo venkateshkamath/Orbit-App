@@ -16,20 +16,26 @@ import {
   TextInput,
   Keyboard,
   InteractionManager,
+  Image,
+  TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import MapView, { Marker, Circle, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
+import MapView, { Marker, Circle, Callout, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { format } from 'date-fns';
 import { FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
-import { useNearbyUsersQuery, useNotificationsQuery } from '../hooks/useOrbitApi';
+import { useNearbyUsersQuery, useNotificationsQuery, useNearbyEventsQuery, useDeleteEventMutation } from '../hooks/useOrbitApi';
 import { DiscoverNotificationsPanel } from '../components/DiscoverNotificationsPanel';
+import { CreateEventModal, EVENT_CATEGORY_META } from '../components/CreateEventModal';
 import { useAuthStore } from '../stores';
 import { useOrbitTheme } from '../theme';
 import { AppText } from '../ui/AppText';
 import { googleMapStyleDark, googleMapStyleLight } from '../theme/mapStyles';
+import type { OrbitEvent } from '../types';
 
 const DEFAULT_REGION: Region = {
   latitude: 37.78825,
@@ -107,9 +113,19 @@ export default function MapScreen({ variant: _variant = 'discover' }: MapScreenP
 
   const { refetch: refetchNearby } = nearbyQuery;
 
-  const [notifOpen, setNotifOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [filterOpen, setFilterOpen] = useState(false);
+  const [notifOpen, setNotifOpen]         = useState(false);
+  const [searchOpen, setSearchOpen]       = useState(false);
+  const [filterOpen, setFilterOpen]       = useState(false);
+  const [createEventOpen, setCreateEventOpen] = useState(false);
+
+  const eventsQuery = useNearbyEventsQuery(
+    user?.latitude,
+    user?.longitude,
+    radius,
+    !loading && user?.latitude != null && user?.longitude != null,
+  );
+  const nearbyEvents = eventsQuery.data?.events ?? [];
+  const deleteEventMutation = useDeleteEventMutation();
   /**
    * iOS MapKit + react-native-maps: `showsCompass={false}` runs before `MKCompassButton` is
    * created in `layoutSubviews`, so visibility never becomes hidden. Pulse true→false after
@@ -473,6 +489,73 @@ export default function MapScreen({ variant: _variant = 'discover' }: MapScreenP
           color: colors.text.primary,
           fontFamily: fonts.bold,
         },
+        eventMarkerOuter: {
+          width: 42,
+          height: 42,
+          borderRadius: 21,
+          borderWidth: 2.5,
+          borderColor: '#FFFFFF',
+          alignItems: 'center',
+          justifyContent: 'center',
+          overflow: 'hidden',
+          ...shadows.md,
+        },
+        eventMarkerGrad: {
+          ...StyleSheet.absoluteFillObject,
+        },
+        eventMarkerImage: {
+          width: '100%',
+          height: '100%',
+          borderRadius: 21,
+        },
+        eventCalloutWrap: {
+          width: 220,
+          backgroundColor: colors.background.elevated,
+          borderRadius: BorderRadius.lg,
+          padding: Spacing.md,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: colors.borderLight,
+        },
+        eventCalloutTitle: {
+          fontSize: FontSizes.sm,
+          fontWeight: FontWeights.bold,
+          color: colors.text.primary,
+          fontFamily: fonts.bold,
+          marginBottom: 2,
+        },
+        eventCalloutMeta: {
+          fontSize: 11,
+          color: colors.text.secondary,
+          fontFamily: fonts.regular,
+          marginBottom: 2,
+        },
+        eventCalloutCategory: {
+          fontSize: 11,
+          color: colors.primary.light,
+          fontFamily: fonts.medium,
+          textTransform: 'capitalize',
+        },
+        eventCalloutDeleteBtn: {
+          marginTop: 8,
+          paddingVertical: 5,
+          borderRadius: BorderRadius.sm,
+          backgroundColor: colors.error + '22',
+          alignItems: 'center',
+        },
+        plusBtn: {
+          width: 52,
+          height: 52,
+          borderRadius: 26,
+          overflow: 'hidden',
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: isLight ? 'rgba(255,255,255,0.65)' : 'rgba(255,255,255,0.14)',
+          ...shadows.lg,
+        },
+        plusGrad: {
+          ...StyleSheet.absoluteFillObject,
+        },
       }),
     [colors, shadows, isLight, fonts]
   );
@@ -485,6 +568,39 @@ export default function MapScreen({ variant: _variant = 'discover' }: MapScreenP
       </View>
     );
   }
+
+  function EventMarker({ event }: { event: OrbitEvent }) {
+    const meta = EVENT_CATEGORY_META[event.category];
+    return (
+      <View style={styles.eventMarkerOuter} collapsable={false}>
+        {event.image_url ? (
+          <Image source={{ uri: event.image_url }} style={styles.eventMarkerImage} />
+        ) : (
+          <LinearGradient
+            colors={meta.gradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.eventMarkerGrad}
+          >
+            <Ionicons name={meta.icon} size={20} color="#FFFFFF" />
+          </LinearGradient>
+        )}
+      </View>
+    );
+  }
+
+  const handleDeleteEvent = (eventId: string, title: string) => {
+    Alert.alert(`Delete "${title}"?`, 'This will remove the event from the map.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => {
+          deleteEventMutation.mutate(eventId);
+        },
+      },
+    ]);
+  };
 
   const nearbyLabel =
     nearbyOthers.length >= 100 ? '100+ nearby' : `${nearbyOthers.length} orbitter`;
@@ -567,6 +683,46 @@ export default function MapScreen({ variant: _variant = 'discover' }: MapScreenP
                 </Marker>
               );
             })}
+
+          {nearbyEvents.map((event) => (
+            <Marker
+              key={event.id}
+              coordinate={{ latitude: event.latitude, longitude: event.longitude }}
+              anchor={{ x: 0.5, y: 0.5 }}
+              zIndex={3}
+              tracksViewChanges={Platform.OS === 'android'}
+            >
+              <EventMarker event={event} />
+              <Callout tooltip>
+                <View style={styles.eventCalloutWrap}>
+                  <AppText style={styles.eventCalloutTitle} numberOfLines={2}>
+                    {event.title}
+                  </AppText>
+                  <AppText style={styles.eventCalloutMeta}>
+                    {format(new Date(event.start_at), 'MMM d · h:mm a')}
+                  </AppText>
+                  {event.location_name ? (
+                    <AppText style={styles.eventCalloutMeta} numberOfLines={1}>
+                      {event.location_name}
+                    </AppText>
+                  ) : null}
+                  <AppText style={styles.eventCalloutCategory}>
+                    {EVENT_CATEGORY_META[event.category].label}
+                  </AppText>
+                  {event.is_own && (
+                    <TouchableOpacity
+                      style={styles.eventCalloutDeleteBtn}
+                      onPress={() => handleDeleteEvent(event.id, event.title)}
+                    >
+                      <AppText style={{ color: colors.error, fontSize: 12, fontFamily: fonts.semibold }}>
+                        Delete Event
+                      </AppText>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </Callout>
+            </Marker>
+          ))}
         </MapView>
       </View>
 
@@ -637,6 +793,23 @@ export default function MapScreen({ variant: _variant = 'discover' }: MapScreenP
       </View>
 
       <View style={[styles.recenterWrap, { bottom: 18 + tabBarHeight }]} pointerEvents="box-none">
+        {/* Plus button — create event */}
+        <Pressable
+          onPress={() => setCreateEventOpen(true)}
+          accessibilityLabel="Create event"
+          android_ripple={{ color: 'rgba(255,255,255,0.25)' }}
+          style={({ pressed }) => [styles.plusBtn, pressed && { opacity: 0.92 }, { marginBottom: 12 }]}
+        >
+          <LinearGradient
+            colors={[colors.secondary.start, colors.secondary.end]}
+            start={{ x: 0.2, y: 0 }}
+            end={{ x: 0.9, y: 1 }}
+            style={styles.plusGrad}
+          />
+          <Ionicons name="add" size={28} color="#FFFFFF" />
+        </Pressable>
+
+        {/* Recenter button */}
         <Pressable
           onPress={centerOnUser}
           accessibilityLabel="Center map on my location"
@@ -654,6 +827,17 @@ export default function MapScreen({ variant: _variant = 'discover' }: MapScreenP
       </View>
 
       <DiscoverNotificationsPanel visible={notifOpen} onClose={() => setNotifOpen(false)} />
+
+      <CreateEventModal
+        visible={createEventOpen}
+        onClose={() => setCreateEventOpen(false)}
+        onCreated={() => {
+          setCreateEventOpen(false);
+          void eventsQuery.refetch();
+        }}
+        initialLat={userLocation?.latitude}
+        initialLng={userLocation?.longitude}
+      />
 
       <Modal visible={searchOpen} animationType="fade" transparent onRequestClose={() => setSearchOpen(false)}>
         <Pressable

@@ -16,6 +16,8 @@ export const orbitKeys = {
   likesReceived: () => ['orbit', 'discover', 'likes-received'] as const,
   notifications: () => ['orbit', 'notifications'] as const,
   searchUsers: (q: string) => ['orbit', 'users', 'search', q] as const,
+  nearbyEvents: (lat: number | string, lng: number | string, radius: number) =>
+    ['orbit', 'events', 'nearby', lat, lng, radius] as const,
 };
 
 export function locationKeyPart(lat: number | null | undefined, lng: number | null | undefined) {

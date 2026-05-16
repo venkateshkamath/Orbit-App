@@ -5,6 +5,7 @@ import { connectionsApi } from '../api/connections';
 import { discoveryApi } from '../api/discovery';
 import { postApi } from '../api/posts';
 import { notificationsApi } from '../api/notifications';
+import { eventsApi } from '../api/events';
 import type { Conversation, Message, Post, PublicProfileResponse, LikeReceivedItem } from '../types';
 import { useAuthStore } from '../stores';
 import { locationKeyPart, orbitKeys } from './orbitKeys';
@@ -569,6 +570,41 @@ export function useStartConversationMutation() {
       chatApi.startConversation(userId, message),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: orbitKeys.conversations() });
+    },
+  });
+}
+
+export function useNearbyEventsQuery(
+  lat: number | null | undefined,
+  lng: number | null | undefined,
+  radius = 5000,
+  enabled = true,
+) {
+  const { latKey, lngKey } = locationKeyPart(lat, lng);
+  return useQuery({
+    queryKey: orbitKeys.nearbyEvents(latKey, lngKey, radius),
+    queryFn: () => eventsApi.getNearby(lat!, lng!, radius),
+    enabled: enabled && lat != null && lng != null,
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useCreateEventMutation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (formData: FormData) => eventsApi.create(formData),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['orbit', 'events'] });
+    },
+  });
+}
+
+export function useDeleteEventMutation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (eventId: string) => eventsApi.remove(eventId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['orbit', 'events'] });
     },
   });
 }

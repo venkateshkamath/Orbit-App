@@ -10,5 +10,6 @@ router.use(require('./postsRoutes'));
 router.use(require('./chatRoutes'));
 router.use(require('./notificationsRoutes'));
 router.use(require('./connectionsRoutes'));
+router.use(require('./eventsRoutes'));
 
 module.exports = router;

@@ -26,7 +26,7 @@ export default function WelcomeScreen() {
   const insets = useSafeAreaInsets();
   const { height: winH } = useWindowDimensions();
 
-  const accent = colors.secondary.default;
+  const accent = colors.primary.light;
   const RING = 52;
   const BORDER = 3.5;
   const DOT = 11;
@@ -34,7 +34,7 @@ export default function WelcomeScreen() {
   const s = useMemo(
     () =>
       StyleSheet.create({
-        root: { flex: 1, backgroundColor: '#080A12' },
+        root: { flex: 1, backgroundColor: '#08090F' },
 
         safe: {
           flex: 1,
@@ -109,11 +109,11 @@ export default function WelcomeScreen() {
           paddingBottom: 4,
         },
         headline: {
-          fontSize: 34,
+          fontSize: 36,
           fontWeight: '800',
-          letterSpacing: -0.8,
-          lineHeight: 40,
-          fontFamily: fonts.bold,
+          letterSpacing: -1.2,
+          lineHeight: 42,
+          fontFamily: fonts.extrabold,
           color: '#FFFFFF',
         },
         sub: {
@@ -173,15 +173,15 @@ export default function WelcomeScreen() {
 
       <LinearGradient
         colors={[
-          '#08091A',
-          '#0C0E24',
-          '#11132E',
-          '#151338',
-          '#17143A',
-          '#151236',
-          '#110F2E',
-          '#0D0E22',
-          '#0A0B18',
+          '#08090F',
+          '#0B0C1C',
+          '#0F1028',
+          '#121230',
+          '#141334',
+          '#121230',
+          '#0F1028',
+          '#0B0C1C',
+          '#08090F',
         ]}
         locations={[0, 0.12, 0.25, 0.38, 0.5, 0.62, 0.75, 0.88, 1]}
         start={{ x: 0.5, y: 0 }}
@@ -192,7 +192,7 @@ export default function WelcomeScreen() {
       <View style={s.safe}>
         <View style={s.brand}>
           <LinearGradient
-            colors={['#3B3F72', '#252850']}
+            colors={['#3A2B8C', '#1E1558']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={s.logoTile}

@@ -8,3 +8,5 @@ export { default as ConversationItem } from './ConversationItem';
 export { default as MessageBubble } from './MessageBubble';
 export { default as MatchModal } from './MatchModal';
 export { CommentsModal } from './CommentsModal';
+export { CreateEventModal, EVENT_CATEGORY_META } from './CreateEventModal';
+export type { CategoryMeta } from './CreateEventModal';

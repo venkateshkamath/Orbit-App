@@ -4,3 +4,4 @@ export { discoveryApi } from './discovery';
 export { chatApi } from './chat';
 export { postApi } from './posts';
 export { notificationsApi } from './notifications';
+export { eventsApi } from './events';
