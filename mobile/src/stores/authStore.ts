@@ -36,14 +36,10 @@ const storage = {
   },
 };
 
-async function persistSession(response: AuthResponse, onboardingCompleteOverride?: boolean) {
+async function persistSession(response: AuthResponse) {
   await storage.setItem('accessToken', response.tokens.access);
   await storage.setItem('refreshToken', response.tokens.refresh);
-  const onboardingComplete =
-    onboardingCompleteOverride !== undefined
-      ? onboardingCompleteOverride
-      : response.user.interests.length > 0;
-  return { user: response.user, isAuthenticated: true as const, isOnboardingComplete: onboardingComplete };
+  return { user: response.user, isAuthenticated: true as const, isOnboardingComplete: true };
 }
 
 interface AuthState {
@@ -91,7 +87,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   verifySignupOtp: async (email, code) => {
     try {
       const response = await authApi.verifyOtp({ email, code, purpose: 'signup' });
-      const next = await persistSession(response, false);
+      const next = await persistSession(response);
       set(next);
     } catch (error: unknown) {
       throw new Error(formatApiError(error));
@@ -149,7 +145,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         user,
         isAuthenticated: true,
         isLoading: false,
-        isOnboardingComplete: user.interests.length > 0,
+        isOnboardingComplete: true,
       });
     } catch (error) {
       await storage.removeItem('accessToken');
@@ -161,11 +157,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   updateProfile: async (data) => {
     try {
       const updatedUser = await authApi.updateProfile(data);
-      const interestsDone = updatedUser.interests?.length > 0;
-      set({
-        user: updatedUser,
-        ...(interestsDone ? { isOnboardingComplete: true } : {}),
-      });
+      set({ user: updatedUser });
     } catch (error: unknown) {
       throw new Error(formatApiError(error));
     }

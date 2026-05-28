@@ -333,9 +333,6 @@ export default function ProfileScreen() {
                 <AppText style={styles.sectionKicker}>Passions</AppText>
                 <AppText style={styles.sectionTitleLarge}>Interests</AppText>
               </View>
-              <TouchableOpacity onPress={() => router.push('/(onboarding)/interests')} hitSlop={12}>
-                <AppText style={styles.editLink}>Edit</AppText>
-              </TouchableOpacity>
             </View>
             <GlassCard padding={Spacing.md} style={styles.interestsCard}>
               <View style={styles.interestsContainer}>

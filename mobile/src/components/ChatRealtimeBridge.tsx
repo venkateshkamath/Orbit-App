@@ -31,14 +31,14 @@ export function ChatRealtimeBridge() {
   const qc = useQueryClient();
   const pathname = usePathname();
   const router = useRouter();
-  const { isAuthenticated, isOnboardingComplete, user } = useAuthStore();
+  const { isAuthenticated, user } = useAuthStore();
   const pathnameRef = useRef(pathname);
   const userIdRef = useRef<string | undefined>(undefined);
   pathnameRef.current = pathname;
   userIdRef.current = user?.id;
 
   useEffect(() => {
-    if (!isAuthenticated || !isOnboardingComplete || Platform.OS === 'web') {
+    if (!isAuthenticated || Platform.OS === 'web') {
       stopChatRealtime();
       return undefined;
     }
@@ -49,7 +49,7 @@ export function ChatRealtimeBridge() {
     return () => {
       stopChatRealtime();
     };
-  }, [isAuthenticated, isOnboardingComplete]);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     return subscribeChatEvents((event: ChatRealtimeEvent) => {
