@@ -33,7 +33,7 @@ const SLOT = CIRCLE + GAP;
 
 const TAB_GLYPHS: Record<string, { on: IoniconName; off: IoniconName }> = {
   index: { on: 'compass', off: 'compass-outline' },
-  feed: { on: 'flash', off: 'flash-outline' },
+  feed: { on: 'calendar', off: 'calendar-outline' },
   chat: { on: 'chatbubbles', off: 'chatbubbles-outline' },
   profile: { on: 'person', off: 'person-outline' },
 };

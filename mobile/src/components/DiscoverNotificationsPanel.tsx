@@ -82,7 +82,7 @@ export function DiscoverNotificationsPanel({ visible, onClose }: Props) {
           borderBottomColor: colors.border,
         },
         rowUnread: {
-          backgroundColor: isDark ? 'rgba(124, 107, 239, 0.08)' : 'rgba(124, 107, 239, 0.06)',
+          backgroundColor: isDark ? colors.primary.default + '14' : colors.primary.default + '12',
         },
         iconWrap: {
           width: 40,

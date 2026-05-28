@@ -6,6 +6,10 @@ export const eventsApi = {
     return api.get('/events/nearby/', { params: { lat, lng, radius } }).then((r) => r.data);
   },
 
+  getFeed(): Promise<{ count: number; results: OrbitEvent[] }> {
+    return api.get('/events/feed/').then((r) => r.data);
+  },
+
   create(formData: FormData): Promise<OrbitEvent> {
     return api
       .post('/events/', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
@@ -14,6 +18,10 @@ export const eventsApi = {
 
   getOne(id: string): Promise<OrbitEvent> {
     return api.get(`/events/${id}/`).then((r) => r.data);
+  },
+
+  join(id: string): Promise<{ event: OrbitEvent; conversation_id: string }> {
+    return api.post(`/events/${id}/join/`).then((r) => r.data);
   },
 
   remove(id: string): Promise<void> {

@@ -12,6 +12,7 @@ async function isConversationParticipant(conversationId, userId) {
 
 function findConversationBetweenUsers(userId, otherUserId) {
   return Conversation.findOne({
+    kind: { $ne: 'event' },
     participants: { $all: [userId, otherUserId] },
   });
 }
@@ -75,7 +76,9 @@ async function serializeConversation(conversation, currentUserId, req) {
     participants.push(await serializePublicUser(participant, req));
   }
   const other =
-    conversation.participants.find((p) => String(p._id) !== String(currentUserId)) || null;
+    conversation.kind === 'event'
+      ? null
+      : conversation.participants.find((p) => String(p._id) !== String(currentUserId)) || null;
   const [blockedByMeRow, blockedByOtherRow] = other
     ? await Promise.all([
         UserBlock.findOne({ blocker: currentUserId, blocked: other._id }).select('_id').lean(),
@@ -100,6 +103,9 @@ async function serializeConversation(conversation, currentUserId, req) {
 
   return {
     id: String(conversation._id),
+    kind: conversation.kind || 'direct',
+    name: conversation.name || '',
+    event: conversation.event ? String(conversation.event) : null,
     participants,
     other_participant: other ? await serializePublicUser(other, req) : null,
     last_message: lastMessageRow ? await serializeMessage(lastMessageRow, req) : null,

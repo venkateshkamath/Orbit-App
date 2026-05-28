@@ -42,7 +42,7 @@ export default function TabsLayout() {
             <Tabs.Screen
               name="feed"
               options={{
-                title: 'Live',
+                title: 'Moments',
               }}
             />
             <Tabs.Screen

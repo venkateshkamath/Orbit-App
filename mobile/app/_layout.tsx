@@ -46,11 +46,11 @@ function RootLayoutNav() {
       }),
     [colors, fonts]
   );
-  const { isLoading, loadUser, isAuthenticated, isOnboardingComplete } = useAuthStore();
+  const { isLoading, loadUser, isAuthenticated } = useAuthStore();
   const router = useRouter();
   const segments = useSegments();
   const [mounted, setMounted] = useState(false);
-  const shouldTrackPresence = mounted && !isLoading && isAuthenticated && isOnboardingComplete;
+  const shouldTrackPresence = mounted && !isLoading && isAuthenticated;
 
   usePresenceLifecycle(shouldTrackPresence);
 
@@ -63,39 +63,25 @@ function RootLayoutNav() {
   useEffect(() => {
     if (!mounted || isLoading) return;
 
-    const inAuthGroup = segments[0] === '(auth)';
-    const inOnboardingGroup = segments[0] === '(onboarding)';
-    const inTabsGroup = segments[0] === '(tabs)';
-    const inChatStack = segments[0] === 'chat';
-    const inUserStack = segments[0] === 'user';
-    const inSearchStack = segments[0] === 'search';
-    /** Lets completed users open interests from Profile without being forced back to tabs. */
-    const inOnboardingInterests =
-      segments[0] === '(onboarding)' && segments[1] === 'interests';
-    const inMainApp =
-      inTabsGroup || inChatStack || inUserStack || inSearchStack || inOnboardingInterests;
+    const topSegment = segments[0] as string | undefined;
+    const inAuthGroup = topSegment === '(auth)';
+    const inTabsGroup = topSegment === '(tabs)';
+    const inChatStack = topSegment === 'chat';
+    const inUserStack = topSegment === 'user';
+    const inEventStack = topSegment === 'event';
+    const inSearchStack = topSegment === 'search';
+    const inMainApp = inTabsGroup || inChatStack || inUserStack || inEventStack || inSearchStack;
 
-    // Redirect logic
     if (!isAuthenticated) {
-      // Not authenticated - should be on welcome or auth screens
-      if (inTabsGroup || inOnboardingGroup) {
-        router.replace('/');
-      }
-    } else if (!isOnboardingComplete) {
-      // Authenticated but needs onboarding
-      if (!inOnboardingGroup) {
-        router.replace('/(onboarding)/interests');
-      }
+      if (inTabsGroup) router.replace('/');
     } else {
-      // Fully authenticated — tabs, chat thread, or user profile
-      if (!inMainApp) {
-        router.replace('/(tabs)');
-      }
+      // Don't redirect while still in the auth flow (signup completes its own navigation)
+      if (!inMainApp && !inAuthGroup) router.replace('/(tabs)');
     }
-  }, [isAuthenticated, isOnboardingComplete, isLoading, mounted, segments, router]);
+  }, [isAuthenticated, isLoading, mounted, segments, router]);
 
   useEffect(() => {
-    if (!mounted || isLoading || !isAuthenticated || !isOnboardingComplete) return undefined;
+    if (!mounted || isLoading || !isAuthenticated) return undefined;
 
     void prepareNotificationEnvironment();
 
@@ -125,7 +111,7 @@ function RootLayoutNav() {
     return () => {
       cancelled = true;
     };
-  }, [mounted, isLoading, isAuthenticated, isOnboardingComplete]);
+  }, [mounted, isLoading, isAuthenticated]);
 
   const statusStyle = resolvedScheme === 'dark' ? 'light' : 'dark';
 

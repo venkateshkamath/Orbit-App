@@ -121,7 +121,7 @@ async function sendOtpEmail(email, code, purpose) {
       }
     }
   } else if (env.SMTP_HOST && env.SMTP_USER && !String(env.SMTP_PASS || '').trim()) {
-    console.warn('[ORBIT OTP] SMTP_USER is set but SMTP_PASS is empty — cannot send mail.');
+    console.warn('[ORBIT OTP] SMTP_USER is set but SMTP_PASS is empty —  cannot send mail.');
   }
 
   logOtpToConsole(email, code, purpose);

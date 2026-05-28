@@ -21,8 +21,6 @@ import { BorderRadius, FontSizes, FontWeights, Spacing } from '../../constants/C
 import { useOrbitTheme } from '../theme';
 import { AppText } from '../ui/AppText';
 
-const CTA_TEXT = '#FFFFFF';
-
 interface GradientButtonProps {
   title: string;
   onPress: () => void;
@@ -50,6 +48,7 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
 }) => {
   const { colors } = useOrbitTheme();
   const scale = useSharedValue(1);
+  const primaryTextColor = colors.text.primary;
 
   const styles = useMemo(
     () =>
@@ -68,10 +67,10 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
           zIndex: 1,
         },
         text: {
-          color: CTA_TEXT,
+          color: primaryTextColor,
           fontWeight: FontWeights.semibold,
           textAlign: 'center',
-          letterSpacing: 0.2,
+          letterSpacing: 0,
         },
         secondaryShell: {
           borderRadius: BorderRadius.lg,
@@ -101,7 +100,7 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
           opacity: 0.48,
         },
       }),
-    [colors]
+    [colors, primaryTextColor]
   );
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -219,7 +218,7 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
         />
         <View style={[styles.row, sizeStyles[size]]}>
           {loading ? (
-            <ActivityIndicator color={CTA_TEXT} />
+            <ActivityIndicator color={primaryTextColor} />
           ) : (
             <>
               {icon}

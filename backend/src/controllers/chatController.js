@@ -74,7 +74,7 @@ function findOtherParticipantId(conversationOrParticipants, userId) {
 }
 
 async function getConversationForParticipant(conversationId, userId) {
-  const conversation = await Conversation.findById(conversationId).select('participants').lean();
+  const conversation = await Conversation.findById(conversationId).select('participants kind').lean();
   const isParticipant =
     conversation?.participants?.some((pid) => String(pid) === String(userId)) || false;
   if (!conversation || !isParticipant) return null;
@@ -201,7 +201,9 @@ async function sendMessage(req, res) {
     return;
   }
   const otherParticipantId = findOtherParticipantId(conversation, req.user._id);
-  const blockState = await getBlockStateBetweenUsers(req.user._id, otherParticipantId);
+  const blockState = conversation.kind === 'event'
+    ? { isBlocked: false, blockedByMe: false, blockedByOther: false }
+    : await getBlockStateBetweenUsers(req.user._id, otherParticipantId);
   if (blockState.isBlocked) {
     res.status(403).json({
       code: 'chat_blocked',
@@ -267,6 +269,10 @@ async function blockConversationUser(req, res) {
     return;
   }
   const otherParticipantId = findOtherParticipantId(conversation, req.user._id);
+  if (conversation.kind === 'event') {
+    res.status(400).json({ error: 'Event groups cannot be blocked from here.' });
+    return;
+  }
   if (!otherParticipantId) {
     res.status(400).json({ error: 'Cannot block in this conversation.' });
     return;
@@ -313,6 +319,10 @@ async function unblockConversationUser(req, res) {
     return;
   }
   const otherParticipantId = findOtherParticipantId(conversation, req.user._id);
+  if (conversation.kind === 'event') {
+    res.status(400).json({ error: 'Event groups cannot be unblocked from here.' });
+    return;
+  }
   if (!otherParticipantId) {
     res.status(400).json({ error: 'Cannot unblock in this conversation.' });
     return;

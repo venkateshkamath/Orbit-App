@@ -63,17 +63,20 @@ export function useDeletePostMutation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (postId: string) => postApi.deletePost(postId),
-    onMutate: async (postId: string) => {
+    onMutate: async (postId) => {
       await qc.cancelQueries({ queryKey: ['orbit', 'feed'] });
-      const previousFeed = qc.getQueryData<Post[]>(orbitKeys.feed());
-      qc.setQueryData<Post[]>(orbitKeys.feed(), (old) =>
-        (old ?? []).filter((p) => p.id !== postId)
-      );
-      return { previousFeed };
+      const feedQueries = qc.getQueriesData<Post[]>({ queryKey: ['orbit', 'feed'] });
+      const snapshots = feedQueries.map(([key, data]) => [key, data] as const);
+      for (const [key] of feedQueries) {
+        qc.setQueryData<Post[]>(key, (old) => (old ?? []).filter((p) => p.id !== postId));
+      }
+      return { snapshots };
     },
     onError: (_err, _postId, ctx) => {
-      if (ctx?.previousFeed !== undefined) {
-        qc.setQueryData(orbitKeys.feed(), ctx.previousFeed);
+      if (ctx?.snapshots) {
+        for (const [key, data] of ctx.snapshots) {
+          qc.setQueryData(key, data);
+        }
       }
     },
     onSettled: () => {
@@ -556,7 +559,8 @@ export function useSendConnectionRequestMutation() {
   return useMutation({
     mutationFn: (targetUserId: string) => connectionsApi.sendRequest(targetUserId),
     onSuccess: (_data, targetUserId) => {
-      // Refresh all open search result pages so orbit state updates
+      qc.invalidateQueries({ queryKey: orbitKeys.likesReceived() });
+      qc.invalidateQueries({ queryKey: orbitKeys.matches() });
       qc.invalidateQueries({ queryKey: ['orbit', 'users', 'search'] });
       qc.invalidateQueries({ queryKey: orbitKeys.publicProfile(targetUserId) });
     },
@@ -589,12 +593,45 @@ export function useNearbyEventsQuery(
   });
 }
 
+export function useEventsFeedQuery() {
+  return useQuery({
+    queryKey: orbitKeys.eventsFeed(),
+    queryFn: () => eventsApi.getFeed(),
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useEventQuery(eventId: string | undefined) {
+  return useQuery({
+    queryKey: eventId ? orbitKeys.event(eventId) : ['orbit', 'events', 'detail', 'none'],
+    queryFn: () => eventsApi.getOne(eventId!),
+    enabled: Boolean(eventId),
+    staleTime: 30 * 1000,
+  });
+}
+
 export function useCreateEventMutation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (formData: FormData) => eventsApi.create(formData),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['orbit', 'events'] });
+      qc.invalidateQueries({ queryKey: ['orbit', 'feed'] });
+    },
+  });
+}
+
+export function useJoinEventMutation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (eventId: string) => eventsApi.join(eventId),
+    onSuccess: (data, eventId) => {
+      qc.invalidateQueries({ queryKey: ['orbit', 'events'] });
+      qc.invalidateQueries({ queryKey: orbitKeys.event(eventId) });
+      qc.invalidateQueries({ queryKey: orbitKeys.conversations() });
+      if (data?.event) {
+        qc.setQueryData(orbitKeys.event(eventId), data.event);
+      }
     },
   });
 }

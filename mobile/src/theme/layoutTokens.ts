@@ -20,12 +20,19 @@ export const BorderRadius = {
 
 export const FontSizes = {
   xs: 12,
+  caption: 12,
   sm: 14,
+  bodySmall: 14,
   md: 16,
+  body: 16,
+  bodyLarge: 17,
   lg: 18,
   xl: 20,
+  sectionTitle: 20,
   xxl: 24,
+  screenTitle: 28,
   xxxl: 30,
+  hero: 34,
   display: 36,
 };
 

@@ -22,6 +22,10 @@ import { orbitFontFamily, orbitFontFamilyFallback, type OrbitFontFamilyMap } fro
 
 void SplashScreen.preventAutoHideAsync().catch(() => {});
 
+function resolveActiveScheme(): 'light' | 'dark' {
+  return 'light';
+}
+
 export type OrbitThemeContextValue = {
   colors: OrbitThemeColors;
   shadows: OrbitShadowSet;
@@ -52,10 +56,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const preference = useThemeStore((s) => s.preference);
   const setPreference = useThemeStore((s) => s.setPreference);
-  const systemScheme = useColorScheme();
+  useColorScheme();
 
-  const resolvedScheme: 'light' | 'dark' =
-    preference === 'system' ? (systemScheme === 'light' ? 'light' : 'dark') : preference;
+  const resolvedScheme = resolveActiveScheme();
 
   const fonts = useMemo(
     () => (fontsLoaded && !fontError ? orbitFontFamily : orbitFontFamilyFallback),
@@ -79,7 +82,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [resolvedScheme, preference, setPreference, fonts, fontsReady]);
 
   if (!fontsLoaded && !fontError) {
-    return <View style={[styles.boot, { backgroundColor: darkPalette.background.primary }]} />;
+    return <View style={[styles.boot, { backgroundColor: lightPalette.background.primary }]} />;
   }
 
   return (

@@ -10,6 +10,7 @@ import {
   Dimensions,
   TouchableOpacity,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -40,7 +41,7 @@ export const UserCard: React.FC<UserCardProps> = ({
   onPass,
   onPress,
 }) => {
-  const { colors, shadows } = useOrbitTheme();
+  const { colors, shadows, fonts } = useOrbitTheme();
   const likeScale = useSharedValue(1);
   const passScale = useSharedValue(1);
 
@@ -57,10 +58,11 @@ export const UserCard: React.FC<UserCardProps> = ({
           borderRadius: BorderRadius.xl,
           overflow: 'hidden',
           borderWidth: StyleSheet.hairlineWidth,
-          borderColor: colors.border,
+          borderColor: colors.borderLight,
+          ...shadows.lg,
         },
         imageContainer: {
-          height: 320,
+          height: 340,
           position: 'relative',
         },
         image: {
@@ -73,44 +75,52 @@ export const UserCard: React.FC<UserCardProps> = ({
           height: '100%',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: colors.background.tertiary,
         },
         placeholderText: {
-          fontSize: 80,
+          fontSize: 96,
           fontWeight: FontWeights.bold,
           color: colors.text.primary,
+          fontFamily: fonts.extrabold,
+          letterSpacing: 0,
         },
         hiddenPhotoLabel: {
-          marginTop: Spacing.md,
+          marginTop: Spacing.sm,
           color: colors.text.secondary,
           fontSize: FontSizes.sm,
+          fontFamily: fonts.regular,
+          letterSpacing: 0.2,
         },
         imageFade: {
           position: 'absolute',
           left: 0,
           right: 0,
           bottom: 0,
-          height: 100,
-          backgroundColor: 'rgba(0,0,0,0.5)',
+          height: 140,
         },
-        matchBadge: {
+        matchBadgeWrap: {
           position: 'absolute',
           top: Spacing.md,
           right: Spacing.md,
+          borderRadius: BorderRadius.md,
+          overflow: 'hidden',
+        },
+        matchBadgeGradient: {
           paddingHorizontal: Spacing.md,
-          paddingVertical: Spacing.xs,
-          borderRadius: BorderRadius.sm,
+          paddingVertical: 6,
           alignItems: 'center',
         },
         matchText: {
-          color: '#FAFAFA',
+          color: colors.text.primary,
           fontSize: FontSizes.lg,
           fontWeight: FontWeights.bold,
+          fontFamily: fonts.bold,
+          letterSpacing: 0,
         },
         matchLabel: {
-          color: '#FAFAFA',
-          fontSize: FontSizes.xs,
-          opacity: 0.9,
+          color: colors.text.secondary,
+          fontSize: 10,
+          fontFamily: fonts.regular,
+          letterSpacing: 0.2,
         },
         onlineBadge: {
           position: 'absolute',
@@ -118,25 +128,28 @@ export const UserCard: React.FC<UserCardProps> = ({
           left: Spacing.md,
           flexDirection: 'row',
           alignItems: 'center',
-          backgroundColor: 'rgba(0,0,0,0.5)',
+          backgroundColor: colors.background.elevated,
           paddingHorizontal: Spacing.sm,
           paddingVertical: Spacing.xs,
           borderRadius: BorderRadius.full,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: colors.borderLight,
         },
         onlineDot: {
-          width: 8,
-          height: 8,
+          width: 7,
+          height: 7,
           borderRadius: 4,
           backgroundColor: colors.online,
           marginRight: Spacing.xs,
         },
         onlineText: {
-          color: '#FAFAFA',
+          color: colors.text.primary,
           fontSize: FontSizes.xs,
+          fontFamily: fonts.medium,
         },
         userInfoOverlay: {
           position: 'absolute',
-          bottom: Spacing.md,
+          bottom: Spacing.lg,
           left: Spacing.md,
           right: Spacing.md,
         },
@@ -146,28 +159,36 @@ export const UserCard: React.FC<UserCardProps> = ({
           gap: Spacing.xs,
         },
         username: {
-          fontSize: FontSizes.xxl,
+          fontSize: 24,
           fontWeight: FontWeights.bold,
-          color: '#FAFAFA',
+          color: colors.text.primary,
+          fontFamily: fonts.extrabold,
+          letterSpacing: 0,
+          textShadowColor: 'rgba(255,255,255,0.4)',
+          textShadowOffset: { width: 0, height: 1 },
+          textShadowRadius: 4,
         },
         distanceRow: {
           flexDirection: 'row',
           alignItems: 'center',
-          marginTop: Spacing.xs,
+          marginTop: 4,
+          gap: 4,
         },
         distance: {
-          color: 'rgba(255,255,255,0.88)',
+          color: colors.text.secondary,
           fontSize: FontSizes.sm,
-          marginLeft: Spacing.xs,
+          fontFamily: fonts.regular,
         },
         bioContainer: {
-          padding: Spacing.md,
+          paddingHorizontal: Spacing.md,
+          paddingTop: Spacing.md,
           paddingBottom: 0,
         },
         bio: {
           color: colors.text.secondary,
           fontSize: FontSizes.sm,
           lineHeight: 20,
+          fontFamily: fonts.regular,
         },
         interestsContainer: {
           padding: Spacing.md,
@@ -175,10 +196,11 @@ export const UserCard: React.FC<UserCardProps> = ({
         },
         interestsLabel: {
           color: colors.text.tertiary,
-          fontSize: FontSizes.xs,
+          fontSize: 10,
           marginBottom: Spacing.sm,
           textTransform: 'uppercase',
-          letterSpacing: 1,
+          letterSpacing: 1.2,
+          fontFamily: fonts.medium,
         },
         interestsList: {
           flexDirection: 'row',
@@ -188,20 +210,24 @@ export const UserCard: React.FC<UserCardProps> = ({
         moreInterests: {
           paddingVertical: Spacing.xs,
           paddingHorizontal: Spacing.sm,
-          backgroundColor: colors.background.tertiary,
+          backgroundColor: colors.primary.default + '18',
           borderRadius: BorderRadius.full,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: colors.primary.default + '55',
         },
         moreText: {
-          color: colors.text.tertiary,
+          color: colors.primary.default,
           fontSize: FontSizes.xs,
+          fontFamily: fonts.medium,
         },
         actions: {
           flexDirection: 'row',
           justifyContent: 'center',
           alignItems: 'center',
-          padding: Spacing.lg,
+          paddingHorizontal: Spacing.lg,
+          paddingBottom: Spacing.lg,
           paddingTop: Spacing.sm,
-          gap: Spacing.xl,
+          gap: Spacing.xxl,
         },
         actionButton: {
           width: 64,
@@ -213,14 +239,23 @@ export const UserCard: React.FC<UserCardProps> = ({
         },
         passButton: {
           backgroundColor: colors.background.elevated,
-          borderWidth: 2,
-          borderColor: colors.error,
+          borderWidth: 1.5,
+          borderColor: colors.error + '30',
         },
-        likeButton: {
-          backgroundColor: colors.primary.default,
+        likeButtonWrap: {
+          borderRadius: 32,
+          overflow: 'hidden',
+          ...shadows.md,
+        },
+        likeButtonGradient: {
+          width: 64,
+          height: 64,
+          borderRadius: 32,
+          alignItems: 'center',
+          justifyContent: 'center',
         },
       }),
-    [colors, shadows]
+    [colors, shadows, fonts]
   );
 
   const likeAnimatedStyle = useAnimatedStyle(() => ({
@@ -244,6 +279,13 @@ export const UserCard: React.FC<UserCardProps> = ({
     return colors.text.tertiary;
   };
 
+  const matchGradientColors = useMemo((): [string, string] => {
+    const s = user.match_score;
+    if (s >= 80) return [colors.primary.default, colors.primary.dark];
+    if (s >= 50) return [colors.primary.default, colors.primary.dark];
+    return [colors.background.tertiary, colors.background.secondary];
+  }, [colors, user.match_score]);
+
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -251,19 +293,35 @@ export const UserCard: React.FC<UserCardProps> = ({
       style={styles.cardContainer}
     >
       <View style={styles.card}>
-        {/* Profile Image - intentionally blurred/hidden to encourage meeting offline */}
+        {/* Profile Image / Avatar placeholder */}
         <View style={styles.imageContainer}>
-          <View style={styles.imagePlaceholder}>
+          <LinearGradient
+            colors={[colors.background.elevated, colors.background.secondary]}
+            style={styles.imagePlaceholder}
+          >
             <AppText style={styles.placeholderText}>
               {user.username.charAt(0).toUpperCase()}
             </AppText>
             <AppText style={styles.hiddenPhotoLabel}>Photo unlocks on match</AppText>
-          </View>
-          
-          {/* Match Score Badge */}
-          <View style={[styles.matchBadge, { backgroundColor: getMatchColor(user.match_score) }]}>
-            <AppText style={styles.matchText}>{user.match_score}</AppText>
-            <AppText style={styles.matchLabel}>Orbit score</AppText>
+          </LinearGradient>
+
+          {/* Gradient fade overlay */}
+          <LinearGradient
+            colors={['transparent', colors.background.card + 'EE']}
+            style={styles.imageFade}
+          />
+
+          {/* Match Score Badge — gradient */}
+          <View style={styles.matchBadgeWrap}>
+            <LinearGradient
+              colors={matchGradientColors}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.matchBadgeGradient}
+            >
+              <AppText style={styles.matchText}>{user.match_score}</AppText>
+              <AppText style={styles.matchLabel}>orbit score</AppText>
+            </LinearGradient>
           </View>
 
           {/* Online Status */}
@@ -274,18 +332,16 @@ export const UserCard: React.FC<UserCardProps> = ({
             </View>
           )}
 
-          <View style={styles.imageFade} />
-
           {/* User Info Overlay */}
           <View style={styles.userInfoOverlay}>
             <View style={styles.nameRow}>
               <AppText style={styles.username}>{user.username}</AppText>
               {user.is_verified && (
-                <Ionicons name="checkmark-circle" size={20} color={colors.info} />
+                <Ionicons name="checkmark-circle" size={18} color={colors.primary.default} />
               )}
             </View>
             <View style={styles.distanceRow}>
-              <Ionicons name="location" size={14} color={colors.primary.default} />
+              <Ionicons name="location" size={13} color={colors.primary.default} />
               <AppText style={styles.distance}>{getDistanceText(user.distance)}</AppText>
             </View>
           </View>
@@ -329,18 +385,25 @@ export const UserCard: React.FC<UserCardProps> = ({
               onPressOut={() => (passScale.value = withSpring(1))}
               style={[styles.actionButton, styles.passButton]}
             >
-              <Ionicons name="close" size={32} color={colors.error} />
+              <Ionicons name="close" size={30} color={colors.error} />
             </TouchableOpacity>
           </Animated.View>
 
-          <Animated.View style={likeAnimatedStyle}>
+          <Animated.View style={[likeAnimatedStyle, styles.likeButtonWrap]}>
             <TouchableOpacity
               onPress={onLike}
               onPressIn={() => (likeScale.value = withSpring(0.9))}
               onPressOut={() => (likeScale.value = withSpring(1))}
-              style={[styles.actionButton, styles.likeButton]}
+              activeOpacity={0.85}
             >
-              <Ionicons name="heart" size={28} color="#FAFAFA" />
+              <LinearGradient
+                colors={[colors.primary.default, colors.primary.dark]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.likeButtonGradient}
+              >
+                <Ionicons name="heart" size={28} color={colors.text.primary} />
+              </LinearGradient>
             </TouchableOpacity>
           </Animated.View>
         </View>

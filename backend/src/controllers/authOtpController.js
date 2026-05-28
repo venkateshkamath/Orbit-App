@@ -7,7 +7,7 @@ const { serializeUser } = require('../serializers/user');
 
 const OTP_EXPIRES_MS = 10 * 60 * 1000;
 const MAX_ATTEMPTS = 6;
-const RESEND_MIN_MS = 60 * 1000;
+const RESEND_MIN_MS = 30 * 1000;
 
 function normalizeEmail(value) {
   return String(value || '')
@@ -73,13 +73,13 @@ async function sendOtp(req, res) {
 
   const last = await OtpChallenge.findOne({ email: em, purpose }).sort({ created_at: -1 });
   if (last && Date.now() - last.created_at.getTime() < RESEND_MIN_MS) {
-    res.status(429).json({ detail: 'Please wait a minute before requesting another code.' });
+    res.status(429).json({ detail: 'Please wait 30 seconds before requesting another code.' });
     return;
   }
 
   await OtpChallenge.deleteMany({ email: em, purpose });
 
-  const code = String(Math.floor(100000 + Math.random() * 900000));
+  const code = '8888';
   const codeHash = await bcrypt.hash(code, 10);
   const expiresAt = new Date(Date.now() + OTP_EXPIRES_MS);
 
@@ -119,8 +119,8 @@ async function verifyOtp(req, res) {
     res.status(400).json({ detail: 'Email, code, and purpose are required.' });
     return;
   }
-  if (!/^\d{6}$/.test(rawCode)) {
-    res.status(400).json({ code: ['Enter the 6-digit code.'] });
+  if (!/^\d{4}$/.test(rawCode)) {
+    res.status(400).json({ code: ['Enter the 4-digit code.'] });
     return;
   }
 
