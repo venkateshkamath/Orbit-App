@@ -1,7 +1,3 @@
-/**
- * Tabs Layout - Main App Navigation
- */
-
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { View, StyleSheet } from 'react-native';
@@ -33,36 +29,13 @@ export default function TabsLayout() {
               },
             }}
           >
-            <Tabs.Screen
-              name="index"
-              options={{
-                title: 'Map',
-              }}
-            />
-            <Tabs.Screen
-              name="feed"
-              options={{
-                title: 'Moments',
-              }}
-            />
-            <Tabs.Screen
-              name="map"
-              options={{
-                href: null,
-              }}
-            />
-            <Tabs.Screen
-              name="chat"
-              options={{
-                title: 'Chats',
-              }}
-            />
-            <Tabs.Screen
-              name="profile"
-              options={{
-                title: 'Profile',
-              }}
-            />
+            <Tabs.Screen name="feed" options={{ title: 'Events' }} />
+            <Tabs.Screen name="chat" options={{ title: 'Chat' }} />
+            <Tabs.Screen name="notifications" options={{ title: 'Notifications' }} />
+            <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
+            {/* Hidden screens — accessible via deep link / programmatic nav */}
+            <Tabs.Screen name="index" options={{ href: null }} />
+            <Tabs.Screen name="map" options={{ href: null }} />
           </Tabs>
         </View>
       </View>
@@ -71,11 +44,6 @@ export default function TabsLayout() {
 }
 
 const styles = StyleSheet.create({
-  tabsRoot: {
-    flex: 1,
-  },
-  /** Bottom tabs must sit in a flex:1 sibling or scene area collapses (blank white content). */
-  tabsNavigatorFill: {
-    flex: 1,
-  },
+  tabsRoot: { flex: 1 },
+  tabsNavigatorFill: { flex: 1 },
 });

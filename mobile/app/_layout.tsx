@@ -76,7 +76,7 @@ function RootLayoutNav() {
       if (inTabsGroup) router.replace('/');
     } else {
       // Don't redirect while still in the auth flow (signup completes its own navigation)
-      if (!inMainApp && !inAuthGroup) router.replace('/(tabs)');
+      if (!inMainApp && !inAuthGroup) router.replace('/(tabs)/feed');
     }
   }, [isAuthenticated, isLoading, mounted, segments, router]);
 
