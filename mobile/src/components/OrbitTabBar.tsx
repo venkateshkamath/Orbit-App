@@ -1,312 +1,322 @@
-/**
- * Floating glassmorphism tab bar.
- * Fixed-gap layout — zero measurement, zero race conditions.
- * Smooth sliding active disc, dark/light theme aware.
- */
-
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  View,
+  Animated,
+  Dimensions,
+  Platform,
   Pressable,
   StyleSheet,
-  Platform,
-  Animated,
-  Easing,
+  View,
 } from 'react-native';
 import { type BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import type { ComponentProps } from 'react';
-import type { OrbitThemeColors } from '../theme/palettes';
+import { useConversationsQuery, useNotificationsQuery } from '../hooks/useOrbitApi';
+import { CreateEventModal } from './CreateEventModal';
+import { AppText } from '../ui/AppText';
 import { useOrbitTheme } from '../theme';
-import { useConversationsQuery } from '../hooks/useOrbitApi';
-import { useLikesReceivedForTab } from '../hooks/useChatTabQueries';
 
-type IoniconName = ComponentProps<typeof Ionicons>['name'];
+type IconName = ComponentProps<typeof Ionicons>['name'];
 
-const CIRCLE = 50;
-const GAP = 16;
-const ICON_SZ = 21;
-const PILL_PAD = 7;
-const PILL_RADIUS = (CIRCLE + PILL_PAD * 2) / 2;
-const SLOT = CIRCLE + GAP;
+/* ─── Spec tokens ────────────────────────────────────────────────────────── */
 
-const TAB_GLYPHS: Record<string, { on: IoniconName; off: IoniconName }> = {
-  index: { on: 'compass', off: 'compass-outline' },
-  feed: { on: 'calendar', off: 'calendar-outline' },
-  chat: { on: 'chatbubbles', off: 'chatbubbles-outline' },
-  profile: { on: 'person', off: 'person-outline' },
+const BG          = '#1a1a1f';
+const ACTIVE      = '#29b6f6';
+const ACTIVE_PILL = 'rgba(41,182,246,0.15)';
+const INACTIVE    = '#555566';
+const SEPARATOR   = 'rgba(255,255,255,0.06)';
+
+const ROW_H       = 64;   // visible row height (tall enough for 44px FAB + label)
+const PILL_SZ     = 36;   // icon wrapper size
+const PILL_R      = 10;   // icon wrapper border-radius
+const FAB_SZ      = 44;   // New button size
+const FAB_R       = 12;   // New button border-radius
+const ICON_SZ     = 22;   // regular icon size
+const FAB_ICON_SZ = 22;   // FAB + icon size
+const LABEL_SZ    = 11;
+
+/* ─── Route config ───────────────────────────────────────────────────────── */
+
+const VISIBLE_ROUTES = ['feed', 'chat', 'notifications', 'profile'] as const;
+type VisibleRoute = (typeof VISIBLE_ROUTES)[number];
+
+const SLOT_OF: Record<VisibleRoute, number> = {
+  feed: 0, chat: 1, notifications: 3, profile: 4,
 };
 
-/* ── Theme tokens ──────────────────────────────────────────────── */
+interface Glyph { active: IconName; inactive: IconName; label: string }
+const GLYPHS: Record<VisibleRoute, Glyph> = {
+  feed:          { active: 'trending-up',          inactive: 'trending-up-outline',         label: 'Events'  },
+  chat:          { active: 'chatbubble-ellipses',  inactive: 'chatbubble-ellipses-outline', label: 'Chat'    },
+  notifications: { active: 'notifications',        inactive: 'notifications-outline',       label: 'Notifs'  },
+  profile:       { active: 'person',               inactive: 'person-outline',              label: 'Profile' },
+};
 
-function useTokens(isDark: boolean, colors: OrbitThemeColors) {
-  return useMemo(() => {
-    if (isDark) {
-      return {
-        pillTint: 'rgba(8,14,28,0.32)',
-        pillBorder: 'rgba(255,255,255,0.13)',
-        pillHighlight: 'rgba(255,255,255,0.18)',
-        blur: { tint: 'dark' as const, intensity: 96 },
-        circle: { bg: 'rgba(0,0,0,0.44)', border: 'rgba(255,255,255,0.09)' },
-        disc: { bg: '#FFFFFF', shadow: '#FFFFFF' },
-        icon: { on: '#0E1220', off: 'rgba(200,210,232,0.85)' },
-        badge: { ringOn: '#FFFFFF', ringOff: '#0C1018' },
-      };
-    }
-    return {
-      pillTint: 'rgba(255,255,255,0.28)',
-      pillBorder: 'rgba(15,23,42,0.07)',
-      pillHighlight: 'rgba(255,255,255,0.88)',
-      blur: { tint: 'light' as const, intensity: 82 },
-      circle: { bg: 'rgba(0,0,0,0.05)', border: 'rgba(0,0,0,0.04)' },
-      disc: { bg: colors.primary.default, shadow: colors.primary.default },
-      icon: { on: '#FFFFFF', off: 'rgba(30,41,59,0.65)' },
-      badge: { ringOn: colors.primary.default, ringOff: '#EEF0F6' },
-    };
-  }, [isDark, colors.primary.default]);
-}
+/* ─── Badge ──────────────────────────────────────────────────────────────── */
 
-/* ── Chat badge ────────────────────────────────────────────────── */
-
-function ChatBadge({
-  focused,
-  colors,
-  t,
-}: {
-  focused: boolean;
-  colors: OrbitThemeColors;
-  t: ReturnType<typeof useTokens>;
-}) {
-  const { data: conversations = [] } = useConversationsQuery();
-  const { data: pendingOrbits = [] } = useLikesReceivedForTab();
-  const unread = conversations.reduce((s, c) => s + (c.unread_count || 0), 0);
-  const pending = Array.isArray(pendingOrbits) ? pendingOrbits : [];
-  const show = unread > 0 || pending.length > 0;
-
+function Badge({ count }: { count: number }) {
+  if (count <= 0) return null;
   return (
-    <View style={badge.wrap}>
-      <Ionicons
-        name={focused ? 'chatbubbles' : 'chatbubbles-outline'}
-        size={ICON_SZ}
-        color={focused ? t.icon.on : t.icon.off}
-      />
-      {show && (
-        <View
-          style={[
-            badge.dot,
-            {
-              backgroundColor: colors.secondary.default,
-              borderColor: focused ? t.badge.ringOn : t.badge.ringOff,
-            },
-          ]}
-        />
-      )}
+    <View style={bdg.dot}>
+      {count < 10 && <AppText style={bdg.num}>{count}</AppText>}
     </View>
   );
 }
-
-const badge = StyleSheet.create({
-  wrap: { width: ICON_SZ, height: ICON_SZ, alignItems: 'center', justifyContent: 'center' },
+const bdg = StyleSheet.create({
   dot: {
     position: 'absolute',
     top: -3,
-    right: -6,
-    width: 9,
-    height: 9,
-    borderRadius: 5,
-    borderWidth: 2,
+    right: -4,
+    minWidth: 13,
+    height: 13,
+    borderRadius: 7,
+    backgroundColor: '#FF3B5C',
+    borderWidth: 1.5,
+    borderColor: BG,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 2,
   },
+  num: { fontSize: 7.5, color: '#fff', fontWeight: '700', lineHeight: 9 },
 });
 
-/* ── Tab bar ───────────────────────────────────────────────────── */
+/* ─── Tab slot ───────────────────────────────────────────────────────────── */
 
-export default function OrbitTabBar({
-  state,
-  descriptors,
-  navigation,
-  insets,
-}: BottomTabBarProps) {
-  const { colors, resolvedScheme } = useOrbitTheme();
-  const isDark = resolvedScheme === 'dark';
-  const t = useTokens(isDark, colors);
+function TabSlot({
+  route, focused, label, unread, onPress, onLongPress,
+}: {
+  route: VisibleRoute;
+  focused: boolean;
+  label: string;
+  unread: number;
+  onPress: () => void;
+  onLongPress: () => void;
+}) {
+  const { fonts } = useOrbitTheme();
+  const g = GLYPHS[route];
 
-  const visible = state.routes.filter((r) => r.name !== 'map');
-  const activeKey = state.routes[state.index]?.key;
-  const idx = Math.max(0, visible.findIndex((r) => r.key === activeKey));
-
-  const target = idx * SLOT;
-  const anim = useRef(new Animated.Value(target)).current;
-  const first = useRef(true);
+  const pressScale = useRef(new Animated.Value(1)).current;
+  const pillOpacity = useRef(new Animated.Value(focused ? 1 : 0)).current;
 
   useEffect(() => {
-    if (first.current) {
-      anim.setValue(target);
-      first.current = false;
-      return;
-    }
-    Animated.timing(anim, {
-      toValue: target,
-      duration: 260,
-      easing: Easing.out(Easing.cubic),
+    Animated.timing(pillOpacity, {
+      toValue: focused ? 1 : 0,
+      duration: 180,
       useNativeDriver: true,
     }).start();
-  }, [anim, target]);
+  }, [focused, pillOpacity]);
 
-  const s = useMemo(
-    () =>
-      StyleSheet.create({
-        outer: {
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          bottom: 0,
-          alignItems: 'center',
-          paddingBottom: Math.max(insets.bottom - 2, Platform.OS === 'android' ? 10 : 8),
-          pointerEvents: 'box-none',
-        },
-        pill: {
-          borderRadius: PILL_RADIUS,
-          overflow: 'hidden',
-          borderWidth: StyleSheet.hairlineWidth,
-          borderColor: t.pillBorder,
-          ...Platform.select({
-            ios: {
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 8 },
-              shadowOpacity: isDark ? 0.34 : 0.09,
-              shadowRadius: 22,
-            },
-            android: { elevation: 10 },
-            default: {},
-          }),
-        },
-        inner: {
-          padding: PILL_PAD,
-        },
-        glassHighlight: {
-          ...StyleSheet.absoluteFillObject,
-          borderRadius: PILL_RADIUS,
-          borderTopWidth: StyleSheet.hairlineWidth,
-          borderTopColor: t.pillHighlight,
-        },
-        row: {
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: GAP,
-        },
-        slot: {
-          width: CIRCLE,
-          height: CIRCLE,
-          alignItems: 'center',
-          justifyContent: 'center',
-        },
-        circleBg: {
-          ...StyleSheet.absoluteFillObject,
-          borderRadius: CIRCLE / 2,
-          backgroundColor: t.circle.bg,
-          borderWidth: StyleSheet.hairlineWidth,
-          borderColor: t.circle.border,
-        },
-        disc: {
-          position: 'absolute',
-          left: 0,
-          top: 0,
-          width: CIRCLE,
-          height: CIRCLE,
-          borderRadius: CIRCLE / 2,
-          backgroundColor: t.disc.bg,
-          ...Platform.select({
-            ios: {
-              shadowColor: t.disc.shadow,
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: isDark ? 0.15 : 0.22,
-              shadowRadius: 10,
-            },
-            android: { elevation: 4 },
-            default: {},
-          }),
-        },
-        iconZ: { zIndex: 3 },
-      }),
-    [isDark, insets.bottom, t]
-  );
-
-  const shell = (children: React.ReactNode) => {
-    if (Platform.OS === 'web') {
-      return (
-        <View style={[s.pill, { backgroundColor: isDark ? 'rgba(10,16,32,0.78)' : 'rgba(255,255,255,0.82)' }]}>
-          <View style={s.inner}>{children}</View>
-        </View>
-      );
-    }
-    return (
-      <BlurView
-        intensity={t.blur.intensity}
-        tint={t.blur.tint}
-        experimentalBlurMethod={Platform.OS === 'android' ? 'dimezisBlurView' : 'none'}
-        blurReductionFactor={Platform.OS === 'android' ? 3.6 : 4}
-        style={s.pill}
-      >
-        <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { backgroundColor: t.pillTint }]} />
-        <View pointerEvents="none" style={s.glassHighlight} />
-        <View style={s.inner}>{children}</View>
-      </BlurView>
-    );
-  };
+  const onPressIn = useCallback(() => {
+    Animated.spring(pressScale, { toValue: 0.82, useNativeDriver: true, speed: 120, bounciness: 0 }).start();
+  }, [pressScale]);
+  const onPressOut = useCallback(() => {
+    Animated.spring(pressScale, { toValue: 1, useNativeDriver: true, damping: 8, stiffness: 200 }).start();
+  }, [pressScale]);
 
   return (
-    <View style={s.outer}>
-      {shell(
-        <View style={s.row}>
-          <Animated.View
-            pointerEvents="none"
-            style={[s.disc, { transform: [{ translateX: anim }] }]}
-          />
-          {visible.map((route) => {
-            const { options } = descriptors[route.key];
-            const label = options.title ?? route.name;
-            const focused = state.routes[state.index]?.key === route.key;
-            const glyphs = TAB_GLYPHS[route.name];
-            const color = focused ? t.icon.on : t.icon.off;
-
-            return (
-              <Pressable
-                key={route.key}
-                accessibilityRole="button"
-                accessibilityState={focused ? { selected: true } : {}}
-                accessibilityLabel={options.tabBarAccessibilityLabel ?? label}
-                onPress={() => {
-                  const ev = navigation.emit({
-                    type: 'tabPress',
-                    target: route.key,
-                    canPreventDefault: true,
-                  });
-                  if (!focused && !ev.defaultPrevented)
-                    navigation.navigate(route.name as never);
-                }}
-                style={({ pressed }) => [
-                  s.slot,
-                  pressed && Platform.OS === 'ios' ? { opacity: 0.85 } : null,
-                ]}
-              >
-                {!focused && <View style={s.circleBg} />}
-                <View style={s.iconZ}>
-                  {route.name === 'chat' ? (
-                    <ChatBadge focused={focused} colors={colors} t={t} />
-                  ) : glyphs ? (
-                    <Ionicons
-                      name={focused ? glyphs.on : glyphs.off}
-                      size={ICON_SZ}
-                      color={color}
-                    />
-                  ) : null}
-                </View>
-              </Pressable>
-            );
-          })}
+    <Pressable
+      onPress={onPress}
+      onLongPress={onLongPress}
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
+      accessibilityRole="button"
+      accessibilityState={{ selected: focused }}
+      accessibilityLabel={label}
+      style={ts.slot}
+    >
+      <Animated.View style={[ts.inner, { transform: [{ scale: pressScale }] }]}>
+        {/* Icon wrapper with animated pill */}
+        <View style={ts.pillWrap}>
+          <Animated.View style={[ts.pill, { opacity: pillOpacity }]} />
+          <View style={ts.iconBox}>
+            <Ionicons
+              name={focused ? g.active : g.inactive}
+              size={ICON_SZ}
+              color={focused ? ACTIVE : INACTIVE}
+            />
+            <Badge count={unread} />
+          </View>
         </View>
-      )}
-    </View>
+        <AppText style={[ts.label, { fontFamily: fonts.medium, color: focused ? ACTIVE : INACTIVE }]}>
+          {label}
+        </AppText>
+      </Animated.View>
+    </Pressable>
   );
 }
+
+const ts = StyleSheet.create({
+  slot:     { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  inner:    { alignItems: 'center', gap: 4 },
+  pillWrap: { width: FAB_SZ, height: FAB_SZ, alignItems: 'center', justifyContent: 'center' },
+  pill: {
+    position: 'absolute',
+    width: PILL_SZ,
+    height: PILL_SZ,
+    borderRadius: PILL_R,
+    backgroundColor: ACTIVE_PILL,
+  },
+  iconBox:  { width: ICON_SZ + 4, height: ICON_SZ + 4, alignItems: 'center', justifyContent: 'center' },
+  label:    { fontSize: LABEL_SZ, letterSpacing: 0.1 },
+});
+
+/* ─── New (create) slot ──────────────────────────────────────────────────── */
+
+function NewSlot({ onPress }: { onPress: () => void }) {
+  const { fonts } = useOrbitTheme();
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const onPressIn = useCallback(() => {
+    Animated.spring(scale, { toValue: 0.88, useNativeDriver: true, speed: 120, bounciness: 0 }).start();
+  }, [scale]);
+  const onPressOut = useCallback(() => {
+    Animated.spring(scale, { toValue: 1, useNativeDriver: true, damping: 8, stiffness: 200 }).start();
+  }, [scale]);
+
+  return (
+    <Pressable
+      onPress={onPress}
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
+      accessibilityRole="button"
+      accessibilityLabel="New event"
+      style={ns.slot}
+    >
+      <Animated.View style={[ns.inner, { transform: [{ scale }] }]}>
+        <View style={ns.fab}>
+          <Ionicons name="add" size={FAB_ICON_SZ} color="#ffffff" />
+        </View>
+        <AppText style={[ns.label, { fontFamily: fonts.medium }]}>New</AppText>
+      </Animated.View>
+    </Pressable>
+  );
+}
+
+const ns = StyleSheet.create({
+  slot:  { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  inner: { alignItems: 'center', gap: 4 },
+  fab: {
+    width: FAB_SZ,
+    height: FAB_SZ,
+    borderRadius: FAB_R,
+    backgroundColor: ACTIVE,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: ACTIVE,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.4,
+        shadowRadius: 10,
+      },
+      android: { elevation: 8 },
+      default: {},
+    }),
+  },
+  label: { fontSize: LABEL_SZ, color: ACTIVE, letterSpacing: 0.1 },
+});
+
+/* ─── Tab bar ────────────────────────────────────────────────────────────── */
+
+export default function OrbitTabBar({
+  state, descriptors, navigation, insets,
+}: BottomTabBarProps) {
+  const bottomPad = Math.max(insets.bottom, 20);
+  const barH = ROW_H + bottomPad;
+
+  const { data: convData }  = useConversationsQuery();
+  const { data: notifData } = useNotificationsQuery();
+  const chatUnread  = useMemo(
+    () => (convData ?? []).reduce((s: number, c: { unread_count?: number }) => s + (c.unread_count || 0), 0),
+    [convData],
+  );
+  const notifUnread = notifData?.unread_count ?? 0;
+
+  const [createOpen, setCreateOpen] = useState(false);
+
+  const navRoutes = useMemo(
+    () =>
+      [...state.routes]
+        .filter((r) => (VISIBLE_ROUTES as readonly string[]).includes(r.name))
+        .sort((a, b) => (SLOT_OF[a.name as VisibleRoute] ?? 99) - (SLOT_OF[b.name as VisibleRoute] ?? 99)),
+    [state.routes],
+  );
+  const leftRoutes  = navRoutes.filter((r) => SLOT_OF[r.name as VisibleRoute] < 2);
+  const rightRoutes = navRoutes.filter((r) => SLOT_OF[r.name as VisibleRoute] > 2);
+
+  const goTo = useCallback(
+    (route: (typeof state.routes)[0]) => {
+      const focused = state.routes[state.index]?.key === route.key;
+      const ev = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+      if (!focused && !ev.defaultPrevented) navigation.navigate(route.name as never);
+    },
+    [navigation, state],
+  );
+
+  const unreadOf = useCallback(
+    (name: string) => name === 'chat' ? chatUnread : name === 'notifications' ? notifUnread : 0,
+    [chatUnread, notifUnread],
+  );
+
+  return (
+    <>
+      <View style={[bar.shell, { height: barH, paddingBottom: bottomPad }]}>
+        {/* Top separator */}
+        <View style={bar.separator} />
+
+        {/* Row */}
+        <View style={bar.row}>
+          {leftRoutes.map((route) => (
+            <TabSlot
+              key={route.key}
+              route={route.name as VisibleRoute}
+              focused={state.routes[state.index]?.key === route.key}
+              label={descriptors[route.key]?.options?.title ?? route.name}
+              unread={unreadOf(route.name)}
+              onPress={() => goTo(route)}
+              onLongPress={() => navigation.emit({ type: 'tabLongPress', target: route.key })}
+            />
+          ))}
+
+          <NewSlot onPress={() => setCreateOpen(true)} />
+
+          {rightRoutes.map((route) => (
+            <TabSlot
+              key={route.key}
+              route={route.name as VisibleRoute}
+              focused={state.routes[state.index]?.key === route.key}
+              label={descriptors[route.key]?.options?.title ?? route.name}
+              unread={unreadOf(route.name)}
+              onPress={() => goTo(route)}
+              onLongPress={() => navigation.emit({ type: 'tabLongPress', target: route.key })}
+            />
+          ))}
+        </View>
+      </View>
+
+      <CreateEventModal
+        visible={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={() => setCreateOpen(false)}
+      />
+    </>
+  );
+}
+
+const bar = StyleSheet.create({
+  shell: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: BG,
+  },
+  separator: {
+    height: 0.5,
+    backgroundColor: SEPARATOR,
+  },
+  row: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+});
