@@ -31,7 +31,7 @@ export default function TabsLayout() {
           >
             <Tabs.Screen name="feed" options={{ title: 'Events' }} />
             <Tabs.Screen name="chat" options={{ title: 'Chat' }} />
-            <Tabs.Screen name="notifications" options={{ title: 'Notifications' }} />
+            <Tabs.Screen name="notifications" options={{ title: 'Notifs' }} />
             <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
             {/* Hidden screens — accessible via deep link / programmatic nav */}
             <Tabs.Screen name="index" options={{ href: null }} />

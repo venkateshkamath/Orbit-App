@@ -2,14 +2,12 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Animated,
   Dimensions,
-  Easing,
   Platform,
   Pressable,
   StyleSheet,
   View,
 } from 'react-native';
 import { type BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import type { ComponentProps } from 'react';
 import { useConversationsQuery, useNotificationsQuery } from '../hooks/useOrbitApi';
@@ -19,42 +17,38 @@ import { useOrbitTheme } from '../theme';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 
-/* ─── Design tokens ──────────────────────────────────────────────────────── */
+/* ─── Spec tokens ────────────────────────────────────────────────────────── */
 
-const CYAN     = '#00B4D8';
-const CYAN_DIM = '#0099BB';
-const BLACK    = '#0A0A0A';
+const BG          = '#1a1a1f';
+const ACTIVE      = '#29b6f6';
+const ACTIVE_PILL = 'rgba(41,182,246,0.15)';
+const INACTIVE    = '#555566';
+const SEPARATOR   = 'rgba(255,255,255,0.06)';
 
-const BAR_H      = 62;   // bar visual height (excluding safe-area)
-const CREATE_SZ  = 56;   // floating button diameter
-const PROTRUDE   = 30;   // how many px the button protrudes ABOVE the bar top
-const PULSE_PAD  = 22;   // padding around button for the pulse ring layer
-const WRAPPER_SZ = CREATE_SZ + PULSE_PAD * 2;  // 100 px
-
-const ICON_SZ  = 22;
-const LABEL_SZ = 9.5;
-const IND_W    = 30;
-const IND_H    = 3;
+const ROW_H       = 64;   // visible row height (tall enough for 44px FAB + label)
+const PILL_SZ     = 36;   // icon wrapper size
+const PILL_R      = 10;   // icon wrapper border-radius
+const FAB_SZ      = 44;   // New button size
+const FAB_R       = 12;   // New button border-radius
+const ICON_SZ     = 22;   // regular icon size
+const FAB_ICON_SZ = 22;   // FAB + icon size
+const LABEL_SZ    = 11;
 
 /* ─── Route config ───────────────────────────────────────────────────────── */
 
 const VISIBLE_ROUTES = ['feed', 'chat', 'notifications', 'profile'] as const;
 type VisibleRoute = (typeof VISIBLE_ROUTES)[number];
 
-/** Maps route name → slot index (0–4; slot 2 is the create button) */
 const SLOT_OF: Record<VisibleRoute, number> = {
-  feed:          0,
-  chat:          1,
-  notifications: 3,
-  profile:       4,
+  feed: 0, chat: 1, notifications: 3, profile: 4,
 };
 
-interface Glyph { on: IconName; off: IconName; label: string }
+interface Glyph { active: IconName; inactive: IconName; label: string }
 const GLYPHS: Record<VisibleRoute, Glyph> = {
-  feed:          { on: 'calendar',      off: 'calendar-outline',      label: 'Events'  },
-  chat:          { on: 'chatbubbles',   off: 'chatbubbles-outline',   label: 'Chat'    },
-  notifications: { on: 'notifications', off: 'notifications-outline', label: 'Alerts'  },
-  profile:       { on: 'person',        off: 'person-outline',        label: 'Me'      },
+  feed:          { active: 'trending-up',          inactive: 'trending-up-outline',         label: 'Events'  },
+  chat:          { active: 'chatbubble-ellipses',  inactive: 'chatbubble-ellipses-outline', label: 'Chat'    },
+  notifications: { active: 'notifications',        inactive: 'notifications-outline',       label: 'Notifs'  },
+  profile:       { active: 'person',               inactive: 'person-outline',              label: 'Profile' },
 };
 
 /* ─── Badge ──────────────────────────────────────────────────────────────── */
@@ -63,28 +57,26 @@ function Badge({ count }: { count: number }) {
   if (count <= 0) return null;
   return (
     <View style={bdg.dot}>
-      {count < 10 && (
-        <AppText style={bdg.num}>{count}</AppText>
-      )}
+      {count < 10 && <AppText style={bdg.num}>{count}</AppText>}
     </View>
   );
 }
 const bdg = StyleSheet.create({
   dot: {
     position: 'absolute',
-    top: -4,
-    right: -6,
-    minWidth: 14,
-    height: 14,
+    top: -3,
+    right: -4,
+    minWidth: 13,
+    height: 13,
     borderRadius: 7,
     backgroundColor: '#FF3B5C',
     borderWidth: 1.5,
-    borderColor: BLACK,
+    borderColor: BG,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 2,
   },
-  num: { fontSize: 8, color: '#fff', fontWeight: '700', lineHeight: 10 },
+  num: { fontSize: 7.5, color: '#fff', fontWeight: '700', lineHeight: 9 },
 });
 
 /* ─── Tab slot ───────────────────────────────────────────────────────────── */
@@ -103,19 +95,18 @@ function TabSlot({
   const g = GLYPHS[route];
 
   const pressScale = useRef(new Animated.Value(1)).current;
-  const iconScale  = useRef(new Animated.Value(1)).current;
+  const pillOpacity = useRef(new Animated.Value(focused ? 1 : 0)).current;
 
   useEffect(() => {
-    Animated.spring(iconScale, {
-      toValue: focused ? 1.12 : 1,
+    Animated.timing(pillOpacity, {
+      toValue: focused ? 1 : 0,
+      duration: 180,
       useNativeDriver: true,
-      damping: 14,
-      stiffness: 220,
     }).start();
-  }, [focused, iconScale]);
+  }, [focused, pillOpacity]);
 
-  const onPressIn  = useCallback(() => {
-    Animated.spring(pressScale, { toValue: 0.78, useNativeDriver: true, speed: 120, bounciness: 0 }).start();
+  const onPressIn = useCallback(() => {
+    Animated.spring(pressScale, { toValue: 0.82, useNativeDriver: true, speed: 120, bounciness: 0 }).start();
   }, [pressScale]);
   const onPressOut = useCallback(() => {
     Animated.spring(pressScale, { toValue: 1, useNativeDriver: true, damping: 8, stiffness: 200 }).start();
@@ -130,28 +121,22 @@ function TabSlot({
       accessibilityRole="button"
       accessibilityState={{ selected: focused }}
       accessibilityLabel={label}
-      style={ts.press}
+      style={ts.slot}
     >
       <Animated.View style={[ts.inner, { transform: [{ scale: pressScale }] }]}>
-        <View style={ts.iconBox}>
-          <Animated.View style={{ transform: [{ scale: iconScale }] }}>
+        {/* Icon wrapper with animated pill */}
+        <View style={ts.pillWrap}>
+          <Animated.View style={[ts.pill, { opacity: pillOpacity }]} />
+          <View style={ts.iconBox}>
             <Ionicons
-              name={focused ? g.on : g.off}
+              name={focused ? g.active : g.inactive}
               size={ICON_SZ}
-              color={focused ? CYAN : 'rgba(255,255,255,0.38)'}
+              color={focused ? ACTIVE : INACTIVE}
             />
-          </Animated.View>
-          <Badge count={unread} />
+            <Badge count={unread} />
+          </View>
         </View>
-        <AppText
-          style={[
-            ts.label,
-            {
-              fontFamily: fonts.medium,
-              color: focused ? CYAN : 'rgba(255,255,255,0.28)',
-            },
-          ]}
-        >
+        <AppText style={[ts.label, { fontFamily: fonts.medium, color: focused ? ACTIVE : INACTIVE }]}>
           {label}
         </AppText>
       </Animated.View>
@@ -160,147 +145,74 @@ function TabSlot({
 }
 
 const ts = StyleSheet.create({
-  press: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 12, paddingBottom: 8 },
-  inner: { alignItems: 'center', gap: 5 },
-  iconBox: { width: ICON_SZ + 8, height: ICON_SZ + 4, alignItems: 'center', justifyContent: 'center' },
-  label:   { fontSize: LABEL_SZ, letterSpacing: 0.3 },
+  slot:     { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  inner:    { alignItems: 'center', gap: 4 },
+  pillWrap: { width: FAB_SZ, height: FAB_SZ, alignItems: 'center', justifyContent: 'center' },
+  pill: {
+    position: 'absolute',
+    width: PILL_SZ,
+    height: PILL_SZ,
+    borderRadius: PILL_R,
+    backgroundColor: ACTIVE_PILL,
+  },
+  iconBox:  { width: ICON_SZ + 4, height: ICON_SZ + 4, alignItems: 'center', justifyContent: 'center' },
+  label:    { fontSize: LABEL_SZ, letterSpacing: 0.1 },
 });
 
-/* ─── Create button ──────────────────────────────────────────────────────── */
+/* ─── New (create) slot ──────────────────────────────────────────────────── */
 
-function CreateButton({ onPress, open }: { onPress: () => void; open: boolean }) {
-  const pressScale = useRef(new Animated.Value(1)).current;
-  const rotation   = useRef(new Animated.Value(0)).current;
-  const pulseScale = useRef(new Animated.Value(1)).current;
-  const pulseOp    = useRef(new Animated.Value(0.5)).current;
+function NewSlot({ onPress }: { onPress: () => void }) {
+  const { fonts } = useOrbitTheme();
+  const scale = useRef(new Animated.Value(1)).current;
 
-  /* Rotate "+" → "×" when open */
-  useEffect(() => {
-    Animated.spring(rotation, {
-      toValue: open ? 1 : 0,
-      useNativeDriver: true,
-      damping: 12,
-      stiffness: 160,
-    }).start();
-  }, [open, rotation]);
-
-  /* Pulse ring loop */
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.parallel([
-          Animated.timing(pulseScale, {
-            toValue: 1.6,
-            duration: 1400,
-            easing: Easing.out(Easing.quad),
-            useNativeDriver: true,
-          }),
-          Animated.timing(pulseOp, {
-            toValue: 0,
-            duration: 1400,
-            easing: Easing.out(Easing.quad),
-            useNativeDriver: true,
-          }),
-        ]),
-        Animated.parallel([
-          Animated.timing(pulseScale, { toValue: 1, duration: 0, useNativeDriver: true }),
-          Animated.timing(pulseOp,    { toValue: 0.5, duration: 0, useNativeDriver: true }),
-        ]),
-        Animated.delay(800),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [pulseScale, pulseOp]);
-
-  const onPressIn  = useCallback(() => {
-    Animated.spring(pressScale, { toValue: 0.86, useNativeDriver: true, speed: 120, bounciness: 0 }).start();
-  }, [pressScale]);
+  const onPressIn = useCallback(() => {
+    Animated.spring(scale, { toValue: 0.88, useNativeDriver: true, speed: 120, bounciness: 0 }).start();
+  }, [scale]);
   const onPressOut = useCallback(() => {
-    Animated.spring(pressScale, { toValue: 1, useNativeDriver: true, damping: 7, stiffness: 220 }).start();
-  }, [pressScale]);
-
-  const spin = rotation.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '45deg'] });
+    Animated.spring(scale, { toValue: 1, useNativeDriver: true, damping: 8, stiffness: 200 }).start();
+  }, [scale]);
 
   return (
-    <View style={cb.wrapper} pointerEvents="box-none">
-      {/* Pulse ring */}
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          cb.pulse,
-          { transform: [{ scale: pulseScale }], opacity: pulseOp },
-        ]}
-      />
-      {/* Button */}
-      <Pressable
-        onPress={onPress}
-        onPressIn={onPressIn}
-        onPressOut={onPressOut}
-        accessibilityRole="button"
-        accessibilityLabel="Create event"
-        style={cb.pressable}
-      >
-        <Animated.View
-          style={[
-            cb.circle,
-            { backgroundColor: open ? CYAN_DIM : CYAN },
-            { transform: [{ scale: pressScale }] },
-          ]}
-        >
-          {/* Inner rim highlight */}
-          <View style={cb.rim} pointerEvents="none" />
-          <Animated.View style={{ transform: [{ rotate: spin }] }}>
-            <Ionicons name="add" size={30} color="#FFFFFF" />
-          </Animated.View>
-        </Animated.View>
-      </Pressable>
-    </View>
+    <Pressable
+      onPress={onPress}
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
+      accessibilityRole="button"
+      accessibilityLabel="New event"
+      style={ns.slot}
+    >
+      <Animated.View style={[ns.inner, { transform: [{ scale }] }]}>
+        <View style={ns.fab}>
+          <Ionicons name="add" size={FAB_ICON_SZ} color="#ffffff" />
+        </View>
+        <AppText style={[ns.label, { fontFamily: fonts.medium }]}>New</AppText>
+      </Animated.View>
+    </Pressable>
   );
 }
 
-const cb = StyleSheet.create({
-  wrapper: {
-    width: WRAPPER_SZ,
-    height: WRAPPER_SZ,
+const ns = StyleSheet.create({
+  slot:  { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  inner: { alignItems: 'center', gap: 4 },
+  fab: {
+    width: FAB_SZ,
+    height: FAB_SZ,
+    borderRadius: FAB_R,
+    backgroundColor: ACTIVE,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  pulse: {
-    position: 'absolute',
-    width: CREATE_SZ,
-    height: CREATE_SZ,
-    borderRadius: CREATE_SZ / 2,
-    backgroundColor: CYAN,
-  },
-  pressable: {
-    width: CREATE_SZ,
-    height: CREATE_SZ,
     ...Platform.select({
       ios: {
-        shadowColor: CYAN,
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.7,
-        shadowRadius: 18,
+        shadowColor: ACTIVE,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.4,
+        shadowRadius: 10,
       },
-      android: { elevation: 14 },
+      android: { elevation: 8 },
       default: {},
     }),
   },
-  circle: {
-    width: CREATE_SZ,
-    height: CREATE_SZ,
-    borderRadius: CREATE_SZ / 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  rim: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: CREATE_SZ / 2,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.25)',
-  },
+  label: { fontSize: LABEL_SZ, color: ACTIVE, letterSpacing: 0.1 },
 });
 
 /* ─── Tab bar ────────────────────────────────────────────────────────────── */
@@ -308,13 +220,10 @@ const cb = StyleSheet.create({
 export default function OrbitTabBar({
   state, descriptors, navigation, insets,
 }: BottomTabBarProps) {
-  const screenW   = Dimensions.get('window').width;
-  const slotW     = screenW / 5;
-  const safeBot   = Math.max(insets.bottom, 0);
-  const barH      = BAR_H + safeBot;             // total bar container height
-  const outerH    = barH + PROTRUDE + PULSE_PAD; // outer container height (includes button overhang)
+  const bottomPad = Math.max(insets.bottom, 20);
+  const barH = ROW_H + bottomPad;
 
-  const { data: convData } = useConversationsQuery();
+  const { data: convData }  = useConversationsQuery();
   const { data: notifData } = useNotificationsQuery();
   const chatUnread  = useMemo(
     () => (convData ?? []).reduce((s: number, c: { unread_count?: number }) => s + (c.unread_count || 0), 0),
@@ -324,33 +233,6 @@ export default function OrbitTabBar({
 
   const [createOpen, setCreateOpen] = useState(false);
 
-  /* Active slot */
-  const activeRoute = state.routes[state.index];
-  const activeSlot  = SLOT_OF[activeRoute?.name as VisibleRoute] ?? -1;
-
-  /* Indicator translation */
-  const indicatorX = useRef(
-    new Animated.Value(activeSlot >= 0 ? slotW * activeSlot + (slotW - IND_W) / 2 : 0),
-  ).current;
-  const firstRender = useRef(true);
-
-  useEffect(() => {
-    if (activeSlot < 0) return;
-    const toX = slotW * activeSlot + (slotW - IND_W) / 2;
-    if (firstRender.current) {
-      indicatorX.setValue(toX);
-      firstRender.current = false;
-      return;
-    }
-    Animated.spring(indicatorX, {
-      toValue: toX,
-      useNativeDriver: true,
-      damping: 24,
-      stiffness: 220,
-    }).start();
-  }, [activeSlot, slotW, indicatorX]);
-
-  /* Filter to only our visible routes, maintain slot order */
   const navRoutes = useMemo(
     () =>
       [...state.routes]
@@ -371,30 +253,17 @@ export default function OrbitTabBar({
   );
 
   const unreadOf = useCallback(
-    (name: string) => (name === 'chat' ? chatUnread : name === 'notifications' ? notifUnread : 0),
+    (name: string) => name === 'chat' ? chatUnread : name === 'notifications' ? notifUnread : 0,
     [chatUnread, notifUnread],
   );
 
-  /* Bar shell — BlurView on native, solid bg on web */
-  const renderBar = () => {
-    const content = (
-      <>
-        {/* Top hairline */}
-        <View style={bar.hairline} pointerEvents="none" />
+  return (
+    <>
+      <View style={[bar.shell, { height: barH, paddingBottom: bottomPad }]}>
+        {/* Top separator */}
+        <View style={bar.separator} />
 
-        {/* Cyan glow on top edge, centred behind the create button */}
-        <View
-          pointerEvents="none"
-          style={[bar.centerGlow, { left: screenW / 2 - 64 }]}
-        />
-
-        {/* Sliding active indicator */}
-        <Animated.View
-          pointerEvents="none"
-          style={[bar.indicator, { transform: [{ translateX: indicatorX }] }]}
-        />
-
-        {/* Slots */}
+        {/* Row */}
         <View style={bar.row}>
           {leftRoutes.map((route) => (
             <TabSlot
@@ -408,8 +277,7 @@ export default function OrbitTabBar({
             />
           ))}
 
-          {/* Centre placeholder — same width as a regular slot */}
-          <View style={{ width: slotW }} pointerEvents="none" />
+          <NewSlot onPress={() => setCreateOpen(true)} />
 
           {rightRoutes.map((route) => (
             <TabSlot
@@ -423,64 +291,8 @@ export default function OrbitTabBar({
             />
           ))}
         </View>
-
-        {/* Safe-area filler */}
-        {safeBot > 0 && <View style={{ height: safeBot }} />}
-      </>
-    );
-
-    if (Platform.OS === 'web') {
-      return (
-        <View style={[bar.shell, { height: barH, backgroundColor: 'rgba(10,10,10,0.98)' }]}>
-          {content}
-        </View>
-      );
-    }
-    return (
-      <BlurView
-        intensity={94}
-        tint="dark"
-        experimentalBlurMethod={Platform.OS === 'android' ? 'dimezisBlurView' : 'none'}
-        style={[bar.shell, { height: barH }]}
-      >
-        <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, bar.overlay]} />
-        {content}
-      </BlurView>
-    );
-  };
-
-  /* Button bottom edge sits exactly at bar top, so button centre is PROTRUDE/2 above bar */
-  const btnBottom = barH - (CREATE_SZ - PROTRUDE); // wrapper bottom from screen bottom
-  const btnLeft   = screenW / 2 - WRAPPER_SZ / 2;
-
-  return (
-    <>
-      {/* ── Outer container (passes touches through transparent areas) ─────── */}
-      <View
-        pointerEvents="box-none"
-        style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: outerH }}
-      >
-        {/* Bar anchored to the bottom */}
-        <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0 }}>
-          {renderBar()}
-        </View>
-
-        {/* Floating create button */}
-        <View
-          pointerEvents="box-none"
-          style={{
-            position: 'absolute',
-            bottom: btnBottom,
-            left: btnLeft,
-            width: WRAPPER_SZ,
-            height: WRAPPER_SZ,
-          }}
-        >
-          <CreateButton onPress={() => setCreateOpen(true)} open={createOpen} />
-        </View>
       </View>
 
-      {/* Create event modal */}
       <CreateEventModal
         visible={createOpen}
         onClose={() => setCreateOpen(false)}
@@ -490,57 +302,21 @@ export default function OrbitTabBar({
   );
 }
 
-/* ─── Shared bar styles ──────────────────────────────────────────────────── */
-
 const bar = StyleSheet.create({
   shell: {
-    width: '100%',
-    overflow: 'hidden',
-  },
-  overlay: {
-    backgroundColor: 'rgba(6,6,6,0.80)',
-  },
-  hairline: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    width: '100%',
-  },
-  centerGlow: {
     position: 'absolute',
-    top: 0,
-    width: 128,
-    height: 2,
-    ...Platform.select({
-      ios: {
-        shadowColor: CYAN,
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.85,
-        shadowRadius: 14,
-      },
-      default: {},
-    }),
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: BG,
   },
-  indicator: {
-    position: 'absolute',
-    top: 0,
-    width: IND_W,
-    height: IND_H,
-    borderRadius: IND_H / 2,
-    backgroundColor: CYAN,
-    ...Platform.select({
-      ios: {
-        shadowColor: CYAN,
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 1,
-        shadowRadius: 8,
-      },
-      android: { elevation: 3 },
-      default: {},
-    }),
+  separator: {
+    height: 0.5,
+    backgroundColor: SEPARATOR,
   },
   row: {
+    flex: 1,
     flexDirection: 'row',
-    height: BAR_H,
     alignItems: 'center',
   },
 });
