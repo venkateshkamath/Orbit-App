@@ -14,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { addDays, addMonths, endOfMonth, format, getDay, isBefore, isSameDay, startOfDay, startOfMonth, subMonths } from 'date-fns';
@@ -283,6 +284,30 @@ export function CreateFAB({
     }
   };
 
+  const openTimePicker = () => {
+    if (!timeOpen && !selectedTime && slots[0]) setSelectedTime(slots[0]);
+    setTimeOpen((value) => !value);
+  };
+
+  const handleTimeChange = (event: DateTimePickerEvent, value?: Date) => {
+    if (Platform.OS === 'android' && event.type === 'dismissed') {
+      setTimeOpen(false);
+      return;
+    }
+    if (!value) return;
+    const candidate = new Date(selectedDate);
+    candidate.setHours(value.getHours(), value.getMinutes(), 0, 0);
+    const valid = slots.some((slot) => slot.getHours() === candidate.getHours() && slot.getMinutes() === candidate.getMinutes());
+    if (valid) {
+      setSelectedTime(candidate);
+      setTimeHint('');
+    } else if (slots[0]) {
+      setSelectedTime(slots[0]);
+      setTimeHint('Pick a future time.');
+    }
+    if (Platform.OS === 'android') setTimeOpen(false);
+  };
+
   const pickPhoto = async () => {
     if (photos.length >= 5) return;
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -495,6 +520,11 @@ export function CreateFAB({
                 <Ionicons name="search" size={17} color={MUTED} />
                 <TextInput style={styles.iconInput} value={locationQuery} onChangeText={handleLocationChange} placeholder="Search for a place" placeholderTextColor="#C0C0C0" />
                 {searchingLocation ? <OrbitLoader variant="inline" size="sm" /> : null}
+                {!searchingLocation && location ? (
+                  <View style={styles.selectedLocationIcon}>
+                    <Ionicons name="checkmark" size={14} color={SUCCESS} />
+                  </View>
+                ) : null}
               </View>
               {locationQuery.trim().length >= 2 && (searchingLocation || locationResults.length > 0 || !location) ? (
                 <View style={styles.dropdown}>
@@ -590,7 +620,7 @@ export function CreateFAB({
               </View>
             </View>
           ) : null}
-          <TouchableOpacity style={styles.timePill} onPress={() => setTimeOpen((value) => !value)}>
+          <TouchableOpacity style={styles.timePill} onPress={openTimePicker}>
             <View style={styles.timePillLeft}>
               <Ionicons name="time-outline" size={18} color={ACCENT} />
               <AppText style={styles.timePillText}>{selectedTime ? format(selectedTime, 'h:mm a') : 'Select time'}</AppText>
@@ -599,13 +629,29 @@ export function CreateFAB({
           </TouchableOpacity>
           {timeHint ? <AppText style={styles.hint}>{timeHint}</AppText> : null}
           {timeOpen ? (
-            <ScrollView style={styles.timeList} nestedScrollEnabled>
-              {slots.length ? slots.map((slot) => (
-                <TouchableOpacity key={slot.toISOString()} style={styles.timeRow} onPress={() => { setSelectedTime(slot); setTimeOpen(false); setTimeHint(''); }}>
-                  <AppText style={styles.timeRowText}>{format(slot, 'h:mm a')}</AppText>
-                </TouchableOpacity>
-              )) : <AppText style={styles.hint}>Too late for today - try tomorrow?</AppText>}
-            </ScrollView>
+            <View style={styles.timePickerCard}>
+              {slots.length ? (
+                <>
+                  <DateTimePicker
+                    value={selectedTime ?? slots[0]}
+                    mode="time"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    minuteInterval={15}
+                    is24Hour={false}
+                    onChange={handleTimeChange}
+                    themeVariant="light"
+                    textColor={DARK}
+                    accentColor={ACCENT}
+                    style={styles.nativeTimePicker}
+                  />
+                  {Platform.OS === 'ios' ? (
+                    <TouchableOpacity style={styles.timeDoneBtn} onPress={() => setTimeOpen(false)}>
+                      <AppText style={styles.timeDoneText}>Done</AppText>
+                    </TouchableOpacity>
+                  ) : null}
+                </>
+              ) : <AppText style={styles.hint}>Too late for today - try tomorrow?</AppText>}
+            </View>
           ) : null}
 
           <SectionLabel>WHO'S INVITED?</SectionLabel>
@@ -779,6 +825,7 @@ const styles = StyleSheet.create({
   locationBox: { position: 'relative' },
   inputIconRow: { minHeight: 48, borderWidth: 2, borderColor: BORDER, borderRadius: 14, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#fff' },
   iconInput: { flex: 1, color: DARK, fontSize: 15, padding: 0 },
+  selectedLocationIcon: { width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: SUCCESS, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
   dropdown: { marginTop: 6, maxHeight: 220, borderRadius: 12, backgroundColor: '#fff', borderWidth: 1, borderColor: '#EAF2F6', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 5, overflow: 'hidden' },
   dropdownRow: { paddingHorizontal: 14, paddingVertical: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: BORDER },
   dropdownName: { fontSize: 14, color: DARK, fontWeight: '500' },
@@ -811,6 +858,10 @@ const styles = StyleSheet.create({
   timePill: { height: 48, borderWidth: 2, borderColor: BORDER, borderRadius: 14, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FFFFFF' },
   timePillLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   timePillText: { color: DARK, fontSize: 15, fontWeight: '600' },
+  timePickerCard: { marginTop: 8, borderRadius: 18, borderWidth: 1, borderColor: '#DDEAF0', backgroundColor: '#FFFFFF', overflow: 'hidden', alignItems: 'center', paddingBottom: 10 },
+  nativeTimePicker: { width: '100%', height: Platform.OS === 'ios' ? 164 : 56 },
+  timeDoneBtn: { minWidth: 96, height: 38, borderRadius: 19, backgroundColor: ACCENT, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
+  timeDoneText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
   timeList: { maxHeight: 200, marginTop: 8, borderRadius: 12, borderWidth: 1, borderColor: BORDER },
   timeRow: { paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: BORDER },
   timeRowText: { fontSize: 15, color: DARK },
