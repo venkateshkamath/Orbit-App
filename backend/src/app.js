@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
+const { randomUUID } = require('crypto');
 const env = require('./config/env');
 const { mediaRoot, deleteFile } = require('./utils/media');
 const routes = require('./routes');
@@ -30,7 +31,13 @@ function createApp() {
       },
     })
   );
-  app.use(morgan('dev'));
+  app.use((req, res, next) => {
+    req.id = req.headers['x-request-id'] || randomUUID();
+    res.setHeader('X-Request-ID', req.id);
+    next();
+  });
+  morgan.token('id', (req) => req.id);
+  app.use(morgan(':id :method :url :status :response-time ms'));
   app.use('/media', express.static(mediaRoot));
 
   app.use(routes);

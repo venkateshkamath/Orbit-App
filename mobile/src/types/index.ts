@@ -17,6 +17,7 @@ export interface User {
   bio: string;
   avatar: string | null;
   date_of_birth: string | null;
+  city: string;
   interests: Interest[];
   latitude: number | null;
   longitude: number | null;
@@ -190,12 +191,23 @@ export interface OrbitEvent {
   start_at: string;
   end_at: string | null;
   location_name: string;
+  address?: string;
+  city?: string;
+  location_source?: 'search' | 'gmaps' | 'manual' | 'legacy';
   latitude: number;
   longitude: number;
   distance_m?: number;
   category: EventCategory;
+  category_id?: string | null;
+  custom_category?: string | null;
+  join_mode?: 'open' | 'approval';
+  max_people?: number;
   image_url: string | null;
+  photos?: { url: string; public_id: string | null }[];
+  cover_photo_index?: number;
+  status?: 'live' | 'cancelled';
   attendee_count: number;
+  spots_left?: number;
   conversation_id: string | null;
   has_joined: boolean;
   is_own: boolean;
@@ -210,6 +222,9 @@ export interface NearbyEventsResponse {
 
 export interface LocationSearchResult {
   display_name: string;
+  name?: string;
+  address?: string;
+  city?: string;
   lat: number;
   lng: number;
 }
