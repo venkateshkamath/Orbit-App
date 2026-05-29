@@ -46,6 +46,6 @@ const eventStorage = new CloudinaryStorage({
 
 const uploadPost   = multer({ storage: postStorage,   limits: { fileSize: 10 * 1024 * 1024, files: 1 }, fileFilter });
 const uploadAvatar = multer({ storage: avatarStorage, limits: { fileSize:  5 * 1024 * 1024, files: 1 }, fileFilter });
-const uploadEvent  = multer({ storage: eventStorage,  limits: { fileSize: 10 * 1024 * 1024, files: 1 }, fileFilter });
+const uploadEvent  = multer({ storage: eventStorage,  limits: { fileSize: 10 * 1024 * 1024, files: 5 }, fileFilter });
 
 module.exports = { uploadPost, uploadAvatar, uploadEvent };

@@ -43,6 +43,7 @@ async function serializeUser(user, req) {
     bio: user.bio || '',
     avatar: fullMediaUrl(req, user.avatar),
     date_of_birth: user.date_of_birth,
+    city: user.city || '',
     interests: user.interest_ids.map((interest) => ({
       id: String(interest._id),
       name: interest.name,

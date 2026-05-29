@@ -11,3 +11,6 @@ export { CommentsModal } from './CommentsModal';
 export { JoinRequestsListHeader } from './JoinRequestsListHeader';
 export { CreateEventModal, EVENT_CATEGORY_META } from './CreateEventModal';
 export type { CategoryMeta } from './CreateEventModal';
+export { CreateFAB } from './CreateFAB';
+export { BottomSheet } from './BottomSheet';
+export { OrbitLoader } from './OrbitLoader';

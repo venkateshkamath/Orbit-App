@@ -30,7 +30,7 @@ import { format } from 'date-fns';
 import { FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
 import { useNearbyUsersQuery, useNotificationsQuery, useNearbyEventsQuery, useDeleteEventMutation } from '../hooks/useOrbitApi';
 import { DiscoverNotificationsPanel } from '../components/DiscoverNotificationsPanel';
-import { CreateEventModal, EVENT_CATEGORY_META } from '../components/CreateEventModal';
+import { EVENT_CATEGORY_META } from '../components/CreateEventModal';
 import { useAuthStore } from '../stores';
 import { useOrbitTheme } from '../theme';
 import { AppText } from '../ui/AppText';
@@ -136,7 +136,6 @@ export default function MapScreen({ variant: _variant = 'discover' }: MapScreenP
   const [notifOpen, setNotifOpen]         = useState(false);
   const [searchOpen, setSearchOpen]       = useState(false);
   const [filterOpen, setFilterOpen]       = useState(false);
-  const [createEventOpen, setCreateEventOpen] = useState(false);
 
   const eventsQuery = useNearbyEventsQuery(
     user?.latitude,
@@ -588,15 +587,6 @@ export default function MapScreen({ variant: _variant = 'discover' }: MapScreenP
       {/* FAB cluster */}
       <View style={[styles.fabWrap, { bottom: eventCardBottom + 16 }]} pointerEvents="box-none">
         <Pressable
-          onPress={() => setCreateEventOpen(true)}
-          android_ripple={{ color: 'rgba(255,255,255,0.25)' }}
-          style={({ pressed }) => [styles.fabBtn, pressed && { opacity: 0.92 }, { marginBottom: 20 }]}
-        >
-          <LinearGradient colors={[colors.primary.default, colors.primary.dark]} start={{ x: 0.2, y: 0 }} end={{ x: 0.9, y: 1 }} style={styles.fabGrad} />
-          <Ionicons name="add" size={28} color="#FFFFFF" />
-        </Pressable>
-
-        <Pressable
           onPress={centerOnUser}
           android_ripple={{ color: 'rgba(255,255,255,0.25)' }}
           style={({ pressed }) => [styles.fabBtn, pressed && { opacity: 0.92 }]}
@@ -679,14 +669,6 @@ export default function MapScreen({ variant: _variant = 'discover' }: MapScreenP
       )}
 
       <DiscoverNotificationsPanel visible={notifOpen} onClose={() => setNotifOpen(false)} />
-
-      <CreateEventModal
-        visible={createEventOpen}
-        onClose={() => setCreateEventOpen(false)}
-        onCreated={() => { setCreateEventOpen(false); void eventsQuery.refetch(); }}
-        initialLat={userLocation?.latitude}
-        initialLng={userLocation?.longitude}
-      />
 
       <Modal visible={searchOpen} animationType="fade" transparent onRequestClose={() => setSearchOpen(false)}>
         <Pressable style={[StyleSheet.absoluteFillObject, { backgroundColor: colors.overlay }]} onPress={() => { Keyboard.dismiss(); setSearchOpen(false); }}>

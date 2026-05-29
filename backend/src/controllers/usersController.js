@@ -18,6 +18,7 @@ async function patchMe(req, res) {
   const nextBio = updates.bio !== undefined ? String(updates.bio) : user.bio;
   const nextUsername = updates.username !== undefined ? String(updates.username).trim() : user.username;
   const nextDateOfBirth = updates.date_of_birth !== undefined ? updates.date_of_birth || null : user.date_of_birth;
+  const nextCity = updates.city !== undefined ? String(updates.city || '').trim() : user.city;
   const nextLatitude = updates.latitude !== undefined ? asNumber(updates.latitude) : user.latitude;
   const nextLongitude = updates.longitude !== undefined ? asNumber(updates.longitude) : user.longitude;
   const nextIsDiscoverable =
@@ -64,6 +65,7 @@ async function patchMe(req, res) {
   user.bio = nextBio;
   user.avatar = nextAvatar;
   user.date_of_birth = nextDateOfBirth;
+  user.city = nextCity;
   user.latitude = nextLatitude;
   user.longitude = nextLongitude;
   user.is_discoverable = !!nextIsDiscoverable;
@@ -95,7 +97,7 @@ async function deleteAvatar(req, res) {
 }
 
 async function updateLocation(req, res) {
-  const { latitude, longitude } = req.body || {};
+  const { latitude, longitude, city } = req.body || {};
   const nextLatitude = asNumber(latitude);
   const nextLongitude = asNumber(longitude);
   if (nextLatitude === null || nextLongitude === null) {
@@ -107,6 +109,7 @@ async function updateLocation(req, res) {
   const user = await User.findById(req.user._id);
   user.latitude = nextLatitude;
   user.longitude = nextLongitude;
+  if (city !== undefined) user.city = String(city || '').trim();
   user.location_updated_at = updatedAt;
   syncUserGeoPoint(user);
   await user.save();
