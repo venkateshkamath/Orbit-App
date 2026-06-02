@@ -96,6 +96,22 @@ async function deleteAvatar(req, res) {
   res.json(await serializeUser(user, req));
 }
 
+async function reverseGeocodeCity(lat, lng) {
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`;
+    const resp = await fetch(url, {
+      headers: { 'User-Agent': 'ORBIT-App/1.0 (hyper-local catchups)' },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    const addr = data.address || {};
+    return addr.city || addr.town || addr.village || addr.suburb || addr.county || null;
+  } catch {
+    return null;
+  }
+}
+
 async function updateLocation(req, res) {
   const { latitude, longitude, city } = req.body || {};
   const nextLatitude = asNumber(latitude);
@@ -109,7 +125,15 @@ async function updateLocation(req, res) {
   const user = await User.findById(req.user._id);
   user.latitude = nextLatitude;
   user.longitude = nextLongitude;
-  if (city !== undefined) user.city = String(city || '').trim();
+
+  if (city !== undefined) {
+    user.city = String(city || '').trim();
+  } else if (!user.city) {
+    // Auto-derive city from coordinates if not already set
+    const derived = await reverseGeocodeCity(nextLatitude, nextLongitude);
+    if (derived) user.city = derived;
+  }
+
   user.location_updated_at = updatedAt;
   syncUserGeoPoint(user);
   await user.save();
@@ -118,6 +142,7 @@ async function updateLocation(req, res) {
     message: 'Location updated',
     latitude: nextLatitude,
     longitude: nextLongitude,
+    city: user.city || null,
     updated_at: updatedAt.toISOString(),
   });
 }

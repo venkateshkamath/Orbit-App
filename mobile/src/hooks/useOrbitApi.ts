@@ -624,7 +624,22 @@ export function useCreateEventMutation() {
 export function useJoinEventMutation() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (eventId: string) => eventsApi.join(eventId),
+    mutationFn: (eventId: string) => eventsApi.joinCatchup(eventId).catch(() => eventsApi.join(eventId)),
+    onSuccess: (data, eventId) => {
+      qc.invalidateQueries({ queryKey: ['orbit', 'events'] });
+      qc.invalidateQueries({ queryKey: orbitKeys.event(eventId) });
+      qc.invalidateQueries({ queryKey: orbitKeys.conversations() });
+      if (data?.event) {
+        qc.setQueryData(orbitKeys.event(eventId), data.event);
+      }
+    },
+  });
+}
+
+export function useLeaveEventMutation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (eventId: string) => eventsApi.leaveCatchup(eventId),
     onSuccess: (data, eventId) => {
       qc.invalidateQueries({ queryKey: ['orbit', 'events'] });
       qc.invalidateQueries({ queryKey: orbitKeys.event(eventId) });
@@ -642,6 +657,17 @@ export function useDeleteEventMutation() {
     mutationFn: (eventId: string) => eventsApi.remove(eventId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['orbit', 'events'] });
+    },
+  });
+}
+
+export function useDeleteCatchupMutation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (eventId: string) => eventsApi.deleteCatchup(eventId),
+    onSuccess: (_data, eventId) => {
+      qc.invalidateQueries({ queryKey: ['orbit', 'events'] });
+      qc.invalidateQueries({ queryKey: orbitKeys.event(eventId) });
     },
   });
 }

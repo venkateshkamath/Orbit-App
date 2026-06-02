@@ -6,9 +6,9 @@ import api from './client';
 import { Post, Comment } from '../types';
 
 export const postApi = {
-  getFeed: async (interestId?: string): Promise<Post[]> => {
+  getFeed: async (interestId?: string, page = 1, limit = 10): Promise<Post[]> => {
     const response = await api.get('/posts/feed/', {
-      params: { interest: interestId }
+      params: { interest: interestId, page, limit }
     });
     // Backend now returns { posts: [...], pagination: {...} }
     // Fall back to response.data if it's already an array (backward compat)
@@ -26,11 +26,7 @@ export const postApi = {
   },
 
   createPost: async (formData: FormData): Promise<Post> => {
-    const response = await api.post('/posts/', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    const response = await api.post('/posts/', formData);
     return response.data;
   },
 

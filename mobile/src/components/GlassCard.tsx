@@ -10,14 +10,12 @@ import { useOrbitTheme } from '../theme';
 interface GlassCardProps {
   children: React.ReactNode;
   style?: ViewStyle;
-  intensity?: number;
   padding?: number;
 }
 
 export const GlassCard: React.FC<GlassCardProps> = ({
   children,
   style,
-  intensity: _intensity,
   padding = Spacing.md,
 }) => {
   const { colors, shadows } = useOrbitTheme();

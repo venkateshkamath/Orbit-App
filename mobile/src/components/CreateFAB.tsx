@@ -14,7 +14,6 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { addDays, addMonths, endOfMonth, format, getDay, isBefore, isSameDay, startOfDay, startOfMonth, subMonths } from 'date-fns';
@@ -23,10 +22,13 @@ import { useQueryClient } from '@tanstack/react-query';
 import BottomSheet from './BottomSheet';
 import { OrbitLoader } from './OrbitLoader';
 import { eventsApi, type CatchupLocation, type EventCategoryOption } from '../api/events';
+import { API_BASE_URL } from '../api/client';
 import { useAuthStore } from '../stores/authStore';
 import { orbitKeys } from '../hooks/orbitKeys';
 import { AppText } from '../ui/AppText';
 import { formatApiError } from '../utils/apiErrors';
+import { useToast } from '../context/ToastContext';
+import type { OrbitEvent } from '../types';
 
 const ACCENT = '#00B4D8';
 const DARK = '#0D0D0D';
@@ -38,7 +40,37 @@ const LABEL = '#888';
 
 type LocationMode = 'search' | 'manual';
 type JoinMode = 'open' | 'approval';
-type PhotoAsset = { uri: string; name: string; type: string };
+type PhotoAsset = {
+  uri: string;
+  name: string;
+  type: string;
+  remote?: boolean;
+  sourceUrl?: string;
+  publicId?: string | null;
+};
+
+const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
+
+function mediaUrl(url?: string | null): string | null {
+  if (!url) return null;
+  const value = String(url).trim();
+  if (!value) return null;
+  if (/^(https?:|file:|content:|data:)/i.test(value)) return value;
+  const normalized = value.replace(/^\/+/, '');
+  const mediaPath = normalized.startsWith('media/') ? normalized : `media/${normalized}`;
+  return `${API_ORIGIN}/${mediaPath}`;
+}
+
+function normalizeImageAsset(asset: ImagePicker.ImagePickerAsset, index: number): PhotoAsset {
+  const supportedMimeTypes = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp']);
+  const mimeType = asset.mimeType && supportedMimeTypes.has(asset.mimeType) ? asset.mimeType : 'image/jpeg';
+  const extension = mimeType === 'image/png' ? 'png' : mimeType === 'image/webp' ? 'webp' : 'jpg';
+  return {
+    uri: asset.uri,
+    name: `catchup_${Date.now()}_${index}.${extension}`,
+    type: mimeType,
+  };
+}
 
 type Props = {
   initialLat?: number;
@@ -48,6 +80,7 @@ type Props = {
   controlledOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
   hideLauncher?: boolean;
+  editingEvent?: OrbitEvent | null;
 };
 
 function startOfSelected(date: Date) {
@@ -64,16 +97,23 @@ function nextValidTodaySlot(now = new Date()) {
 }
 
 function timeSlotsFor(date: Date) {
-  const today = isSameDay(date, new Date());
-  const first = today ? nextValidTodaySlot() : startOfDay(date);
+  const day = startOfDay(date);
+  if (isBefore(day, startOfDay(new Date()))) return [];
+  const today = isSameDay(day, new Date());
+  const first = today ? nextValidTodaySlot() : day;
+  if (today && !isSameDay(first, day)) return [];
   const slots: Date[] = [];
-  const cursor = new Date(date);
+  const cursor = new Date(day);
   cursor.setHours(today ? first.getHours() : 0, today ? first.getMinutes() : 0, 0, 0);
-  while (isSameDay(cursor, date)) {
+  while (isSameDay(cursor, day)) {
     slots.push(new Date(cursor));
     cursor.setMinutes(cursor.getMinutes() + 15);
   }
   return slots;
+}
+
+function sameSlotTime(left: Date, right: Date) {
+  return left.getHours() === right.getHours() && left.getMinutes() === right.getMinutes();
 }
 
 function SectionLabel({ children, optional }: { children: React.ReactNode; optional?: boolean }) {
@@ -93,6 +133,7 @@ export function CreateFAB({
   controlledOpen,
   onOpenChange,
   hideLauncher = false,
+  editingEvent = null,
 }: Props) {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
@@ -105,8 +146,8 @@ export function CreateFAB({
     onOpenChange?.(value);
   };
   const [preview, setPreview] = useState(false);
+  const toast = useToast();
   const [submitting, setSubmitting] = useState(false);
-  const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [confirmCity, setConfirmCity] = useState(false);
 
   const [name, setName] = useState('');
@@ -133,9 +174,9 @@ export function CreateFAB({
   const [description, setDescription] = useState('');
   const [photos, setPhotos] = useState<PhotoAsset[]>([]);
   const [coverPhotoIndex, setCoverPhotoIndex] = useState(0);
+  const isEditing = Boolean(editingEvent);
 
   const progress = useRef(new Animated.Value(0)).current;
-  const toastY = useRef(new Animated.Value(-80)).current;
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -180,6 +221,7 @@ export function CreateFAB({
 
   const slots = useMemo(() => timeSlotsFor(selectedDate), [selectedDate]);
   const maxPeople = Math.min(Math.max(Number(maxPeopleText.replace(/\D/g, '')) || 10, 2), 100);
+  const previewSpotsLeft = Math.max(maxPeople - (editingEvent?.attendee_count ?? 1), 0);
   const calendarDays = useMemo(() => {
     const monthStart = startOfMonth(calendarMonth);
     const monthEnd = endOfMonth(calendarMonth);
@@ -193,15 +235,6 @@ export function CreateFAB({
     return days;
   }, [calendarMonth]);
 
-  const showToast = (next: typeof toast) => {
-    setToast(next);
-    toastY.setValue(-80);
-    Animated.sequence([
-      Animated.timing(toastY, { toValue: insets.top + 10, duration: 220, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-      Animated.delay(3000),
-      Animated.timing(toastY, { toValue: -90, duration: 200, easing: Easing.in(Easing.quad), useNativeDriver: true }),
-    ]).start(() => setToast(null));
-  };
 
   const reset = () => {
     setPreview(false);
@@ -222,6 +255,52 @@ export function CreateFAB({
     setCoverPhotoIndex(0);
     setTimeHint('');
   };
+
+  useEffect(() => {
+    if (!open || !editingEvent) return;
+
+    const start = new Date(editingEvent.start_at);
+    const eventLocation: CatchupLocation = {
+      name: editingEvent.location_name || editingEvent.address || editingEvent.city || '',
+      address: editingEvent.address || editingEvent.location_name || '',
+      city: editingEvent.city || '',
+      lat: editingEvent.latitude,
+      lng: editingEvent.longitude,
+      source: editingEvent.location_source === 'search' || editingEvent.location_source === 'gmaps' ? editingEvent.location_source : 'manual',
+    };
+    const eventPhotos = editingEvent.photos?.length
+      ? editingEvent.photos
+      : editingEvent.image_url
+        ? [{ url: editingEvent.image_url, public_id: null }]
+        : [];
+
+    setPreview(false);
+    setName(editingEvent.title || '');
+    setLocationMode('search');
+    setLocation(eventLocation);
+    setLocationQuery(eventLocation.name || eventLocation.address);
+    setLocationResults([]);
+    setManualAddress(eventLocation.address);
+    setSelectedDate(startOfDay(start));
+    setCalendarMonth(startOfMonth(start));
+    setSelectedTime(start);
+    setJoinMode(editingEvent.join_mode ?? 'open');
+    setMaxPeopleText(String(editingEvent.max_people ?? 10));
+    setCategoryId(editingEvent.custom_category ? null : (editingEvent.category_id || editingEvent.category || null));
+    setOtherMode(Boolean(editingEvent.custom_category));
+    setCustomCategory(editingEvent.custom_category || '');
+    setDescription(editingEvent.description || '');
+    setPhotos(eventPhotos.map((photo, index) => ({
+      uri: mediaUrl(photo.url) ?? photo.url,
+      name: `existing_${index}.jpg`,
+      type: 'image/jpeg',
+      remote: true,
+      sourceUrl: photo.url,
+      publicId: photo.public_id ?? null,
+    })));
+    setCoverPhotoIndex(Math.min(editingEvent.cover_photo_index ?? 0, Math.max(eventPhotos.length - 1, 0)));
+    setTimeHint('');
+  }, [editingEvent, open]);
 
   const handleToggle = () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
@@ -277,7 +356,7 @@ export function CreateFAB({
       setTimeOpen(true);
       return;
     }
-    if (selectedTime && !nextSlots.some((slot) => slot.getHours() === selectedTime.getHours() && slot.getMinutes() === selectedTime.getMinutes())) {
+    if (selectedTime && !nextSlots.some((slot) => sameSlotTime(slot, selectedTime))) {
       setSelectedTime(null);
       setTimeHint('That time has passed. Pick a new one.');
       setTimeOpen(true);
@@ -289,23 +368,11 @@ export function CreateFAB({
     setTimeOpen((value) => !value);
   };
 
-  const handleTimeChange = (event: DateTimePickerEvent, value?: Date) => {
-    if (Platform.OS === 'android' && event.type === 'dismissed') {
-      setTimeOpen(false);
-      return;
-    }
-    if (!value) return;
-    const candidate = new Date(selectedDate);
-    candidate.setHours(value.getHours(), value.getMinutes(), 0, 0);
-    const valid = slots.some((slot) => slot.getHours() === candidate.getHours() && slot.getMinutes() === candidate.getMinutes());
-    if (valid) {
-      setSelectedTime(candidate);
-      setTimeHint('');
-    } else if (slots[0]) {
-      setSelectedTime(slots[0]);
-      setTimeHint('Pick a future time.');
-    }
-    if (Platform.OS === 'android') setTimeOpen(false);
+  const chooseTimeSlot = (slot: Date) => {
+    setSelectedTime(slot);
+    setTimeHint('');
+    setTimeOpen(false);
+    void Haptics.selectionAsync().catch(() => {});
   };
 
   const pickPhoto = async () => {
@@ -313,16 +380,14 @@ export function CreateFAB({
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') return;
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsMultipleSelection: true,
       selectionLimit: 5 - photos.length,
+      preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
       quality: 0.82,
     });
     if (result.canceled) return;
-    const next = result.assets.slice(0, 5 - photos.length).map((asset, index) => {
-      const ext = asset.uri.split('.').pop()?.toLowerCase() || 'jpg';
-      return { uri: asset.uri, name: `catchup_${Date.now()}_${index}.${ext}`, type: `image/${ext === 'jpg' ? 'jpeg' : ext}` };
-    });
+    const next = result.assets.slice(0, 5 - photos.length).map(normalizeImageAsset);
     setPhotos((current) => [...current, ...next].slice(0, 5));
   };
 
@@ -352,23 +417,46 @@ export function CreateFAB({
     || photos.length
   );
 
+  const selectedDateTime = () => {
+    if (!selectedTime) return null;
+    const dateTime = new Date(selectedDate);
+    dateTime.setHours(selectedTime.getHours(), selectedTime.getMinutes(), 0, 0);
+    return dateTime;
+  };
+
+  const isValidFutureSlot = (dateTime: Date) => (
+    dateTime.getTime() > Date.now()
+    && timeSlotsFor(selectedDate).some((slot) => sameSlotTime(slot, dateTime))
+  );
+
+  const showStaleTimeError = () => {
+    toast.error('Pick a future time.');
+    setTimeHint('That time has passed. Pick a new one.');
+    setTimeOpen(true);
+  };
+
   const submit = async (confirmedCity = false) => {
     const loc = currentLocation();
     if (name.trim().length < 3) {
-      showToast({ type: 'error', text: 'Add a catchup name.' });
+      toast.error('Add a catchup name.');
       return;
     }
     if (!loc) {
-      showToast({ type: 'error', text: 'Choose a location.' });
+      toast.error('Choose a location.');
       return;
     }
     if (!selectedTime) {
-      showToast({ type: 'error', text: 'Pick a time.' });
+      toast.error('Pick a time.');
       setTimeOpen(true);
       return;
     }
+    const dateTime = selectedDateTime();
+    if (!dateTime || !isValidFutureSlot(dateTime)) {
+      showStaleTimeError();
+      return;
+    }
     if (!categoryId && !customCategory.trim()) {
-      showToast({ type: 'error', text: 'Pick a category.' });
+      toast.error('Pick a category.');
       return;
     }
     if (!confirmedCity && loc.city && user?.city && loc.city.toLowerCase() !== user.city.toLowerCase()) {
@@ -378,9 +466,7 @@ export function CreateFAB({
 
     setSubmitting(true);
     try {
-      const dateTime = new Date(selectedDate);
-      dateTime.setHours(selectedTime.getHours(), selectedTime.getMinutes(), 0, 0);
-      await eventsApi.createCatchup({
+      const payload = {
         name: name.trim(),
         location: loc,
         dateTime: dateTime.toISOString(),
@@ -391,17 +477,40 @@ export function CreateFAB({
         description: description.trim() || null,
         photos,
         coverPhotoIndex,
-      });
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: orbitKeys.eventsFeed() }),
-        queryClient.invalidateQueries({ queryKey: ['orbit', 'events'] }),
-      ]);
+      };
+
+      if (editingEvent) {
+        const newPhotos = photos.filter((photo) => !photo.remote);
+        const existingPhotos = photos
+          .filter((photo) => photo.remote)
+          .map((photo) => ({
+            url: photo.sourceUrl ?? photo.uri,
+            public_id: photo.publicId ?? null,
+          }));
+        await eventsApi.updateCatchup(editingEvent.id, {
+          ...payload,
+          photos: newPhotos.length ? newPhotos : undefined,
+          existingPhotos,
+          coverPhotoIndex,
+        });
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: orbitKeys.eventsFeed() }),
+          queryClient.invalidateQueries({ queryKey: orbitKeys.event(editingEvent.id) }),
+          queryClient.invalidateQueries({ queryKey: ['orbit', 'events'] }),
+        ]);
+      } else {
+        await eventsApi.createCatchup(payload);
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: orbitKeys.eventsFeed() }),
+          queryClient.invalidateQueries({ queryKey: ['orbit', 'events'] }),
+        ]);
+      }
       onCreated?.();
       closeSheet();
-      showToast({ type: 'success', text: 'Your catchup is live!' });
+      toast.success(editingEvent ? 'Catchup updated.' : 'Your catchup is live!');
     } catch (error) {
-      console.error('[CreateFAB] create catchup failed', error);
-      showToast({ type: 'error', text: formatApiError(error) });
+      console.error(`[CreateFAB] ${editingEvent ? 'update' : 'create'} catchup failed`, error);
+      toast.error(formatApiError(error));
     } finally {
       setSubmitting(false);
       setConfirmCity(false);
@@ -410,18 +519,34 @@ export function CreateFAB({
 
   const openPreview = () => {
     if (!hasPreviewContent) {
-      showToast({ type: 'error', text: 'Add a few details before previewing.' });
+      toast.error('Add a few details before previewing.');
+      return;
+    }
+    const dateTime = selectedDateTime();
+    if (dateTime && !isValidFutureSlot(dateTime)) {
+      showStaleTimeError();
       return;
     }
     setPreview(true);
+  };
+
+  const removePhotoAt = (index: number) => {
+    setPhotos((current) => {
+      const next = current.filter((_, i) => i !== index);
+      let nextCoverIndex = coverPhotoIndex;
+      if (index === coverPhotoIndex) nextCoverIndex = Math.min(index, next.length - 1);
+      else if (index < coverPhotoIndex) nextCoverIndex = coverPhotoIndex - 1;
+      setCoverPhotoIndex(Math.max(nextCoverIndex, 0));
+      return next;
+    });
   };
 
   const form = (
     <>
       <View style={styles.header}>
         <View>
-          <AppText style={styles.title}>Create a catchup</AppText>
-          <AppText style={styles.subtitle}>Get people together</AppText>
+          <AppText style={styles.title}>{isEditing ? 'Edit catchup' : 'Create a catchup'}</AppText>
+          <AppText style={styles.subtitle}>{isEditing ? 'Tune the details' : 'Get people together'}</AppText>
         </View>
         <TouchableOpacity style={styles.headerClose} onPress={closeSheet} hitSlop={12}>
           <Ionicons name="close" size={22} color={DARK} />
@@ -472,7 +597,7 @@ export function CreateFAB({
               ) : null}
               {description.trim() ? <AppText style={styles.previewDesc} numberOfLines={4}>{description.trim()}</AppText> : null}
               <View style={styles.previewFooterRow}>
-                <AppText style={styles.spots}>{maxPeople - 1} spots left</AppText>
+                <AppText style={styles.spots}>{previewSpotsLeft} spots left</AppText>
                 <AppText style={styles.previewMode}>{joinMode === 'open' ? 'Open join' : 'Approval'}</AppText>
               </View>
             </View>
@@ -481,10 +606,10 @@ export function CreateFAB({
             <TouchableOpacity style={styles.ghostBtn} onPress={() => setPreview(false)}><AppText style={styles.ghostText}>Edit</AppText></TouchableOpacity>
             <TouchableOpacity style={styles.blackBtn} onPress={() => void submit()} disabled={submitting}>
               {submitting ? (
-                <OrbitLoader variant="inline" size="sm" />
+                <AppText style={styles.blackBtnText}>{isEditing ? 'Saving...' : 'Posting...'}</AppText>
               ) : (
                 <>
-                  <AppText style={styles.blackBtnText}>Post it</AppText>
+                  <AppText style={styles.blackBtnText}>{isEditing ? 'Save' : 'Post it'}</AppText>
                   <Ionicons name="arrow-forward" size={17} color="#FFFFFF" />
                 </>
               )}
@@ -632,25 +757,37 @@ export function CreateFAB({
             <View style={styles.timePickerCard}>
               {slots.length ? (
                 <>
-                  <DateTimePicker
-                    value={selectedTime ?? slots[0]}
-                    mode="time"
-                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                    minuteInterval={15}
-                    is24Hour={false}
-                    onChange={handleTimeChange}
-                    themeVariant="light"
-                    textColor={DARK}
-                    accentColor={ACCENT}
-                    style={styles.nativeTimePicker}
-                  />
-                  {Platform.OS === 'ios' ? (
-                    <TouchableOpacity style={styles.timeDoneBtn} onPress={() => setTimeOpen(false)}>
-                      <AppText style={styles.timeDoneText}>Done</AppText>
-                    </TouchableOpacity>
-                  ) : null}
+                  <View style={styles.timePickerHeader}>
+                    <AppText style={styles.timePickerTitle}>Available times</AppText>
+                    <AppText style={styles.timePickerMeta}>{isSameDay(selectedDate, new Date()) ? 'Future only' : format(selectedDate, 'MMM d')}</AppText>
+                  </View>
+                  <ScrollView
+                    style={styles.timeSlotScroll}
+                    contentContainerStyle={styles.timeSlotGrid}
+                    nestedScrollEnabled
+                    showsVerticalScrollIndicator={false}
+                  >
+                    {slots.map((slot) => {
+                      const selected = selectedTime ? sameSlotTime(selectedTime, slot) : false;
+                      return (
+                        <TouchableOpacity
+                          key={slot.toISOString()}
+                          activeOpacity={0.86}
+                          style={[styles.timeSlot, selected && styles.timeSlotActive]}
+                          onPress={() => chooseTimeSlot(slot)}
+                        >
+                          <AppText style={[styles.timeSlotText, selected && styles.timeSlotTextActive]}>{format(slot, 'h:mm a')}</AppText>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
                 </>
-              ) : <AppText style={styles.hint}>Too late for today - try tomorrow?</AppText>}
+              ) : (
+                <View style={styles.timeEmptyState}>
+                  <Ionicons name="moon-outline" size={18} color={MUTED} />
+                  <AppText style={styles.timeEmptyText}>Too late for today - try tomorrow?</AppText>
+                </View>
+              )}
             </View>
           ) : null}
 
@@ -701,30 +838,36 @@ export function CreateFAB({
           <AppText style={[styles.counter, description.length >= 280 && { color: ERROR }]}>{description.length}/300</AppText>
 
           <SectionLabel optional>ADD PHOTOS</SectionLabel>
+          <View style={styles.photoSectionHeader}>
+            <AppText style={styles.photoSectionTitle}>Photos</AppText>
+            <AppText style={styles.photoSectionCount}>{photos.length}/5</AppText>
+          </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photoRail}>
             {photos.map((photo, index) => (
-              <View key={photo.uri} style={styles.photoWrap}>
+              <TouchableOpacity
+                key={`${photo.uri}-${index}`}
+                style={[styles.photoWrap, coverPhotoIndex === index && styles.photoWrapActive]}
+                onPress={() => setCoverPhotoIndex(index)}
+                activeOpacity={0.9}
+              >
                 <Image source={{ uri: photo.uri }} style={styles.photo} />
-                <TouchableOpacity style={styles.removePhoto} onPress={() => setPhotos((current) => current.filter((_, i) => i !== index))}><Ionicons name="close" size={12} color={DARK} /></TouchableOpacity>
-              </View>
+                {coverPhotoIndex === index ? (
+                  <View style={styles.photoCoverBadge}>
+                    <AppText style={styles.photoCoverBadgeText}>Cover</AppText>
+                  </View>
+                ) : null}
+                <TouchableOpacity style={styles.removePhoto} onPress={() => removePhotoAt(index)} hitSlop={6}>
+                  <Ionicons name="close" size={15} color="#FFFFFF" />
+                </TouchableOpacity>
+              </TouchableOpacity>
             ))}
             {photos.length < 5 ? (
               <TouchableOpacity style={styles.addPhoto} onPress={pickPhoto}>
-                <Ionicons name="add" size={22} color={MUTED} />
+                <Ionicons name="add" size={24} color={MUTED} />
                 <AppText style={styles.addText}>Add</AppText>
               </TouchableOpacity>
-            ) : <AppText style={styles.photoCount}>5/5</AppText>}
+            ) : null}
           </ScrollView>
-          {photos.length > 1 ? (
-            <View style={styles.coverRow}>
-              <AppText style={styles.coverLabel}>Cover photo:</AppText>
-              {photos.map((photo, index) => (
-                <TouchableOpacity key={photo.uri} onPress={() => setCoverPhotoIndex(index)}>
-                  <Image source={{ uri: photo.uri }} style={[styles.coverThumb, coverPhotoIndex === index && styles.coverThumbActive]} />
-                </TouchableOpacity>
-              ))}
-            </View>
-          ) : null}
 
           <View style={styles.endActions}>
             <TouchableOpacity style={styles.reviewBtn} onPress={openPreview}>
@@ -733,10 +876,10 @@ export function CreateFAB({
             </TouchableOpacity>
             <TouchableOpacity style={styles.catchupBtn} onPress={() => void submit()} disabled={submitting}>
               {submitting ? (
-                <OrbitLoader variant="inline" size="sm" />
+                <AppText style={styles.catchupText}>{isEditing ? 'Saving...' : 'Posting...'}</AppText>
               ) : (
                 <>
-                  <AppText style={styles.catchupText}>Post it</AppText>
+                  <AppText style={styles.catchupText}>{isEditing ? 'Save' : 'Post it'}</AppText>
                   <Ionicons name="arrow-forward" size={17} color="#FFFFFF" />
                 </>
               )}
@@ -749,11 +892,6 @@ export function CreateFAB({
 
   return (
     <>
-      {toast ? (
-        <Animated.View style={[styles.toast, { borderLeftColor: toast.type === 'success' ? ACCENT : ERROR, transform: [{ translateY: toastY }] }]}>
-          <AppText style={styles.toastText}>{toast.text}</AppText>
-        </Animated.View>
-      ) : null}
 
       {!hideLauncher ? (
         <Animated.View style={[styles.fab, { bottom: bottomOffset + insets.bottom, backgroundColor: fabBg }]}>
@@ -777,7 +915,7 @@ export function CreateFAB({
             <AppText style={styles.confirmTitle}>Different city?</AppText>
             <AppText style={styles.confirmBody}>This catchup is in {currentLocation()?.city || 'another city'} but you're based in {user?.city || 'your city'}. Continue?</AppText>
             <TouchableOpacity style={styles.confirmPrimary} onPress={() => void submit(true)}>
-              <AppText style={styles.confirmPrimaryText}>Yes, post it</AppText>
+              <AppText style={styles.confirmPrimaryText}>{isEditing ? 'Yes, save it' : 'Yes, post it'}</AppText>
               <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setConfirmCity(false)}><AppText style={styles.confirmSecondary}>Go back</AppText></TouchableOpacity>
@@ -858,13 +996,18 @@ const styles = StyleSheet.create({
   timePill: { height: 48, borderWidth: 2, borderColor: BORDER, borderRadius: 14, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FFFFFF' },
   timePillLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   timePillText: { color: DARK, fontSize: 15, fontWeight: '600' },
-  timePickerCard: { marginTop: 8, borderRadius: 18, borderWidth: 1, borderColor: '#DDEAF0', backgroundColor: '#FFFFFF', overflow: 'hidden', alignItems: 'center', paddingBottom: 10 },
-  nativeTimePicker: { width: '100%', height: Platform.OS === 'ios' ? 164 : 56 },
-  timeDoneBtn: { minWidth: 96, height: 38, borderRadius: 19, backgroundColor: ACCENT, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
-  timeDoneText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
-  timeList: { maxHeight: 200, marginTop: 8, borderRadius: 12, borderWidth: 1, borderColor: BORDER },
-  timeRow: { paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: BORDER },
-  timeRowText: { fontSize: 15, color: DARK },
+  timePickerCard: { marginTop: 8, borderRadius: 18, borderWidth: 1, borderColor: '#DDEAF0', backgroundColor: '#FFFFFF', padding: 12 },
+  timePickerHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  timePickerTitle: { color: DARK, fontSize: 13, fontWeight: '800' },
+  timePickerMeta: { color: MUTED, fontSize: 11, fontWeight: '700' },
+  timeSlotScroll: { maxHeight: 216 },
+  timeSlotGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingBottom: 2 },
+  timeSlot: { width: '31.5%', minHeight: 40, borderRadius: 13, borderWidth: 1, borderColor: '#E6EEF2', backgroundColor: '#F7FBFD', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+  timeSlotActive: { borderColor: DARK, backgroundColor: DARK },
+  timeSlotText: { color: '#53636D', fontSize: 13, fontWeight: '700' },
+  timeSlotTextActive: { color: '#FFFFFF' },
+  timeEmptyState: { minHeight: 58, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  timeEmptyText: { color: MUTED, fontSize: 12, fontStyle: 'italic' },
   hint: { fontSize: 12, color: MUTED, fontStyle: 'italic', marginTop: 8 },
   cardRow: { flexDirection: 'row', gap: 12 },
   joinCard: { flex: 1, minHeight: 88, borderRadius: 14, padding: 14, borderWidth: 2, borderColor: BORDER },
@@ -889,17 +1032,18 @@ const styles = StyleSheet.create({
   linkText: { color: ACCENT, fontWeight: '700' },
   smallCancelBtn: { alignSelf: 'flex-end', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#F5F7F8' },
   cancelText: { color: MUTED, fontWeight: '700', fontSize: 12 },
-  photoRail: { gap: 10, alignItems: 'center' },
-  photoWrap: { width: 80, height: 80 },
-  photo: { width: 80, height: 80, borderRadius: 12 },
-  removePhoto: { position: 'absolute', top: -5, right: -5, width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 5 },
-  addPhoto: { width: 80, height: 80, borderRadius: 12, borderWidth: 2, borderStyle: 'dashed', borderColor: '#D0D0D0', alignItems: 'center', justifyContent: 'center' },
+  photoSectionHeader: { marginBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  photoSectionTitle: { color: DARK, fontSize: 13, fontWeight: '800' },
+  photoSectionCount: { color: MUTED, fontSize: 12, fontWeight: '700' },
+  photoRail: { gap: 12, alignItems: 'center', paddingRight: 2 },
+  photoWrap: { width: 132, height: 150, borderRadius: 18, overflow: 'hidden', backgroundColor: '#EAF8FC', borderWidth: 1, borderColor: '#E3EEF3' },
+  photoWrapActive: { borderWidth: 2, borderColor: ACCENT },
+  photo: { width: '100%', height: '100%' },
+  photoCoverBadge: { position: 'absolute', left: 10, bottom: 10, borderRadius: 12, paddingHorizontal: 9, paddingVertical: 5, backgroundColor: 'rgba(0,0,0,0.62)' },
+  photoCoverBadgeText: { color: '#FFFFFF', fontSize: 11, fontWeight: '800' },
+  removePhoto: { position: 'absolute', top: 8, right: 8, width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(0,0,0,0.62)', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.24, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 5, zIndex: 5 },
+  addPhoto: { width: 132, height: 150, borderRadius: 18, borderWidth: 2, borderStyle: 'dashed', borderColor: '#D0D0D0', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FAFAFA' },
   addText: { color: MUTED, fontSize: 12, marginTop: 2 },
-  photoCount: { color: MUTED, fontSize: 12, fontWeight: '700' },
-  coverRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 },
-  coverLabel: { color: DARK, fontSize: 13, fontWeight: '600', marginRight: 4 },
-  coverThumb: { width: 40, height: 40, borderRadius: 8 },
-  coverThumbActive: { borderWidth: 2, borderColor: ACCENT },
   endActions: { marginTop: 26, marginBottom: 28, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   reviewBtn: { flex: 1, height: 52, borderRadius: 26, borderWidth: 1, borderColor: '#E0E0E0', backgroundColor: '#FFFFFF', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   reviewText: { color: ACCENT, fontSize: 15, fontWeight: '800' },
@@ -931,8 +1075,6 @@ const styles = StyleSheet.create({
   ghostText: { color: ACCENT, fontWeight: '800' },
   blackBtn: { flex: 1, height: 48, borderRadius: 24, backgroundColor: ACCENT, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   blackBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '900' },
-  toast: { position: 'absolute', left: 24, right: 24, top: 0, zIndex: 200, minHeight: 52, borderRadius: 12, backgroundColor: '#FFFFFF', borderLeftWidth: 4, justifyContent: 'center', paddingHorizontal: 14, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 16, elevation: 10 },
-  toastText: { color: DARK, fontWeight: '700' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', alignItems: 'center', justifyContent: 'center', padding: 24 },
   confirmCard: { width: '100%', maxWidth: 320, borderRadius: 20, backgroundColor: '#fff', padding: 24 },
   confirmTitle: { fontSize: 18, color: DARK, fontWeight: '800' },

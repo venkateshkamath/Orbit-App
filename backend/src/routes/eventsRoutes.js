@@ -32,5 +32,10 @@ router.post(
   uploadEvent.array('photos', 5),
   eventsController.createCatchup
 );
+router.get('/api/catchups/:id', authMiddleware, eventsController.getEvent);
+router.put('/api/catchups/:id', authMiddleware, uploadEvent.array('photos', 5), eventsController.updateCatchup);
+router.post('/api/catchups/:id/join', authMiddleware, eventsController.joinEvent);
+router.delete('/api/catchups/:id/join', authMiddleware, eventsController.leaveEvent);
+router.delete('/api/catchups/:id', authMiddleware, eventsController.deleteCatchup);
 
 module.exports = router;

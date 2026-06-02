@@ -45,8 +45,9 @@ export const authApi = {
     return response.data;
   },
 
-  updateLocation: async (latitude: number, longitude: number): Promise<void> => {
-    await api.post('/users/me/location/', { latitude, longitude });
+  updateLocation: async (latitude: number, longitude: number): Promise<{ city?: string | null }> => {
+    const res = await api.post('/users/me/location/', { latitude, longitude });
+    return res.data as { city?: string | null };
   },
 
   registerExpoPushToken: async (token: string): Promise<void> => {
@@ -89,11 +90,7 @@ export const authApi = {
       });
     }
 
-    const response = await api.patch('/users/me/', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    const response = await api.patch('/users/me/', formData);
     return response.data;
   },
 

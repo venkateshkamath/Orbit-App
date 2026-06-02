@@ -187,7 +187,7 @@ export interface OrbitEvent {
   id: string;
   title: string;
   description: string;
-  organizer: { id: string; username: string; avatar: string | null } | null;
+  organizer: { id: string; username: string; avatar: string | null; is_online?: boolean; last_seen?: string | null } | null;
   start_at: string;
   end_at: string | null;
   location_name: string;
@@ -206,7 +206,9 @@ export interface OrbitEvent {
   photos?: { url: string; public_id: string | null }[];
   cover_photo_index?: number;
   status?: 'live' | 'cancelled';
+  is_completed?: boolean;
   attendee_count: number;
+  attendees_preview?: Array<{ id: string; username: string; avatar: string | null }>;
   spots_left?: number;
   conversation_id: string | null;
   has_joined: boolean;

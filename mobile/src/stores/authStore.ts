@@ -165,11 +165,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   updateLocation: async (latitude, longitude) => {
     try {
-      await authApi.updateLocation(latitude, longitude);
+      const result = await authApi.updateLocation(latitude, longitude);
       const { user } = get();
       if (user) {
         set({
-          user: { ...user, latitude, longitude },
+          user: {
+            ...user,
+            latitude,
+            longitude,
+            // Update city if the backend derived one (only set when previously empty)
+            ...(result.city ? { city: result.city } : {}),
+          },
         });
       }
     } catch (error) {
