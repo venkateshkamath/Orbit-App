@@ -11,6 +11,8 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAuthStore } from '../src/stores';
 import { OrbitQueryProvider } from '../src/lib/queryClient';
+import { ToastProvider } from '../src/context/ToastContext';
+import { ErrorBoundary } from '../src/components/ErrorBoundary';
 import { ChatRealtimeBridge } from '../src/components/ChatRealtimeBridge';
 import {
   installNotificationHandlerSafe,
@@ -139,8 +141,12 @@ export default function RootLayout() {
       <SafeAreaProvider style={layoutStyles.flex}>
         <ThemeProvider>
           <OrbitQueryProvider>
-            <ChatRealtimeBridge />
-            <RootLayoutNav />
+            <ToastProvider>
+              <ErrorBoundary>
+                <ChatRealtimeBridge />
+                <RootLayoutNav />
+              </ErrorBoundary>
+            </ToastProvider>
           </OrbitQueryProvider>
         </ThemeProvider>
       </SafeAreaProvider>

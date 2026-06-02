@@ -36,6 +36,7 @@ import { useOrbitTheme } from '../theme';
 import { AppText } from '../ui/AppText';
 import { googleMapStyleDark, googleMapStyleLight } from '../theme/mapStyles';
 import type { OrbitEvent } from '../types';
+import { API_BASE_URL } from '../api/client';
 
 const DEFAULT_REGION: Region = {
   latitude: 37.78825,
@@ -43,6 +44,18 @@ const DEFAULT_REGION: Region = {
   latitudeDelta: 0.05,
   longitudeDelta: 0.05,
 };
+
+const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
+
+function mediaUrl(url?: string | null): string | null {
+  if (!url) return null;
+  const value = String(url).trim();
+  if (!value) return null;
+  if (/^(https?:|file:|content:|data:)/i.test(value)) return value;
+  const normalized = value.replace(/^\/+/, '');
+  const mediaPath = normalized.startsWith('media/') ? normalized : `media/${normalized}`;
+  return `${API_ORIGIN}/${mediaPath}`;
+}
 
 function hexToRgba(hex: string, alpha: number): string {
   const h = hex.replace('#', '');
@@ -445,10 +458,11 @@ export default function MapScreen({ variant: _variant = 'discover' }: MapScreenP
 
   function EventMarker({ event }: { event: OrbitEvent }) {
     const meta = EVENT_CATEGORY_META[event.category];
+    const imageUri = mediaUrl(event.image_url);
     return (
       <View style={styles.eventMarkerOuter} collapsable={false}>
-        {event.image_url ? (
-          <Image source={{ uri: event.image_url }} style={styles.eventMarkerImage} />
+        {imageUri ? (
+          <Image source={{ uri: imageUri }} style={styles.eventMarkerImage} />
         ) : (
           <LinearGradient
             colors={meta.gradient}
@@ -465,6 +479,7 @@ export default function MapScreen({ variant: _variant = 'discover' }: MapScreenP
 
   const nearbyLabel = nearbyOthers.length >= 100 ? '100+ nearby' : `${nearbyOthers.length} orbiter${nearbyOthers.length !== 1 ? 's' : ''}`;
   const eventCardBottom = tabBarHeight + 16;
+  const selectedEventImageUri = mediaUrl(selectedEvent?.image_url);
 
   const cardTranslateY = cardAnim.interpolate({
     inputRange: [0, 1],
@@ -610,8 +625,8 @@ export default function MapScreen({ variant: _variant = 'discover' }: MapScreenP
             <View style={styles.eventCardHeader}>
               {/* Icon / image */}
               <View style={styles.eventCardIconWrap}>
-                {selectedEvent.image_url ? (
-                  <Image source={{ uri: selectedEvent.image_url }} style={styles.eventCardIconImage} />
+                {selectedEventImageUri ? (
+                  <Image source={{ uri: selectedEventImageUri }} style={styles.eventCardIconImage} />
                 ) : (
                   <LinearGradient
                     colors={EVENT_CATEGORY_META[selectedEvent.category].gradient}

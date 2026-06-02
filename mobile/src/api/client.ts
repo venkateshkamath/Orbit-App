@@ -100,14 +100,45 @@ const storage = {
 export const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 60000, // 60s — image uploads to Cloudinary need more than 10s
-  headers: {
-    'Content-Type': 'application/json',
-  },
 });
+
+function isFormDataBody(data: unknown): data is FormData {
+  return Boolean(
+    data
+    && typeof data === 'object'
+    && (
+      (typeof FormData !== 'undefined' && data instanceof FormData)
+      || Object.prototype.toString.call(data) === '[object FormData]'
+      || Array.isArray((data as { _parts?: unknown })._parts)
+    )
+  );
+}
+
+function removeContentType(headers: unknown) {
+  if (!headers || typeof headers !== 'object') return;
+  const maybeAxiosHeaders = headers as {
+    delete?: (name: string) => void;
+    set?: (name: string, value?: string | false) => void;
+    [key: string]: unknown;
+  };
+
+  if (typeof maybeAxiosHeaders.delete === 'function') {
+    maybeAxiosHeaders.delete('Content-Type');
+    maybeAxiosHeaders.delete('content-type');
+    return;
+  }
+
+  delete maybeAxiosHeaders['Content-Type'];
+  delete maybeAxiosHeaders['content-type'];
+}
 
 // Request interceptor to add auth token
 api.interceptors.request.use(
   async (config) => {
+    if (isFormDataBody(config.data)) {
+      removeContentType(config.headers);
+    }
+
     try {
       const token = await storage.getItem('accessToken');
       if (token) {

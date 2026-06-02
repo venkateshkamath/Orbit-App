@@ -1,918 +1,802 @@
-/**
- * Feed Tab — card-based posts (editorial layout)
- */
-
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  View,
-  StyleSheet,
-  FlatList,
-  Image,
-  TouchableOpacity,
   ActivityIndicator,
-  RefreshControl,
-  Dimensions,
+  FlatList,
   Modal,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
   TextInput,
-  Alert,
-  Platform,
-  StatusBar,
-  Share,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as ImagePicker from 'expo-image-picker';
-import { Ionicons } from '@expo/vector-icons';
-import { format, formatDistanceToNow } from 'date-fns';
-import { FontSizes, FontWeights, Spacing, BorderRadius } from '../../constants/Colors';
-import { useOrbitTheme, type OrbitThemeColors } from '../../src/theme';
-import { Avatar, CommentsModal } from '../../src/components';
+import { router } from 'expo-router';
+import { format } from 'date-fns';
 import {
-  useCreatePostMutation,
-  useDeletePostMutation,
-  useEventsFeedQuery,
-  useFeedQuery,
-  useJoinEventMutation,
-  useToggleLikeMutation,
-} from '../../src/hooks/useOrbitApi';
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  keepPreviousData,
+  type InfiniteData,
+} from '@tanstack/react-query';
+import { eventsApi, type CatchupFeedFilter, type PaginatedCatchupsResponse } from '../../src/api/events';
+import { searchApi, type OrbitSearchResponse } from '../../src/api/search';
+import { orbitKeys } from '../../src/hooks/orbitKeys';
+import { useFeedQuery } from '../../src/hooks/useOrbitApi';
+import { useDebounce } from '../../src/hooks/useDebounce';
+import { CatchupCard } from '../../src/components/CatchupCard';
+import { OrbitLoader } from '../../src/components/OrbitLoader';
+import { PostCard } from '../../src/components/PostCard';
+import { StateView } from '../../src/components/StateView';
 import { useAuthStore } from '../../src/stores';
 import { AppText } from '../../src/ui/AppText';
-import { OrbitEvent, Post } from '../../src/types';
-import { router } from 'expo-router';
+import type { OrbitEvent } from '../../src/types';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const ACCENT = '#00B4D8';
+const DARK = '#0D0D0D';
+const MUTED = '#999999';
+const FILTERS: Array<{ key: CatchupFeedFilter; label: string }> = [
+  { key: 'near', label: 'Near you' },
+  { key: 'today', label: 'Today' },
+  { key: 'week', label: 'This week' },
+  { key: 'popular', label: 'Popular' },
+];
+const PAGE_SIZE = 10;
+type FeedDateRange = { start?: string; end?: string };
 
-const CARD_W = SCREEN_WIDTH - 16; // 8px margin each side
-const FEED_TEXT = '#23301F';
-const FEED_MUTED = '#7F8468';
-const FEED_CARD = '#FFFDF4';
-const FEED_SAGE = '#7F9A56';
-const FEED_ROSE = '#D96F6A';
-
-/** Shared action pill used in both card types */
-function ActionPill({
-  icon, activeIcon, active, count, onPress, tint, onDark = true,
-}: {
-  icon: string; activeIcon?: string; active?: boolean; count?: number;
-  onPress: () => void; tint?: string; onDark?: boolean;
-}) {
-  const inactive = onDark ? 'rgba(255,253,244,0.88)' : FEED_TEXT;
-  return (
-    <TouchableOpacity onPress={onPress} style={cardActionStyles.pill} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-      <View style={[
-        cardActionStyles.pillInner,
-        !onDark && cardActionStyles.pillInnerLight,
-        active && tint ? { backgroundColor: tint + '26' } : {},
-      ]}>
-        <Ionicons
-          name={(active && activeIcon ? activeIcon : icon) as any}
-          size={20}
-          color={active && tint ? tint : inactive}
-        />
-        {(count ?? 0) > 0 && (
-          <AppText style={[
-            cardActionStyles.pillCount,
-            !onDark && cardActionStyles.pillCountLight,
-            active && tint ? { color: tint } : {},
-          ]}>
-            {count! > 999 ? `${(count! / 1000).toFixed(1)}k` : count}
-          </AppText>
-        )}
-      </View>
-    </TouchableOpacity>
-  );
+function localDayRange(date = new Date()): Required<FeedDateRange> {
+  const start = new Date(date);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(date);
+  end.setHours(23, 59, 59, 999);
+  return { start: start.toISOString(), end: end.toISOString() };
 }
 
-const cardActionStyles = StyleSheet.create({
-  pill: { marginRight: 6 },
-  pillInner: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: 10, paddingVertical: 7,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.18)',
-  },
-  pillInnerLight: {
-    backgroundColor: 'rgba(111,145,95,0.10)',
-    borderColor: 'rgba(35,48,31,0.10)',
-  },
-  pillCount: {
-    fontSize: 13, color: 'rgba(255,255,255,0.85)',
-    fontWeight: '600',
-  },
-  pillCountLight: {
-    color: FEED_TEXT,
-  },
-});
+function localWeekRange(date = new Date()): Required<FeedDateRange> {
+  const start = new Date(date);
+  const daysSinceMonday = (start.getDay() + 6) % 7;
+  start.setDate(start.getDate() - daysSinceMonday);
+  start.setHours(0, 0, 0, 0);
 
-function PostItem({
-  post,
-  currentUserId,
-  onLike,
-  onComment,
-  onShare,
-  onDelete,
-  colors,
-  fonts,
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  end.setHours(23, 59, 59, 999);
+  return { start: start.toISOString(), end: end.toISOString() };
+}
+
+function rangeForFilter(filter: CatchupFeedFilter): FeedDateRange {
+  if (filter === 'near' || filter === 'popular') return localDayRange();
+  if (filter === 'today') return localDayRange();
+  if (filter === 'week') return localWeekRange();
+  return {};
+}
+
+// ─── Segmented pill toggle ───────────────────────────────────────────────────
+
+function SegmentedControl({
+  active,
+  onChange,
 }: {
-  post: Post;
-  currentUserId: string | undefined;
-  onLike: () => Promise<unknown>;
-  onComment: () => void;
-  onShare: () => void;
-  onDelete: () => void;
-  styles: Record<string, any>;
-  colors: OrbitThemeColors;
-  fonts: Partial<Record<'regular' | 'medium' | 'semibold' | 'bold' | 'extrabold', string>>;
+  active: 'catchups' | 'pulse';
+  onChange: (tab: 'catchups' | 'pulse') => void;
 }) {
-  const [isLiked, setIsLiked] = useState(post.is_liked);
-  const [likeCount, setLikeCount] = useState(post.like_count);
-  const isOwn = currentUserId != null && post.author.id === currentUserId;
+  const [width, setWidth] = useState(0);
+  const indicatorX = useSharedValue(0);
 
   useEffect(() => {
-    setIsLiked(post.is_liked);
-    setLikeCount(post.like_count);
-  }, [post.id, post.is_liked, post.like_count]);
+    if (width === 0) return;
+    const segW = (width - 8) / 2;
+    indicatorX.value = withSpring(active === 'catchups' ? 0 : segW, {
+      damping: 22,
+      stiffness: 220,
+      mass: 0.8,
+    });
+  }, [active, width]);
 
-  const handleLike = async () => {
-    const nextLiked = !isLiked;
-    setIsLiked(nextLiked);
-    setLikeCount((c) => (nextLiked ? c + 1 : Math.max(0, c - 1)));
-    try { await onLike(); } catch {
-      setIsLiked(post.is_liked);
-      setLikeCount(post.like_count);
-    }
-  };
-
-  const handleDelete = () => {
-    Alert.alert('Delete post', 'Remove this moment?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: onDelete },
-    ]);
-  };
-
-  const timeStr = formatDistanceToNow(new Date(post.created_at), { addSuffix: true });
-  const subline = post.location_name ? `${post.location_name}  ·  ${timeStr}` : timeStr;
-
-  const renderActions = (onDark = true) => (
-    <View style={pcS.actionRow}>
-      <ActionPill
-        icon="heart-outline" activeIcon="heart"
-        active={isLiked} count={likeCount}
-        onPress={handleLike} tint={FEED_ROSE}
-        onDark={onDark}
-      />
-      <ActionPill
-        icon="chatbubble-outline"
-        count={post.comment_count}
-        onPress={onComment}
-        onDark={onDark}
-      />
-      <ActionPill icon="paper-plane-outline" onPress={onShare} onDark={onDark} />
-      {isOwn && (
-        <ActionPill icon="trash-outline" onPress={handleDelete} tint="#C83F3C" onDark={onDark} />
-      )}
-    </View>
-  );
-
-  /* ─── IMAGE CARD ─────────────────────────────────────────── */
-  if (post.image_url) {
-    const cardH = Math.round(CARD_W * 0.75); // 4:3
-    return (
-      <View style={[pcS.card, { height: cardH }]}>
-        <Image source={{ uri: post.image_url }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-
-        {/* Top gradient + author */}
-        <LinearGradient
-          colors={['rgba(0,0,0,0.72)', 'rgba(0,0,0,0)']}
-          style={pcS.topGrad}
-        >
-          <Avatar uri={post.author.avatar} name={post.author.username} size={34} />
-          <View style={{ flex: 1, marginLeft: 10 }}>
-            <AppText style={[pcS.overlayName, { fontFamily: fonts.bold }]}>
-              {post.author.username}
-            </AppText>
-            <AppText style={[pcS.overlaySub, { fontFamily: fonts.regular }]}>
-              {subline}
-            </AppText>
-          </View>
-          {post.privacy !== 'public' && (
-            <View style={pcS.privacyDot}>
-              <Ionicons
-                name={post.privacy === 'connections' ? 'people' : 'lock-closed'}
-                size={11} color="rgba(255,255,255,0.7)"
-              />
-            </View>
-          )}
-        </LinearGradient>
-
-        {/* Bottom gradient + caption + actions */}
-        <LinearGradient
-          colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.80)']}
-          style={pcS.bottomGrad}
-        >
-          {post.caption ? (
-            <AppText
-              style={[pcS.captionOverlay, { fontFamily: fonts.regular }]}
-              numberOfLines={2}
-            >
-              {post.caption}
-            </AppText>
-          ) : null}
-          {renderActions(true)}
-        </LinearGradient>
-      </View>
-    );
-  }
-
-  /* ─── TEXT CARD ──────────────────────────────────────────── */
-  // Pick gradient accent based on post id hash for variety
-  const hue = post.id.charCodeAt(0) % 3;
-  const textGradients: [string, string, string][] = [
-    ['#FFFDF4', '#FFF9EA', '#F7ECCD'],
-    ['#FFFDF4', '#FAF1DA', '#F2E4BF'],
-    ['#FFFDF4', '#F8EFD1', '#EFDFB9'],
-  ];
-  const [gc1, gc2, gc3] = textGradients[hue];
+  const indicatorStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: indicatorX.value }],
+  }));
 
   return (
-    <View style={pcS.textCard}>
-      <LinearGradient
-        colors={[gc1, gc2, gc3]}
-        start={{ x: 0.1, y: 0 }}
-        end={{ x: 0.9, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
-
-      {/* Decorative glyph */}
-      <AppText style={pcS.glyphBg} allowFontScaling={false}>○</AppText>
-
-      {/* Content */}
-      <View style={pcS.textCardInner}>
-        {post.caption ? (
-          <AppText style={[pcS.textCardCaption, { fontFamily: fonts.bold }]} numberOfLines={5}>
-            {post.caption}
-          </AppText>
-        ) : (
-          <AppText style={[pcS.textCardCaption, { fontFamily: fonts.bold, opacity: 0.3 }]}>
-            —
-          </AppText>
-        )}
-
-        <View style={pcS.textCardFooter}>
-          <View style={pcS.textCardAuthor}>
-            <Avatar uri={post.author.avatar} name={post.author.username} size={22} />
-            <AppText style={[pcS.textCardName, { fontFamily: fonts.medium }]}>
-              {post.author.username}
-              <AppText style={pcS.textCardTime}>{`  ·  ${timeStr}`}</AppText>
+    <View
+      style={seg.container}
+      onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
+    >
+      {width > 0 ? (
+        <Animated.View
+          style={[seg.indicator, { width: (width - 8) / 2 }, indicatorStyle]}
+        />
+      ) : null}
+      {(['catchups', 'pulse'] as const).map((tab) => {
+        const isActive = active === tab;
+        return (
+          <TouchableOpacity
+            key={tab}
+            style={seg.segment}
+            onPress={() => onChange(tab)}
+            activeOpacity={0.8}
+          >
+            <AppText style={[seg.label, isActive && seg.labelActive]}>
+              {tab === 'catchups' ? 'Catchups' : 'Pulse'}
             </AppText>
-          </View>
-          {renderActions(false)}
-        </View>
-      </View>
+          </TouchableOpacity>
+        );
+      })}
     </View>
   );
 }
 
-/** Styles scoped to the PostItem card only */
-const pcS = StyleSheet.create({
-  card: {
-    width: CARD_W,
-    alignSelf: 'center',
-    borderRadius: 20,
-    overflow: 'hidden',
-    marginBottom: 14,
+const seg = StyleSheet.create({
+  container: {
+    flexDirection:   'row',
+    backgroundColor: '#F2F2F2',
+    borderRadius:    24,
+    padding:         4,
+    marginHorizontal: 16,
+    marginBottom:    6,
+    height:          46,
+    position:        'relative',
+    flexGrow:        0,
+    flexShrink:      0,
   },
-  topGrad: {
-    position: 'absolute', top: 0, left: 0, right: 0,
-    height: 90,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingTop: 14,
-    paddingHorizontal: 14,
+  indicator: {
+    position:        'absolute',
+    top:             4,
+    left:            4,
+    bottom:          4,
+    borderRadius:    20,
+    backgroundColor: '#FFFFFF',
+    shadowColor:     '#000',
+    shadowOpacity:   0.08,
+    shadowRadius:    6,
+    shadowOffset:    { width: 0, height: 2 },
+    elevation:       3,
   },
-  bottomGrad: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    paddingTop: 40,
-    paddingBottom: 14,
-    paddingHorizontal: 14,
+  segment: {
+    flex:            1,
+    alignItems:      'center',
+    justifyContent:  'center',
+    borderRadius:    20,
+    zIndex:          1,
   },
-  overlayName: {
-    fontSize: 14, fontWeight: '700', color: '#FFFFFF', letterSpacing: 0,
+  label: {
+    fontSize:   15,
+    fontWeight: '600',
+    color:      '#999999',
   },
-  overlaySub: {
-    fontSize: 11, color: 'rgba(255,255,255,0.6)', marginTop: 1,
-  },
-  privacyDot: {
-    width: 26, height: 26, borderRadius: 13,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  captionOverlay: {
-    fontSize: 14, color: '#FFFFFF', lineHeight: 20,
-    marginBottom: 10,
-  },
-  actionRow: {
-    flexDirection: 'row', alignItems: 'center',
-  },
-  // Text card
-  textCard: {
-    width: CARD_W,
-    alignSelf: 'center',
-    borderRadius: 20,
-    overflow: 'hidden',
-    marginBottom: 14,
-    minHeight: 200,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(35,48,31,0.10)',
-  },
-  glyphBg: {
-    position: 'absolute',
-    right: -20,
-    top: -30,
-    fontSize: 200,
-    color: 'rgba(111,145,95,0.08)',
-    lineHeight: 220,
-  },
-  textCardInner: {
-    padding: 20,
-    flex: 1,
-    justifyContent: 'space-between',
-    minHeight: 200,
-  },
-  textCardCaption: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: FEED_TEXT,
-    lineHeight: 28,
-    letterSpacing: 0,
-    flex: 1,
-    paddingBottom: 16,
-  },
-  textCardFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  textCardAuthor: {
-    flexDirection: 'row', alignItems: 'center', gap: 7, flex: 1,
-  },
-  textCardName: {
-    fontSize: 13, color: FEED_MUTED, fontWeight: '500',
-  },
-  textCardTime: {
-    fontSize: 12, color: FEED_MUTED,
+  labelActive: {
+    color: '#0D0D0D',
   },
 });
 
-// CARD_W defined above in PostItem scope
+// ─── Empty states ─────────────────────────────────────────────────────────────
+
+const EMPTY_COPY: Record<CatchupFeedFilter, { title: string; description: string }> = {
+  near:    { title: 'No catchups nearby yet',  description: 'Tap + below to host the first one in your area.' },
+  today:   { title: 'Nothing happening today', description: 'Be the first — tap + to plan something for today.' },
+  week:    { title: 'A quiet week ahead',       description: 'Plan something and others nearby will discover it.' },
+  popular: { title: 'Nothing trending yet',     description: 'Your area is just getting started. Create the first buzz.' },
+};
+
+function CatchupEmptyState({ filter }: { filter: CatchupFeedFilter }) {
+  const copy = EMPTY_COPY[filter] ?? EMPTY_COPY.near;
+  return (
+    <StateView
+      type="empty"
+      icon="calendar-outline"
+      title={copy.title}
+      description={copy.description}
+      style={styles.emptyState}
+    />
+  );
+}
 
 export default function FeedScreen() {
-  const { colors, resolvedScheme, fonts, shadows } = useOrbitTheme();
+  const currentUser = useAuthStore((s) => s.user);
+  const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
-  const [createModalVisible, setCreateModalVisible] = useState(false);
-  const [caption, setCaption] = useState('');
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [privacy, setPrivacy] = useState<'public' | 'connections'>('public');
-  const [commentsModalVisible, setCommentsModalVisible] = useState(false);
-  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'events' | 'posts'>('events');
+  const [activeTab, setActiveTab] = useState<'catchups' | 'pulse'>('catchups');
+  const [filter, setFilter] = useState<CatchupFeedFilter>('near');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [searchResults, setSearchResults] = useState<OrbitSearchResponse>({ catchups: [], posts: [], people: [], places: [] });
+  const listRef = useRef<FlatList<OrbitEvent>>(null);
+  const searchRequestRef = useRef(0);
+  // Track whether the current data is from the initial load (for stagger animation)
+  const isInitialLoadRef = useRef(true);
 
-  const currentUser = useAuthStore((s) => s.user);
-  const { data: posts = [], isLoading, isRefetching, refetch } = useFeedQuery();
-  const { data: eventsData, isLoading: eventsLoading, isRefetching: eventsRefetching, refetch: refetchEvents } = useEventsFeedQuery();
-  const events = eventsData?.results ?? [];
-  const toggleLike = useToggleLikeMutation();
-  const createPostMutation = useCreatePostMutation();
-  const deletePostMutation = useDeletePostMutation();
-  const joinEventMutation = useJoinEventMutation();
+  const areaName = currentUser?.city || 'Near you';
+  const debouncedSearchQuery = useDebounce(searchQuery.trim(), 260);
+  const searchTrendRange = useMemo(() => localDayRange(), []);
 
-  const handleOpenComments = (postId: string) => {
-    setSelectedPostId(postId);
-    setCommentsModalVisible(true);
-  };
-
-  const pickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission needed', 'We need access to your photos to create a post.');
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-    if (!result.canceled) setSelectedImage(result.assets[0].uri);
-  };
-
-  const handleCreatePost = async () => {
-    if (!caption.trim() && !selectedImage) {
-      Alert.alert('Empty Post', 'Please add a caption or an image.');
-      return;
-    }
-    try {
-      const formData = new FormData();
-      formData.append('caption', caption);
-      formData.append('privacy', privacy);
-      if (selectedImage) {
-        const uriParts = selectedImage.split('.');
-        const fileType = uriParts[uriParts.length - 1];
-        formData.append('image', { uri: selectedImage, name: `post_${Date.now()}.${fileType}`, type: `image/${fileType}` } as any);
-      }
-      await createPostMutation.mutateAsync(formData);
-      setCreateModalVisible(false);
-      setCaption('');
-      setSelectedImage(null);
-      setPrivacy('public');
-    } catch (error) {
-      console.error('Error creating post:', error);
-      Alert.alert('Error', 'Failed to create post. Please try again.');
-    }
-  };
-
-  const handleShare = async (post: Post) => {
-    try {
-      const message = `${post.caption ? post.caption + '\n\n' : ''}Check out this post on ORBIT by ${post.author.username}!`;
-      const url = post.image_url || '';
-      await Share.share({ message, url: Platform.OS === 'ios' ? url : undefined, title: 'Share Post' });
-    } catch (error: any) {
-      console.error('Error sharing post:', error.message);
-    }
-  };
-
-  const styles = useMemo(
-    () =>
-      StyleSheet.create({
-        container: { flex: 1, backgroundColor: colors.background.primary },
-        safeArea: { flex: 1 },
-        listContent: { paddingTop: 6 },
-        listContentEmpty: { flexGrow: 1 },
-        loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background.primary },
-        feedHeader: {
-          marginHorizontal: Spacing.md,
-          marginTop: 8,
-          marginBottom: 14,
-          borderRadius: 28,
-          overflow: 'hidden',
-          ...shadows.md,
-        },
-        feedHeaderGrad: {
-          paddingTop: Platform.OS === 'android' ? 14 : 12,
-          paddingBottom: Spacing.md,
-        },
-        headerRow: {
-          flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-          paddingHorizontal: Spacing.md,
-          paddingBottom: 14,
-        },
-        headerTitle: {
-          fontSize: 30, fontWeight: '800', color: colors.background.card,
-          letterSpacing: 0, fontFamily: fonts.extrabold, lineHeight: 34,
-        },
-        headerSub: {
-          fontSize: 14, color: 'rgba(255,255,255,0.74)',
-          fontFamily: fonts.regular, marginTop: 0,
-        },
-        headerCompose: {
-          width: 40, height: 40, borderRadius: 20,
-          overflow: 'hidden',
-          borderWidth: StyleSheet.hairlineWidth,
-          borderColor: 'rgba(255,255,255,0.20)',
-        },
-        headerComposeGrad: {
-          width: 40, height: 40, borderRadius: 20,
-          alignItems: 'center', justifyContent: 'center',
-        },
-        tabsWrap: {
-          flexDirection: 'row',
-          marginHorizontal: Spacing.md,
-          marginBottom: 0,
-          padding: 3,
-          borderRadius: BorderRadius.full,
-          backgroundColor: 'rgba(255,255,255,0.16)',
-          borderWidth: StyleSheet.hairlineWidth,
-          borderColor: 'rgba(255,255,255,0.18)',
-        },
-        tabBtn: {
-          flex: 1,
-          minHeight: 34,
-          borderRadius: BorderRadius.full,
-          alignItems: 'center',
-          justifyContent: 'center',
-        },
-        tabBtnActive: {
-          backgroundColor: colors.background.card,
-        },
-        tabText: {
-          color: 'rgba(255,255,255,0.76)',
-          fontSize: FontSizes.sm,
-          fontFamily: fonts.semibold,
-          fontWeight: FontWeights.semibold,
-        },
-        tabTextActive: {
-          color: colors.primary.dark,
-        },
-        eventCard: {
-          marginHorizontal: Spacing.lg,
-          marginBottom: 14,
-          padding: 0,
-          borderRadius: 20,
-          backgroundColor: colors.background.card,
-          borderWidth: StyleSheet.hairlineWidth,
-          borderColor: colors.borderLight,
-          overflow: 'hidden',
-          ...shadows.sm,
-        },
-        eventPosterBand: {
-          height: 7,
-          backgroundColor: colors.primary.dark,
-        },
-        eventCardInner: {
-          padding: Spacing.md,
-        },
-        eventTop: {
-          flexDirection: 'row',
-          alignItems: 'flex-start',
-          gap: 12,
-        },
-        eventDateTile: {
-          width: 52,
-          minHeight: 62,
-          borderRadius: 16,
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: colors.primary.dark,
-          paddingVertical: 8,
-        },
-        eventDateMonth: {
-          color: colors.background.card,
-          fontSize: 11,
-          fontFamily: fonts.semibold,
-          fontWeight: FontWeights.semibold,
-          textTransform: 'uppercase',
-        },
-        eventDateDay: {
-          color: colors.background.card,
-          fontSize: 22,
-          fontFamily: fonts.extrabold,
-          fontWeight: FontWeights.extrabold,
-          lineHeight: 26,
-        },
-        eventTitle: {
-          flex: 1,
-          color: colors.text.primary,
-          fontSize: 19,
-          fontFamily: fonts.extrabold,
-          fontWeight: FontWeights.extrabold,
-          lineHeight: 24,
-        },
-        eventCategoryPill: {
-          alignSelf: 'flex-start',
-          paddingHorizontal: 10,
-          paddingVertical: 4,
-          borderRadius: BorderRadius.full,
-          backgroundColor: colors.primary.default + '1F',
-          borderWidth: StyleSheet.hairlineWidth,
-          borderColor: colors.primary.default + '35',
-          marginBottom: 8,
-        },
-        eventCategoryText: {
-          color: colors.primary.dark,
-          fontSize: 11,
-          fontFamily: fonts.semibold,
-          fontWeight: FontWeights.semibold,
-          textTransform: 'capitalize',
-        },
-        eventMetaRow: {
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 5,
-          marginTop: 5,
-        },
-        eventMetaText: {
-          flex: 1,
-          color: colors.text.secondary,
-          fontSize: 13,
-          fontFamily: fonts.regular,
-          lineHeight: 18,
-        },
-        eventBody: {
-          marginTop: 12,
-          color: colors.text.secondary,
-          fontSize: 14,
-          fontFamily: fonts.regular,
-          lineHeight: 20,
-        },
-        eventFooter: {
-          marginTop: 14,
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 10,
-        },
-        eventCountPill: {
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 5,
-          paddingHorizontal: 10,
-          paddingVertical: 7,
-          borderRadius: BorderRadius.full,
-          backgroundColor: colors.background.secondary,
-        },
-        eventCount: {
-          color: colors.text.secondary,
-          fontSize: 13,
-          fontFamily: fonts.medium,
-        },
-        eventJoinBtn: {
-          minWidth: 92,
-          alignItems: 'center',
-          paddingHorizontal: Spacing.md,
-          paddingVertical: 10,
-          borderRadius: BorderRadius.full,
-          backgroundColor: colors.primary.dark,
-        },
-        eventJoinText: {
-          color: colors.background.card,
-          fontSize: FontSizes.sm,
-          fontWeight: FontWeights.semibold,
-          fontFamily: fonts.semibold,
-        },
-        // (card styles now live in pcS — static stylesheet above)
-        emptyContainer: { flex: 1, minHeight: 320, alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.xxl, paddingHorizontal: Spacing.xl },
-        emptyText: { color: colors.text.primary, fontSize: FontSizes.xl, fontWeight: FontWeights.bold, marginTop: Spacing.lg, fontFamily: fonts.bold },
-        emptySubtext: { color: colors.text.secondary, fontSize: FontSizes.md, textAlign: 'center', marginTop: Spacing.xs, fontFamily: fonts.regular },
-        createButton: { marginTop: Spacing.xl, borderRadius: BorderRadius.lg, backgroundColor: colors.primary.default, paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md },
-        createButtonText: { color: colors.text.primary, fontSize: FontSizes.md, fontWeight: FontWeights.semibold, fontFamily: fonts.semibold },
-        modalContainer: { flex: 1, backgroundColor: colors.background.primary },
-        modalHeader: {
-          flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-          paddingHorizontal: Spacing.lg, paddingBottom: Spacing.md,
-          borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border,
-        },
-        modalTitle: { fontSize: FontSizes.lg, fontWeight: FontWeights.semibold, color: colors.text.primary, fontFamily: fonts.semibold },
-        shareButton: { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm, borderRadius: BorderRadius.md, backgroundColor: colors.primary.default },
-        shareButtonDisabled: { opacity: 0.35 },
-        shareText: { color: colors.text.primary, fontSize: FontSizes.sm, fontWeight: FontWeights.semibold, fontFamily: fonts.semibold },
-        imagePickerContainer: { width: SCREEN_WIDTH, aspectRatio: 1, backgroundColor: colors.background.tertiary },
-        selectedImage: { width: '100%', height: '100%' },
-        imagePlaceholder: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background.elevated },
-        imagePlaceholderText: { color: colors.text.tertiary, marginTop: Spacing.md, fontSize: FontSizes.sm, fontWeight: FontWeights.medium, fontFamily: fonts.medium },
-        captionSection: { flex: 1, padding: Spacing.lg },
-        captionInput: { flex: 1, color: colors.text.primary, fontSize: FontSizes.md, textAlignVertical: 'top', lineHeight: 22, fontFamily: fonts.regular },
-        characterCount: { color: colors.text.tertiary, fontSize: 12, textAlign: 'right', marginTop: Spacing.sm, fontFamily: fonts.regular },
-        privacyRow: {
-          flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-          paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm,
-          borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border,
-        },
-        privacyLabel: { color: colors.text.secondary, fontSize: FontSizes.sm, fontFamily: fonts.regular },
-        privacyOptions: { flexDirection: 'row', gap: Spacing.sm },
-        privacyOption: {
-          flexDirection: 'row', alignItems: 'center', gap: 4,
-          paddingHorizontal: Spacing.sm, paddingVertical: 5, borderRadius: BorderRadius.full,
-          borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderLight,
-          backgroundColor: colors.background.secondary,
-        },
-        privacyOptionActive: { backgroundColor: colors.primary.default, borderColor: colors.primary.default },
-        privacyOptionText: { color: colors.text.secondary, fontSize: FontSizes.xs, fontFamily: fonts.medium },
-        privacyOptionTextActive: { color: colors.text.primary },
-      }),
-    [colors, fonts, shadows]
+  // Key structure: [...orbitKeys.eventsFeed(), filter]
+  // The base ['orbit','events','feed'] matches what CreateFAB invalidates,
+  // so new events appear immediately after creation.
+  const filterRange = rangeForFilter(filter);
+  const feedQueryKey = useMemo(
+    () => [...orbitKeys.eventsFeed(), filter, filterRange.start ?? null, filterRange.end ?? null] as const,
+    [filter, filterRange.end, filterRange.start]
   );
 
-  const renderEvent = ({ item }: { item: OrbitEvent }) => {
-    const handleJoin = async () => {
-      if (item.has_joined && item.conversation_id) {
-        router.push(`/chat/${item.conversation_id}`);
-        return;
-      }
-      const res = await joinEventMutation.mutateAsync(item.id);
-      router.push(`/chat/${res.conversation_id}`);
-    };
+  const {
+    data: feedData,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+    isFetching,
+    isRefetching,
+    refetch,
+  } = useInfiniteQuery({
+    queryKey: feedQueryKey,
+    queryFn: ({ pageParam }) =>
+      eventsApi.getFeed({ filter, ...filterRange, page: pageParam as number, limit: PAGE_SIZE }),
+    getNextPageParam: (last: PaginatedCatchupsResponse) =>
+      last.pagination?.has_more ? (last.pagination.page + 1) : undefined,
+    initialPageParam: 1,
+    placeholderData: keepPreviousData,
+  });
 
-    return (
-      <TouchableOpacity style={styles.eventCard} activeOpacity={0.9} onPress={() => router.push(`/event/${item.id}`)}>
-        <View style={styles.eventPosterBand} />
-        <View style={styles.eventCardInner}>
-          <View style={styles.eventTop}>
-            <View style={styles.eventDateTile}>
-              <AppText style={styles.eventDateMonth}>{format(new Date(item.start_at), 'MMM')}</AppText>
-              <AppText style={styles.eventDateDay}>{format(new Date(item.start_at), 'd')}</AppText>
-            </View>
-            <View style={{ flex: 1 }}>
-              {item.category ? (
-                <View style={styles.eventCategoryPill}>
-                  <AppText style={styles.eventCategoryText}>{item.category}</AppText>
-                </View>
-              ) : null}
-              <AppText style={styles.eventTitle} numberOfLines={2}>{item.title}</AppText>
-              <View style={styles.eventMetaRow}>
-                <Ionicons name="time-outline" size={14} color={colors.text.tertiary} />
-                <AppText style={styles.eventMetaText} numberOfLines={1}>
-                  {formatDistanceToNow(new Date(item.start_at), { addSuffix: true })}
-                </AppText>
-              </View>
-              <View style={styles.eventMetaRow}>
-                <Ionicons name="location-outline" size={14} color={colors.text.tertiary} />
-                <AppText style={styles.eventMetaText} numberOfLines={1}>{item.location_name}</AppText>
-              </View>
-            </View>
-          </View>
-          {item.description ? (
-            <AppText style={styles.eventBody} numberOfLines={2}>{item.description}</AppText>
-          ) : null}
-          <View style={styles.eventFooter}>
-            <View style={styles.eventCountPill}>
-              <Ionicons name="people-outline" size={14} color={colors.text.secondary} />
-              <AppText style={styles.eventCount}>
-                {item.attendee_count} going
-              </AppText>
-            </View>
-            <TouchableOpacity
-              style={styles.eventJoinBtn}
-              onPress={(event) => {
-                event.stopPropagation();
-                void handleJoin();
-              }}
-              disabled={joinEventMutation.isPending}
-            >
-              <AppText style={styles.eventJoinText}>{item.has_joined ? 'Open group' : 'Join'}</AppText>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </TouchableOpacity>
-    );
+  useEffect(() => {
+    isInitialLoadRef.current = true;
+    listRef.current?.scrollToOffset({ offset: 0, animated: false });
+  }, [activeTab, filter]);
+
+  const catchups = useMemo(() => {
+    const flat = feedData?.pages.flatMap((p) => p.results) ?? [];
+    const seen = new Set<string>();
+    return flat.filter((e) => {
+      if (seen.has(e.id)) return false;
+      seen.add(e.id);
+      return true;
+    });
+  }, [feedData]);
+
+  // Mark initial load done synchronously during render (not in useEffect)
+  // so cards rendered after the first batch don't get the entrance animation.
+  if (catchups.length > 0 && isInitialLoadRef.current) {
+    isInitialLoadRef.current = false;
+  }
+
+  // Pulse tab — React Query (enabled only when tab is active so no wasted requests)
+  const {
+    data: posts = [],
+    isLoading: postsLoading,
+    isRefetching: postsRefetching,
+    refetch: refetchPosts,
+  } = useFeedQuery();
+
+  const { data: searchTrendData } = useQuery({
+    queryKey: [
+      ...orbitKeys.eventsFeed(),
+      'search-trending',
+      currentUser?.city ?? null,
+      currentUser?.latitude ?? null,
+      currentUser?.longitude ?? null,
+      searchTrendRange.start,
+      searchTrendRange.end,
+    ],
+    queryFn: () => eventsApi.getFeed({
+      filter: 'popular',
+      ...searchTrendRange,
+      page: 1,
+      limit: 4,
+    }),
+    enabled: searchOpen,
+    staleTime: 30 * 1000,
+  });
+
+  const trendingCatchups = useMemo(() => (
+    [...(searchTrendData?.results ?? [])]
+      .sort((a, b) => {
+        const demand = (b.attendee_count ?? 0) - (a.attendee_count ?? 0);
+        if (demand !== 0) return demand;
+        return new Date(a.start_at).getTime() - new Date(b.start_at).getTime();
+      })
+      .slice(0, 4)
+  ), [searchTrendData?.results]);
+
+  const recentPulse = useMemo(() => posts.slice(0, 3), [posts]);
+
+  const searchIdeas = useMemo(() => {
+    const city = currentUser?.city?.trim();
+    return [
+      city ? `${city} catchups` : 'catchups near me',
+      'music today',
+      'running',
+      'coffee',
+    ];
+  }, [currentUser?.city]);
+
+  useEffect(() => {
+    if (!searchOpen) return;
+
+    if (debouncedSearchQuery.length < 2) {
+      searchRequestRef.current += 1;
+      setSearchResults({ catchups: [], posts: [], people: [], places: [] });
+      setSearchLoading(false);
+      setSearchError(null);
+      return;
+    }
+
+    const requestId = searchRequestRef.current + 1;
+    searchRequestRef.current = requestId;
+    const controller = new AbortController();
+    setSearchLoading(true);
+    setSearchError(null);
+    setSearchResults({ catchups: [], posts: [], people: [], places: [] });
+
+    searchApi.search(debouncedSearchQuery, 'all', { limit: 8, signal: controller.signal })
+      .then((results) => {
+        if (searchRequestRef.current !== requestId) return;
+        setSearchResults(results);
+      })
+      .catch((error) => {
+        if (controller.signal.aborted || error?.code === 'ERR_CANCELED') return;
+        if (searchRequestRef.current !== requestId) return;
+        console.warn('[FeedSearch] search failed', error);
+        setSearchResults({ catchups: [], posts: [], people: [], places: [] });
+        setSearchError('Search is having trouble. Try again.');
+      })
+      .finally(() => {
+        if (searchRequestRef.current === requestId) {
+          setSearchLoading(false);
+        }
+      });
+
+    return () => controller.abort();
+  }, [debouncedSearchQuery, searchOpen]);
+
+  const joinMutation = useMutation({
+    mutationFn: (event: OrbitEvent) =>
+      eventsApi.joinCatchup(event.id).catch(() => eventsApi.join(event.id)),
+    onMutate: async (event: OrbitEvent) => {
+      await queryClient.cancelQueries({ queryKey: feedQueryKey });
+      const previous = queryClient.getQueryData(feedQueryKey);
+      // Optimistic update: mark event as joined, bump attendee count
+      queryClient.setQueryData(
+        feedQueryKey,
+        (old: InfiniteData<PaginatedCatchupsResponse> | undefined) => {
+          if (!old) return old;
+          return {
+            ...old,
+            pages: old.pages.map((page) => ({
+              ...page,
+              results: page.results.map((e) =>
+                e.id === event.id
+                  ? { ...e, has_joined: true, attendee_count: e.attendee_count + 1 }
+                  : e
+              ),
+            })),
+          };
+        }
+      );
+      return { previous };
+    },
+    onError: (_err, _event, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(feedQueryKey, context.previous);
+      }
+    },
+    onSuccess: (result) => {
+      router.push(`/chat/${result.conversation_id}`);
+    },
+  });
+
+  const handleJoin = useCallback(
+    (event: OrbitEvent) => { joinMutation.mutate(event); },
+    [joinMutation]
+  );
+
+  const openSearch = useCallback(() => {
+    setSearchOpen(true);
+  }, []);
+
+  const closeSearch = useCallback(() => {
+    setSearchOpen(false);
+    setSearchQuery('');
+    setSearchLoading(false);
+    setSearchError(null);
+    setSearchResults({ catchups: [], posts: [], people: [], places: [] });
+    searchRequestRef.current += 1;
+  }, []);
+
+  const openCatchup = useCallback((id: string) => {
+    closeSearch();
+    router.push(`/event/${id}`);
+  }, [closeSearch]);
+
+  const openUser = useCallback((id: string) => {
+    closeSearch();
+    router.push(`/user/${id}`);
+  }, [closeSearch]);
+
+  const applySearchText = useCallback((text: string) => {
+    setSearchQuery(text);
+  }, []);
+
+  const usePlaceSuggestion = useCallback((place: OrbitSearchResponse['places'][number]) => {
+    setSearchQuery(place.city || place.name || place.display_name || '');
+  }, []);
+
+  const totalSearchResults =
+    searchResults.catchups.length + searchResults.posts.length + searchResults.people.length + searchResults.places.length;
+  const searchReady = debouncedSearchQuery.length >= 2;
+  const showSearchEmpty = searchReady && !searchLoading && !searchError && totalSearchResults === 0;
+  const showSearchSuggestions = !searchReady && !searchError;
+
+  const refresh = () => {
+    isInitialLoadRef.current = true;
+    if (activeTab === 'catchups') void refetch();
+    else void refetchPosts();
   };
 
-  const feedListHeader = (
-    <View style={styles.feedHeader}>
-      <LinearGradient
-        colors={[colors.primary.dark, colors.primary.end, colors.primary.default]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.feedHeaderGrad}
-      >
-      <View style={styles.headerRow}>
-        <View>
-          <AppText style={styles.headerTitle}>Moments</AppText>
-          <AppText style={styles.headerSub}>{activeTab === 'events' ? 'Plans and groups around you' : "What's happening nearby"}</AppText>
-        </View>
-        <TouchableOpacity
-          style={styles.headerCompose}
-          onPress={() => activeTab === 'posts' ? setCreateModalVisible(true) : router.push('/(tabs)')}
-          accessibilityLabel={activeTab === 'posts' ? 'New post' : 'Open map to create event'}
-        >
-          <LinearGradient
-            colors={['rgba(255,255,255,0.24)', 'rgba(255,255,255,0.12)']}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-            style={styles.headerComposeGrad}
-          >
-            <Ionicons name={activeTab === 'posts' ? 'add' : 'map-outline'} size={22} color={colors.background.card} />
-          </LinearGradient>
+  const header = (
+    <View style={styles.header}>
+      <View style={styles.logoRow}>
+        <AppText style={styles.logo}>orbit</AppText>
+        <TouchableOpacity style={styles.locationPill} onPress={() => undefined}>
+          <AppText style={styles.locationText}>📍 {areaName}</AppText>
         </TouchableOpacity>
       </View>
-      <View style={styles.tabsWrap}>
-        <TouchableOpacity
-          style={[styles.tabBtn, activeTab === 'events' && styles.tabBtnActive]}
-          onPress={() => setActiveTab('events')}
-        >
-          <AppText style={[styles.tabText, activeTab === 'events' && styles.tabTextActive]}>Events</AppText>
+      <Pressable style={styles.searchBar} onPress={openSearch}>
+        <Ionicons name="search" size={18} color="#BBBBBB" />
+        <AppText style={styles.searchPlaceholder}>Search catchups, people, places...</AppText>
+        <TouchableOpacity style={styles.filterBtn} onPress={() => undefined}>
+          <Ionicons name="options-outline" size={20} color="#555555" />
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tabBtn, activeTab === 'posts' && styles.tabBtnActive]}
-          onPress={() => setActiveTab('posts')}
-        >
-          <AppText style={[styles.tabText, activeTab === 'posts' && styles.tabTextActive]}>Posts</AppText>
-        </TouchableOpacity>
-      </View>
-      </LinearGradient>
+      </Pressable>
     </View>
   );
 
-  const listData: Array<Post | OrbitEvent> = activeTab === 'events' ? events : posts;
+  // Filter chips — only rendered under the Catchups tab
+  const filterRail = (
+    <View style={styles.filterRailFrame}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filterRail}
+        style={styles.filterRailScroll}
+        bounces={false}
+        alwaysBounceVertical={false}
+      >
+        {FILTERS.map((pill) => (
+          <TouchableOpacity
+            key={pill.key}
+            style={[styles.filterPill, filter === pill.key && styles.filterPillActive]}
+            onPress={() => setFilter(pill.key)}
+          >
+            <AppText style={[styles.filterText, filter === pill.key && styles.filterTextActive]}>
+              {pill.label}
+            </AppText>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
+  );
 
-  if ((activeTab === 'posts' && isLoading) || (activeTab === 'events' && eventsLoading)) {
-    return (
-      <View style={[styles.loadingContainer, { paddingTop: insets.top }]}>
-        <ActivityIndicator size="large" color={colors.primary.default} />
+  const searchModal = (
+    <Modal visible={searchOpen} animationType="fade" onRequestClose={closeSearch}>
+      <View style={styles.searchScreen}>
+        <View style={[styles.searchTop, { paddingTop: insets.top + 12 }]}>
+          <View style={[styles.searchBar, styles.searchBarExpanded]}>
+            <Ionicons name="search" size={18} color="#BBBBBB" />
+            <TextInput
+              autoFocus
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              style={styles.searchInput}
+              placeholder="Search catchups, people, places..."
+              placeholderTextColor="#BBBBBB"
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="search"
+            />
+            {searchLoading ? (
+              <ActivityIndicator size="small" color={ACCENT} />
+            ) : searchQuery.length > 0 ? (
+              <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={8}>
+                <Ionicons name="close-circle" size={18} color="#9AA6AF" />
+              </TouchableOpacity>
+            ) : null}
+          </View>
+          <TouchableOpacity style={styles.cancelBtn} onPress={closeSearch} hitSlop={8}>
+            <AppText style={styles.cancelText}>Cancel</AppText>
+          </TouchableOpacity>
+        </View>
+        <ScrollView
+          contentContainerStyle={[styles.searchResults, showSearchSuggestions && styles.searchResultsSuggestions]}
+          keyboardShouldPersistTaps="handled"
+        >
+          {showSearchSuggestions ? (
+            <View style={styles.suggestionsWrap}>
+              {trendingCatchups.length ? <AppText style={styles.sectionHeader}>Trending near you</AppText> : null}
+              {trendingCatchups.map((item) => (
+                <TouchableOpacity key={`trend-c-${item.id}`} style={styles.suggestionRow} onPress={() => openCatchup(item.id)}>
+                  <View style={styles.suggestionIcon}>
+                    <Ionicons name="flame-outline" size={18} color={ACCENT} />
+                  </View>
+                  <View style={styles.userInfo}>
+                    <AppText style={styles.searchMiniTitle} numberOfLines={1}>{item.title}</AppText>
+                    <AppText style={styles.searchMiniSub} numberOfLines={1}>
+                      {item.location_name || item.city || 'Nearby'} · {item.attendee_count}/{item.max_people ?? 10} going
+                    </AppText>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color="#9AA6AF" />
+                </TouchableOpacity>
+              ))}
+
+              {recentPulse.length ? <AppText style={styles.sectionHeader}>Fresh pulse</AppText> : null}
+              {recentPulse.map((item) => (
+                <View key={`trend-p-${item.id}`} style={styles.suggestionRow}>
+                  <View style={styles.suggestionIcon}>
+                    <Ionicons name="images-outline" size={18} color={ACCENT} />
+                  </View>
+                  <View style={styles.userInfo}>
+                    <AppText style={styles.searchMiniTitle} numberOfLines={1}>{item.caption || 'Photo post'}</AppText>
+                    <AppText style={styles.searchMiniSub} numberOfLines={1}>@{item.author.username}</AppText>
+                  </View>
+                </View>
+              ))}
+
+              <AppText style={styles.sectionHeader}>Try searching</AppText>
+              {searchIdeas.map((idea) => (
+                <TouchableOpacity key={idea} style={styles.suggestionRow} onPress={() => applySearchText(idea)}>
+                  <View style={styles.suggestionIcon}>
+                    <Ionicons name="search-outline" size={18} color={ACCENT} />
+                  </View>
+                  <View style={styles.userInfo}>
+                    <AppText style={styles.searchMiniTitle}>{idea}</AppText>
+                    <AppText style={styles.searchMiniSub}>Search all catchups, people, posts, and places</AppText>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : null}
+          {searchError ? (
+            <View style={styles.searchState}>
+              <Ionicons name="alert-circle-outline" size={36} color="#D94A45" />
+              <AppText style={styles.searchStateTitle}>{searchError}</AppText>
+            </View>
+          ) : null}
+          {showSearchEmpty ? (
+            <View style={styles.searchState}>
+              <Ionicons name="search-outline" size={38} color="#9AA6AF" />
+              <AppText style={styles.searchStateTitle}>No results for "{debouncedSearchQuery}"</AppText>
+            </View>
+          ) : null}
+          {searchResults.catchups.length ? <AppText style={styles.sectionHeader}>Catchups</AppText> : null}
+          {searchResults.catchups.map((item) => (
+            <TouchableOpacity key={`c-${item.id}`} style={styles.searchMini} onPress={() => openCatchup(item.id)}>
+              <AppText style={styles.searchMiniTitle}>{item.title}</AppText>
+              <AppText style={styles.searchMiniSub}>{item.location_name} · {format(new Date(item.start_at), 'MMM d, h:mm a')}</AppText>
+            </TouchableOpacity>
+          ))}
+          {searchResults.places.length ? <AppText style={styles.sectionHeader}>Places</AppText> : null}
+          {searchResults.places.map((item, index) => (
+            <TouchableOpacity
+              key={`place-${item.id ?? `${item.lat}-${item.lng}-${index}`}`}
+              style={styles.placeRow}
+              onPress={() => usePlaceSuggestion(item)}
+            >
+              <View style={styles.placeIcon}>
+                <Ionicons name="location-outline" size={18} color={ACCENT} />
+              </View>
+              <View style={styles.userInfo}>
+                <AppText style={styles.searchMiniTitle} numberOfLines={1}>{item.name || item.display_name}</AppText>
+                <AppText style={styles.searchMiniSub} numberOfLines={2}>{item.city || item.address || item.display_name}</AppText>
+              </View>
+              <Ionicons name="search-outline" size={17} color="#9AA6AF" />
+            </TouchableOpacity>
+          ))}
+          {searchResults.posts.length ? <AppText style={styles.sectionHeader}>Posts</AppText> : null}
+          {searchResults.posts.map((item) => (
+            <View key={`p-${item.id}`} style={styles.searchMini}>
+              <AppText style={styles.searchMiniTitle} numberOfLines={1}>{item.caption || 'Photo post'}</AppText>
+              <AppText style={styles.searchMiniSub}>@{item.author.username}</AppText>
+            </View>
+          ))}
+          {searchResults.people.length ? <AppText style={styles.sectionHeader}>People</AppText> : null}
+          {searchResults.people.map((item) => (
+            <TouchableOpacity key={`u-${item.id}`} style={styles.userRow} onPress={() => openUser(item.id)}>
+              <View style={styles.userAvatar}>
+                {item.avatar ? (
+                  <Image source={{ uri: item.avatar }} style={styles.userAvatarImage} contentFit="cover" />
+                ) : (
+                  <AppText style={styles.userInitial}>{item.username.charAt(0).toUpperCase()}</AppText>
+                )}
+              </View>
+              <View style={styles.userInfo}>
+                <AppText style={styles.searchMiniTitle}>@{item.username}</AppText>
+                <AppText style={styles.searchMiniSub}>{item.city || 'Nearby'}</AppText>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#9AA6AF" />
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
       </View>
-    );
-  }
+    </Modal>
+  );
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle={resolvedScheme === 'dark' ? 'light-content' : 'dark-content'} translucent backgroundColor="transparent" />
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <FlatList<Post | OrbitEvent>
-          data={listData}
-          keyExtractor={(item) => item.id}
-          ListHeaderComponent={feedListHeader}
-          contentContainerStyle={[
-            styles.listContent,
-            { paddingBottom: Spacing.xxl + tabBarHeight },
-            (activeTab === 'events' ? events.length === 0 : posts.length === 0) && styles.listContentEmpty,
-          ]}
-          renderItem={({ item }) => activeTab === 'events' ? renderEvent({ item: item as OrbitEvent }) : (
-            <PostItem
-              post={item as Post}
-              currentUserId={currentUser?.id}
-              onLike={() => toggleLike.mutateAsync((item as Post).id)}
-              onComment={() => handleOpenComments((item as Post).id)}
-              onShare={() => handleShare(item as Post)}
-              onDelete={() => deletePostMutation.mutate((item as Post).id)}
-              styles={{}}
-              colors={colors}
-              fonts={fonts}
-            />
-          )}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={activeTab === 'events' ? eventsRefetching : isRefetching}
-              onRefresh={() => activeTab === 'events' ? refetchEvents() : refetch()}
-              tintColor={colors.primary.default}
-              colors={[colors.primary.default]}
-            />
-          }
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Ionicons name={activeTab === 'events' ? 'calendar-outline' : 'images-outline'} size={64} color={colors.text.tertiary} />
-              <AppText style={styles.emptyText}>{activeTab === 'events' ? 'No events yet' : 'No posts yet'}</AppText>
-              <AppText style={styles.emptySubtext}>{activeTab === 'events' ? 'Create a plan from the map to start a group.' : 'Share your first moment'}</AppText>
-              {activeTab === 'posts' ? (
-                <TouchableOpacity style={styles.createButton} onPress={() => setCreateModalVisible(true)}>
-                  <AppText style={styles.createButtonText}>New post</AppText>
-                </TouchableOpacity>
-              ) : null}
+      <SafeAreaView edges={['top']} style={styles.safe}>
+        {header}
+        <SegmentedControl active={activeTab} onChange={setActiveTab} />
+        {activeTab === 'catchups' ? filterRail : null}
+
+        {/* ── Catchups tab ── */}
+        {activeTab === 'catchups' ? (
+          catchups.length === 0 && !isLoading ? (
+            <View style={[styles.emptyContainer, { paddingBottom: tabBarHeight + 16 }]}>
+              <CatchupEmptyState filter={filter} />
             </View>
-          }
-        />
+          ) : (
+            <FlatList
+              ref={listRef}
+              data={catchups}
+              style={styles.list}
+              keyExtractor={(item, idx) => item.id ? `catchup-${item.id}` : `catchup-${idx}`}
+              contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: tabBarHeight + 16 }}
+              renderItem={({ item, index }) => (
+                <CatchupCard
+                  event={item}
+                  onJoin={handleJoin}
+                  isInitialLoad={isInitialLoadRef.current}
+                  index={index}
+                />
+              )}
+              refreshControl={
+                <RefreshControl
+                  refreshing={isRefetching && !isFetchingNextPage}
+                  onRefresh={refresh}
+                  tintColor={ACCENT}
+                  colors={[ACCENT]}
+                />
+              }
+              onEndReached={() => {
+                if (!isFetchingNextPage && hasNextPage) void fetchNextPage();
+              }}
+              onEndReachedThreshold={0.4}
+              ListFooterComponent={isFetchingNextPage ? <OrbitLoader variant="inline" /> : null}
+            />
+          )
+        ) : null}
+
+        {/* ── Pulse tab ── */}
+        {activeTab === 'pulse' ? (
+          posts.length === 0 && !postsLoading ? (
+            <View style={[styles.emptyContainer, { paddingBottom: tabBarHeight + 16 }]}>
+              <StateView
+                type="empty"
+                icon="images-outline"
+                title="No posts nearby yet"
+                description="Posts from people around you will appear here."
+              />
+            </View>
+          ) : (
+            <FlatList
+              data={posts}
+              style={styles.list}
+              keyExtractor={(item) => `post-${item.id}`}
+              contentContainerStyle={{
+                paddingHorizontal: 16,
+                paddingTop: 10,
+                paddingBottom: tabBarHeight + 16,
+              }}
+              renderItem={({ item }) => <PostCard post={item} />}
+              refreshControl={
+                <RefreshControl
+                  refreshing={postsRefetching}
+                  onRefresh={refresh}
+                  tintColor={ACCENT}
+                  colors={[ACCENT]}
+                />
+              }
+              ListFooterComponent={postsLoading ? <OrbitLoader variant="inline" /> : null}
+            />
+          )
+        ) : null}
       </SafeAreaView>
-
-      <CommentsModal visible={commentsModalVisible} onClose={() => setCommentsModalVisible(false)} postId={selectedPostId} />
-
-      <Modal visible={createModalVisible} animationType="slide" presentationStyle="fullScreen" onRequestClose={() => setCreateModalVisible(false)}>
-        <View style={styles.modalContainer}>
-          <StatusBar barStyle="dark-content" />
-          <View style={[styles.modalHeader, { paddingTop: insets.top + 8 }]}>
-            <TouchableOpacity onPress={() => setCreateModalVisible(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Ionicons name="close" size={28} color={colors.text.primary} />
-            </TouchableOpacity>
-            <AppText style={styles.modalTitle}>New Post</AppText>
-            <TouchableOpacity
-              onPress={handleCreatePost}
-              disabled={createPostMutation.isPending || (!caption.trim() && !selectedImage)}
-              style={[styles.shareButton, (createPostMutation.isPending || (!caption.trim() && !selectedImage)) && styles.shareButtonDisabled]}
-            >
-              <AppText style={styles.shareText}>{createPostMutation.isPending ? 'Posting…' : 'Post'}</AppText>
-            </TouchableOpacity>
-          </View>
-
-          <TouchableOpacity style={styles.imagePickerContainer} onPress={pickImage} activeOpacity={0.9}>
-            {selectedImage ? (
-              <Image source={{ uri: selectedImage }} style={styles.selectedImage} />
-            ) : (
-              <View style={styles.imagePlaceholder}>
-                <Ionicons name="image-outline" size={48} color={colors.text.tertiary} />
-                <AppText style={styles.imagePlaceholderText}>Tap to add a photo</AppText>
-              </View>
-            )}
-          </TouchableOpacity>
-
-          <View style={styles.privacyRow}>
-            <AppText style={styles.privacyLabel}>Who can see this?</AppText>
-            <View style={styles.privacyOptions}>
-              <TouchableOpacity style={[styles.privacyOption, privacy === 'public' && styles.privacyOptionActive]} onPress={() => setPrivacy('public')}>
-                <Ionicons name="globe-outline" size={14} color={privacy === 'public' ? colors.text.primary : colors.text.secondary} />
-                <AppText style={[styles.privacyOptionText, privacy === 'public' && styles.privacyOptionTextActive]}>Public</AppText>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.privacyOption, privacy === 'connections' && styles.privacyOptionActive]} onPress={() => setPrivacy('connections')}>
-                <Ionicons name="people-outline" size={14} color={privacy === 'connections' ? colors.text.primary : colors.text.secondary} />
-                <AppText style={[styles.privacyOptionText, privacy === 'connections' && styles.privacyOptionTextActive]}>Connections</AppText>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View style={styles.captionSection}>
-            <TextInput
-              style={styles.captionInput}
-              placeholder="Write a caption..."
-              placeholderTextColor={colors.text.tertiary}
-              multiline
-              value={caption}
-              onChangeText={setCaption}
-              maxLength={2200}
-            />
-            <AppText style={styles.characterCount}>{caption.length}/2200</AppText>
-          </View>
-        </View>
-      </Modal>
+      {isLoading && activeTab === 'catchups' ? (
+        <View style={styles.loadingOverlay}><OrbitLoader /></View>
+      ) : null}
+      {isFetching && !isLoading && !isFetchingNextPage && activeTab === 'catchups' ? (
+        <View style={styles.filterFetchBar} />
+      ) : null}
+      {searchModal}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#FFFFFF' },
+  safe: { flex: 1, backgroundColor: '#FFFFFF' },
+  list: { flex: 1 },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+    paddingTop: 44,
+    paddingHorizontal: 16,
+  },
+  header: { paddingHorizontal: 16, paddingBottom: 12, backgroundColor: '#FFFFFF' },
+  logoRow: { minHeight: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  logo: { color: ACCENT, fontSize: 24, fontWeight: '700' },
+  locationPill: { borderWidth: 1, borderColor: '#E0E0E0', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6 },
+  locationText: { color: '#555555', fontSize: 13, fontWeight: '500' },
+  searchBar: { height: 46, borderRadius: 14, backgroundColor: '#F5F5F5', flexDirection: 'row', alignItems: 'center', paddingLeft: 14, paddingRight: 5, gap: 9 },
+  searchPlaceholder: { flex: 1, color: '#BBBBBB', fontSize: 14 },
+  filterBtn: { width: 36, height: 36, borderRadius: 12, backgroundColor: '#F0F0F0', alignItems: 'center', justifyContent: 'center' },
+  filterRailFrame: {
+    height: 46,
+    flexGrow: 0,
+    flexShrink: 0,
+    marginBottom: 6,
+    overflow: 'hidden',
+  },
+  filterRailScroll: {
+    height: 46,
+    maxHeight: 46,
+    flexGrow: 0,
+    flexShrink: 0,
+  },
+  filterRail: {
+    minHeight: 46,
+    gap: 8,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  filterPill: {
+    height: 36,
+    borderRadius: 18,
+    paddingHorizontal: 18,
+    backgroundColor: '#F5F5F5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterPillActive: { backgroundColor: DARK },
+  filterText: { color: '#555555', fontSize: 13, fontWeight: '500' },
+  filterTextActive: { color: '#FFFFFF' },
+  emptyState: { minHeight: 260 },
+  loadingOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(255,255,255,0.72)', alignItems: 'center', justifyContent: 'center' },
+  filterFetchBar: { position: 'absolute', top: 0, left: 0, right: 0, height: 2, backgroundColor: ACCENT, opacity: 0.7 },
+  searchScreen: { flex: 1, backgroundColor: '#FFFFFF' },
+  searchTop: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingBottom: 12, gap: 10 },
+  searchBarExpanded: { flex: 1, minWidth: 0 },
+  searchInput: { flex: 1, minWidth: 0, color: DARK, fontSize: 14, padding: 0 },
+  cancelBtn: { width: 64, height: 46, alignItems: 'flex-end', justifyContent: 'center', flexShrink: 0 },
+  cancelText: { color: ACCENT, fontSize: 14, fontWeight: '700' },
+  searchResults: { paddingHorizontal: 20, paddingBottom: 30 },
+  searchResultsSuggestions: { paddingTop: 2 },
+  searchState: { minHeight: 210, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
+  searchStateTitle: { marginTop: 10, color: '#687A86', fontSize: 14, fontWeight: '700', textAlign: 'center' },
+  sectionHeader: { color: MUTED, fontSize: 12, fontWeight: '700', textTransform: 'uppercase', marginTop: 18, marginBottom: 8, letterSpacing: 0.8 },
+  suggestionsWrap: { paddingBottom: 8 },
+  suggestionRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 14, backgroundColor: '#F7F7F7', marginBottom: 8 },
+  suggestionIcon: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E8F6FA', alignItems: 'center', justifyContent: 'center' },
+  searchMini: { padding: 14, borderRadius: 14, backgroundColor: '#F7F7F7', marginBottom: 8 },
+  searchMiniTitle: { color: DARK, fontSize: 14, fontWeight: '700' },
+  searchMiniSub: { color: MUTED, fontSize: 12, marginTop: 3 },
+  placeRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 14, backgroundColor: '#F7F7F7', marginBottom: 8 },
+  placeIcon: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E8F6FA', alignItems: 'center', justifyContent: 'center' },
+  userRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 14, backgroundColor: '#F7F7F7', marginBottom: 8 },
+  userAvatar: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E8F6FA', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  userAvatarImage: { width: 34, height: 34, borderRadius: 17 },
+  userInfo: { flex: 1, minWidth: 0 },
+  userInitial: { color: ACCENT, fontWeight: '800' },
+});

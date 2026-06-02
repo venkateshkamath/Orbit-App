@@ -27,10 +27,16 @@ function fullMediaUrl(req, relativePath) {
   if (!relativePath) {
     return null;
   }
-  if (/^https?:\/\//.test(relativePath)) {
-    return relativePath;
+  const value = String(relativePath).trim();
+  if (!value) {
+    return null;
   }
-  return `${req.protocol}://${req.get('host')}/media/${relativePath}`;
+  if (/^https?:\/\//i.test(value)) {
+    return value;
+  }
+  const normalized = value.replace(/^\/+/, '');
+  const mediaPath = normalized.startsWith('media/') ? normalized : `media/${normalized}`;
+  return `${req.protocol}://${req.get('host')}/${mediaPath}`;
 }
 
 function deleteFile(relativePath) {

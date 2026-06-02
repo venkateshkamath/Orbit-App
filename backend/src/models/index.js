@@ -253,6 +253,7 @@ const eventSchema = new mongoose.Schema(
       enum: ['live', 'cancelled'],
       default: 'live',
     },
+    deleted_at: { type: Date, default: null },
     attendees: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     conversation: { type: mongoose.Schema.Types.ObjectId, ref: 'Conversation', default: null },
   },
@@ -261,6 +262,7 @@ const eventSchema = new mongoose.Schema(
 eventSchema.index({ location: '2dsphere' });
 eventSchema.index({ organizer: 1, created_at: -1 });
 eventSchema.index({ start_at: 1 });
+eventSchema.index({ deleted_at: 1, status: 1 });
 
 module.exports = {
   EVENT_CATEGORIES,
