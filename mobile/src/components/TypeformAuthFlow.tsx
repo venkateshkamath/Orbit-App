@@ -22,9 +22,11 @@ import { authApi } from '../api/auth';
 import { eventsApi } from '../api/events';
 import { useAuthStore } from '../stores';
 import { useOrbitTheme } from '../theme';
+import { StateView } from './index';
 import { AppText } from '../ui/AppText';
 import type { Interest, LocationSearchResult } from '../types';
 import { formatApiError } from '../utils/apiErrors';
+import { useToast } from '../context/ToastContext';
 
 const CYAN = '#00B4D8';
 const RED = '#EF4444';
@@ -80,6 +82,38 @@ function Question({ title, subtitle, fonts }: { title: string; subtitle: string;
 
 // ─── main component ───────────────────────────────────────────────────────────
 
+interface ParsedLocationResult extends LocationSearchResult {
+  parsedCity: string;
+  parsedCountry: string;
+  displayLabel: string;
+  place_id?: string;
+}
+
+const processLocationResults = (rawResults: any[]): ParsedLocationResult[] => {
+  const uniqueResults = [];
+  const seen = new Set<string>();
+
+  for (const r of rawResults) {
+    const parts = (r.display_name || '').split(',').map((p: string) => p.trim());
+    const city = parts[0] || '';
+    const country = parts.length > 1 ? parts[parts.length - 1] : '';
+    
+    const dedupeKey = `${city.toLowerCase()}|${country.toLowerCase()}`;
+
+    if (!seen.has(dedupeKey)) {
+      seen.add(dedupeKey);
+      uniqueResults.push({
+        ...r,
+        parsedCity: city,
+        parsedCountry: country,
+        displayLabel: country ? `${city}, ${country}` : city
+      });
+    }
+  }
+  
+  return uniqueResults;
+};
+
 export function TypeformAuthFlow({ mode }: { mode: Mode }) {
   const { fonts } = useOrbitTheme();
   const { width } = useWindowDimensions();
@@ -89,6 +123,8 @@ export function TypeformAuthFlow({ mode }: { mode: Mode }) {
     requestSignupOtp, verifySignupOtp,
     updateProfile, updateLocation, setOnboardingComplete,
   } = useAuthStore();
+
+  const toast = useToast();
 
   // Login:  0=phone  1=otp
   // Signup: 0=name  1=phone(+otp sub)  2=interests  3=city  4=username  5=photo→submit
@@ -126,9 +162,11 @@ export function TypeformAuthFlow({ mode }: { mode: Mode }) {
 
   // city
   const [cityQuery, setCityQuery]           = useState('');
-  const [cityResults, setCityResults]       = useState<LocationSearchResult[]>([]);
+  const [cityResults, setCityResults]       = useState<ParsedLocationResult[]>([]);
   const [cityLoading, setCityLoading]       = useState(false);
-  const [selectedCity, setSelectedCity]     = useState<LocationSearchResult | null>(null);
+  const [cityError, setCityError]           = useState(false);
+  const [formData, setFormData]             = useState({ city: '' });
+  const [selectedCity, setSelectedCity]     = useState<ParsedLocationResult | null>(null);
 
   // username
   const [username, setUsername]             = useState('');
@@ -196,22 +234,19 @@ export function TypeformAuthFlow({ mode }: { mode: Mode }) {
   useEffect(() => {
     if (mode !== 'signup' || step !== 3) { setCityResults([]); return; }
     if (cityQuery.trim().length < 2 || selectedCity?.display_name === cityQuery) return;
-    const t = setTimeout(() => {
-      setCityLoading(true);
-      eventsApi.searchLocation(cityQuery.trim())
-        .then((results) => {
-          // Deduplicate by extracted city name
-          const seen = new Set<string>();
-          const unique = results.filter((r) => {
-            const city = extractCity(r.display_name).toLowerCase();
-            if (seen.has(city)) return false;
-            seen.add(city);
-            return true;
-          });
-          setCityResults(unique);
-        })
-        .catch(() => setCityResults([]))
-        .finally(() => setCityLoading(false));
+    const t = setTimeout(async () => {
+      const debouncedCityQuery = cityQuery.trim();
+      try {
+        setCityLoading(true);
+        setCityError(false);
+        const data = await eventsApi.searchLocation(debouncedCityQuery);
+        setCityResults(processLocationResults(data));
+      } catch (error) {
+        setCityError(true);
+        toast.error(formatApiError(error));
+      } finally {
+        setCityLoading(false);
+      }
     }, 300);
     return () => clearTimeout(t);
   }, [cityQuery, mode, selectedCity?.display_name, step]);
@@ -450,6 +485,13 @@ export function TypeformAuthFlow({ mode }: { mode: Mode }) {
 
   // ─── step renderers ───────────────────────────────────────────────────────
 
+  const handleCitySelection = (selectedItem: ParsedLocationResult) => {
+    setFormData(prev => ({ ...prev, city: selectedItem.parsedCity }));
+    setSelectedCity(selectedItem);
+    setCityQuery(selectedItem.parsedCity);
+    setCityResults([]);
+  };
+
   function renderPhoneStep(title: string, sub: string) {
     return (
       <>
@@ -654,28 +696,24 @@ export function TypeformAuthFlow({ mode }: { mode: Mode }) {
 
           {/* Dropdown — only when no city selected and query is long enough */}
           {cityQuery.trim().length >= 2 && !selectedCity && (
-            <View style={s.cityDropdown}>
-              {cityLoading ? null : cityResults.length === 0 ? (
-                <AppText style={[s.cityNoResults, { fontFamily: fonts.regular }]}>
-                  No cities found
-                </AppText>
+            <View style={styles.dropdownContainer}>
+              {cityLoading ? (
+                <StateView type="loading" compact={true} />
+              ) : cityError ? (
+                <StateView type="error" actionLabel="Retry" onAction={() => setCityQuery(cityQuery + ' ')} compact={true} />
+              ) : cityQuery.trim().length > 0 && cityResults.length === 0 ? (
+                <StateView type="empty" title="No cities found" compact={true} />
               ) : (
-                cityResults.map((r) => (
-                  <Pressable
-                    key={`${r.lat}-${r.lng}`}
-                    onPress={() => {
-                      const city = extractCity(r.display_name);
-                      setSelectedCity(r);
-                      setCityQuery(city);
-                      setCityResults([]);
-                    }}
-                    style={({ pressed }) => [s.cityRow, pressed && s.cityRowPressed]}
+                cityResults.map((item) => (
+                  <TouchableOpacity
+                    key={item.place_id || item.displayLabel}
+                    style={styles.dropdownRow}
+                    onPress={() => handleCitySelection(item)}
                   >
-                    <Ionicons name="location-outline" size={14} color={CYAN} style={{ marginRight: 10 }} />
-                    <AppText style={[s.cityRowText, { fontFamily: fonts.medium }]} numberOfLines={1}>
-                      {extractCity(r.display_name)}
+                    <AppText numberOfLines={1} ellipsizeMode="tail">
+                      {item.displayLabel}
                     </AppText>
-                  </Pressable>
+                  </TouchableOpacity>
                 ))
               )}
             </View>
@@ -1038,6 +1076,27 @@ const s = StyleSheet.create({
   cityRowText:    { fontSize: 15, color: BLACK, flex: 1 },
   cityNoResults:  { padding: 18, color: '#AAAAAA', fontSize: 14, textAlign: 'center' },
 
+  dropdownContainer: {
+    marginTop: 6,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#E8E8E8',
+    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.07, shadowRadius: 12 },
+      android: { elevation: 4 },
+    }),
+  },
+  dropdownRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#F0F0F0',
+  },
+
   // ── input helpers ─────────────────────────────────────────────────────────
   inputWrap: { position: 'relative' },
   leftIcon:  { position: 'absolute', left: 17, top: 17, zIndex: 1 },
@@ -1147,3 +1206,5 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
 });
+
+const styles = s;

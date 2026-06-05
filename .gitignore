@@ -34,3 +34,5 @@ backend/htmlcov/
 .claude/
 backend/jest.config.js
 backend/tests/
+
+sathvik.md
