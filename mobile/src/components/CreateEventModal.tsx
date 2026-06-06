@@ -117,7 +117,7 @@ interface Props {
 }
 
 export function CreateEventModal({ visible, onClose, onCreated, initialLat, initialLng }: Props) {
-  const { colors, fonts, shadows } = useOrbitTheme();
+  const { colors, fonts, shadows, resolvedScheme } = useOrbitTheme();
   const insets = useSafeAreaInsets();
 
   const [title, setTitle]             = useState('');
@@ -611,7 +611,7 @@ export function CreateEventModal({ visible, onClose, onCreated, initialLat, init
                     minimumDate={showDatePicker ? new Date() : undefined}
                     display="spinner"
                     onChange={showDatePicker ? handleDateChange : handleTimeChange}
-                    themeVariant="light"
+                    themeVariant={resolvedScheme}
                     textColor={colors.text.primary}
                     accentColor={colors.primary.default}
                     style={s.pickerSpinner}

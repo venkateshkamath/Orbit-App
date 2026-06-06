@@ -22,8 +22,12 @@ import { orbitFontFamily, orbitFontFamilyFallback, type OrbitFontFamilyMap } fro
 
 void SplashScreen.preventAutoHideAsync().catch(() => {});
 
-function resolveActiveScheme(): 'light' | 'dark' {
-  return 'light';
+function resolveActiveScheme(
+  preference: ThemePreference,
+  systemScheme: 'light' | 'dark' | null | undefined
+): 'light' | 'dark' {
+  if (preference === 'system') return systemScheme === 'dark' ? 'dark' : 'light';
+  return preference;
 }
 
 export type OrbitThemeContextValue = {
@@ -56,9 +60,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const preference = useThemeStore((s) => s.preference);
   const setPreference = useThemeStore((s) => s.setPreference);
-  useColorScheme();
+  const systemScheme = useColorScheme();
 
-  const resolvedScheme = resolveActiveScheme();
+  const resolvedScheme = resolveActiveScheme(preference, systemScheme);
 
   const fonts = useMemo(
     () => (fontsLoaded && !fontError ? orbitFontFamily : orbitFontFamilyFallback),
@@ -82,7 +86,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [resolvedScheme, preference, setPreference, fonts, fontsReady]);
 
   if (!fontsLoaded && !fontError) {
-    return <View style={[styles.boot, { backgroundColor: lightPalette.background.primary }]} />;
+    const bootPalette = resolvedScheme === 'dark' ? darkPalette : lightPalette;
+    return <View style={[styles.boot, { backgroundColor: bootPalette.background.primary }]} />;
   }
 
   return (

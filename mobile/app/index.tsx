@@ -17,12 +17,16 @@ import { useOrbitTheme } from '../src/theme';
 import { AppText } from '../src/ui/AppText';
 
 export default function WelcomeScreen() {
-  const { fonts } = useOrbitTheme();
+  const { colors, fonts, resolvedScheme } = useOrbitTheme();
   const insets = useSafeAreaInsets();
   const { width: winW } = useWindowDimensions();
 
   const isNarrow = winW < 380;
   const pageX = isNarrow ? 22 : 28;
+  const isDark = resolvedScheme === 'dark';
+  const gradientColors: [string, string, string, string] = isDark
+    ? ['#05080D', '#07131D', '#0B111A', '#05080D']
+    : ['#DDF8FF', '#EFFBFD', '#F8FCFC', '#FFFFFF'];
 
   const s = useMemo(
     () =>
@@ -45,10 +49,10 @@ export default function WelcomeScreen() {
           fontWeight: FontWeights.bold,
           letterSpacing: -1,
           fontFamily: fonts.bold,
-          color: '#10BFEF',
+          color: colors.primary.default,
         },
         loginText: {
-          color: '#555555',
+          color: colors.text.secondary,
           fontSize: 14,
           fontWeight: FontWeights.medium,
           fontFamily: fonts.medium,
@@ -63,17 +67,19 @@ export default function WelcomeScreen() {
           borderRadius: BorderRadius.full,
           paddingHorizontal: 12,
           paddingVertical: 7,
-          backgroundColor: '#E0F7FA',
+          backgroundColor: colors.primary.default + (isDark ? '24' : '18'),
           marginBottom: 20,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: colors.primary.default + '44',
         },
         badgeText: {
-          color: '#0497B8',
+          color: colors.primary.default,
           fontSize: FontSizes.xs,
           fontWeight: FontWeights.semibold,
           fontFamily: fonts.semibold,
         },
         headline: {
-          color: '#050505',
+          color: colors.text.primary,
           fontSize: isNarrow ? 40 : 46,
           lineHeight: isNarrow ? 46 : 52,
           fontWeight: '800',
@@ -81,9 +87,9 @@ export default function WelcomeScreen() {
           fontFamily: fonts.extrabold,
           marginBottom: 16,
         },
-        accentWord: { color: '#10BFEF' },
+        accentWord: { color: colors.primary.default },
         sub: {
-          color: '#6E7687',
+          color: colors.text.secondary,
           fontSize: 17,
           lineHeight: 25,
           fontFamily: fonts.regular,
@@ -95,7 +101,7 @@ export default function WelcomeScreen() {
           bottom: Math.max(insets.bottom, 18) + 36,
           minHeight: 56,
           borderRadius: BorderRadius.full,
-          backgroundColor: '#101010',
+          backgroundColor: isDark ? colors.primary.default : '#101010',
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -103,9 +109,9 @@ export default function WelcomeScreen() {
           paddingRight: 6,
           ...Platform.select({
             ios: {
-              shadowColor: '#111111',
+              shadowColor: isDark ? colors.primary.default : '#111111',
               shadowOffset: { width: 0, height: 12 },
-              shadowOpacity: 0.16,
+              shadowOpacity: isDark ? 0.28 : 0.16,
               shadowRadius: 22,
             },
             android: { elevation: 5 },
@@ -114,7 +120,7 @@ export default function WelcomeScreen() {
         },
         ctaText: {
           flex: 1,
-          color: '#FFFFFF',
+          color: isDark ? colors.background.primary : '#FFFFFF',
           fontSize: 16,
           fontWeight: FontWeights.bold,
           fontFamily: fonts.extrabold,
@@ -126,29 +132,29 @@ export default function WelcomeScreen() {
           borderRadius: 20,
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: '#10BFEF',
+          backgroundColor: isDark ? colors.background.card : colors.primary.default,
         },
         socialProof: {
           position: 'absolute',
           left: pageX,
           right: pageX,
           bottom: Math.max(insets.bottom, 18) + 4,
-          color: '#7B8492',
+          color: colors.text.tertiary,
           textAlign: 'center',
           fontSize: FontSizes.sm,
           fontWeight: FontWeights.medium,
           fontFamily: fonts.medium,
         },
       }),
-    [fonts, insets.bottom, insets.top, isNarrow, pageX]
+    [colors, fonts, insets.bottom, insets.top, isDark, isNarrow, pageX]
   );
 
   return (
     <View style={s.root}>
-      <StatusBar style="dark" />
+      <StatusBar style={isDark ? 'light' : 'dark'} />
 
       <LinearGradient
-        colors={['#DDF8FF', '#EFFBFD', '#F8FCFC', '#FFFFFF']}
+        colors={gradientColors}
         locations={[0, 0.36, 0.64, 1]}
         start={{ x: 0.35, y: 0 }}
         end={{ x: 0.52, y: 1 }}
@@ -186,7 +192,7 @@ export default function WelcomeScreen() {
       >
         <AppText style={s.ctaText}>Get started</AppText>
         <View style={s.arrowCircle}>
-          <Ionicons name="arrow-forward" size={24} color="#050505" />
+          <Ionicons name="arrow-forward" size={24} color={isDark ? colors.text.primary : '#050505'} />
         </View>
       </TouchableOpacity>
       <AppText style={s.socialProof}>Join 2,400 people nearby</AppText>

@@ -39,6 +39,7 @@ import { useDeleteCatchupMutation, useEventQuery, useJoinEventMutation, useLeave
 import { orbitKeys } from '../../src/hooks/orbitKeys';
 import { useToast } from '../../src/context/ToastContext';
 import { useAuthStore } from '../../src/stores/authStore';
+import { useOrbitTheme } from '../../src/theme';
 import { API_BASE_URL } from '../../src/api/client';
 import type { OrbitEvent, User } from '../../src/types';
 import {
@@ -234,6 +235,7 @@ function AvatarBubble({
   size?: number;
   overlap?: boolean;
 }) {
+  const { colors: themeColors } = useOrbitTheme();
   const colors = useMemo(() => nameToAvatarColor(name), [name]);
   const resolvedUri = useMemo(() => avatarUrl(uri), [uri]);
 
@@ -247,6 +249,7 @@ function AvatarBubble({
           borderRadius: size / 2,
           backgroundColor: colors.bg,
           marginLeft: overlap ? -9 : 0,
+          borderColor: themeColors.background.card,
         },
       ]}
     >
@@ -321,6 +324,7 @@ export default function EventDetailScreen() {
   const id = Array.isArray(rawId) ? rawId[0] : rawId;
   const mockPeopleEnabled = __DEV__ && (Array.isArray(mockPeople) ? mockPeople[0] : mockPeople) === '1';
   const insets = useSafeAreaInsets();
+  const { colors, resolvedScheme, shadows } = useOrbitTheme();
   const toast = useToast();
   const queryClient = useQueryClient();
   const user = useAuthStore((s) => s.user);
@@ -338,6 +342,52 @@ export default function EventDetailScreen() {
   const aboutProgress = useSharedValue(0);
   const ctaScale = useSharedValue(1);
   const hostEditScale = useSharedValue(1);
+  const isDark = resolvedScheme === 'dark';
+  const theme = useMemo(
+    () =>
+      StyleSheet.create({
+        screen: {
+          backgroundColor: colors.background.primary,
+        },
+        card: {
+          backgroundColor: colors.background.card,
+          borderColor: colors.borderLight,
+          shadowColor: shadows.md.shadowColor,
+          shadowOpacity: isDark ? 0.34 : 0.05,
+        },
+        subtleCard: {
+          backgroundColor: colors.background.secondary,
+          borderColor: colors.border,
+        },
+        textPrimary: {
+          color: colors.text.primary,
+        },
+        textSecondary: {
+          color: colors.text.secondary,
+        },
+        textTertiary: {
+          color: colors.text.tertiary,
+        },
+        textMuted: {
+          color: colors.text.muted,
+        },
+        actionBar: {
+          backgroundColor: colors.background.card,
+          borderTopColor: colors.border,
+        },
+        softAccent: {
+          backgroundColor: colors.primary.default + (isDark ? '24' : '18'),
+          borderColor: colors.primary.default + '44',
+        },
+        disabledSurface: {
+          backgroundColor: colors.background.secondary,
+        },
+        modalScrim: {
+          backgroundColor: isDark ? 'rgba(5,8,13,0.52)' : 'rgba(13,13,13,0.24)',
+        },
+      }),
+    [colors, isDark, shadows]
+  );
 
   const gallery = useMemo(() => {
     const photos = (event?.photos ?? []).map((photo) => mediaUrl(photo.url)).filter(Boolean) as string[];
@@ -528,7 +578,7 @@ export default function EventDetailScreen() {
 
   if (isPending) {
     return (
-      <View style={styles.centered}>
+      <View style={[styles.centered, theme.screen]}>
         <OrbitLoader />
       </View>
     );
@@ -536,7 +586,7 @@ export default function EventDetailScreen() {
 
   if (isError || !event) {
     return (
-      <View style={styles.centered}>
+      <View style={[styles.centered, theme.screen]}>
         <StateView
           type="error"
           icon="calendar-outline"
@@ -579,7 +629,7 @@ export default function EventDetailScreen() {
   const showInviteChip = !completed && attendeeCount === 1 && Boolean(hostId) && attendeeChipList.some((attendee) => attendee.id === hostId);
   const attendeeHeaderLabel = completed ? 'WHO JOINED' : "WHO'S GOING";
   const attendeeHeaderSpots = `${attendeeCount}/${maxPeople} spots`;
-  const fillColor = isFull || fillRatio >= 0.8 ? ERROR : DARK;
+  const fillColor = isFull || fillRatio >= 0.8 ? colors.error : (isDark ? colors.primary.default : DARK);
   const spotUrgencyText = spotsLeft === 1 ? '🔥 1 spot left!' : `🔥 ${spotsLeft} spots left!`;
   const hostActivity = event.organizer ? hostStatus(event.organizer) : null;
   const ctaLabel = completed
@@ -595,7 +645,7 @@ export default function EventDetailScreen() {
             : 'Join →';
 
   return (
-    <View style={styles.screen}>
+    <View style={[styles.screen, theme.screen]}>
       <StatusBar style="light" />
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -612,7 +662,7 @@ export default function EventDetailScreen() {
             />
           ) : (
             <LinearGradient
-              colors={[category.bg, '#FFFFFF']}
+              colors={[category.bg, colors.background.card]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={[styles.cover, styles.fallbackCover]}
@@ -638,41 +688,47 @@ export default function EventDetailScreen() {
               {urgency ? (
                 <View style={styles.urgencyWrap}>
                   {urgency.showDot ? <View style={styles.urgencyDot} /> : null}
-                  <AppText style={[styles.urgencyText, { color: urgency.color, fontWeight: urgency.weight }]} numberOfLines={1}>
+                  <AppText
+                    style={[
+                      styles.urgencyText,
+                      { color: urgency.color === DARK ? colors.text.primary : urgency.color, fontWeight: urgency.weight },
+                    ]}
+                    numberOfLines={1}
+                  >
                     {urgency.label}
                   </AppText>
                 </View>
               ) : null}
             </View>
-            <AppText style={styles.title} numberOfLines={3} ellipsizeMode="clip">{event.title}</AppText>
+            <AppText style={[styles.title, theme.textPrimary]} numberOfLines={3} ellipsizeMode="clip">{event.title}</AppText>
             <View style={styles.timeLine}>
-              <Ionicons name="time-outline" size={14} color={MUTED} />
-              <AppText style={[styles.timeLineText, urgency?.isSoon && styles.timeLineSoon]}>
+              <Ionicons name="time-outline" size={14} color={colors.text.tertiary} />
+              <AppText style={[styles.timeLineText, theme.textPrimary, urgency?.isSoon && styles.timeLineSoon]}>
                 {formatEventTime(event)}
               </AppText>
             </View>
             <View style={styles.placeLine}>
-              <Ionicons name="location-outline" size={14} color={MUTED} />
-              <AppText style={styles.placeLineText} numberOfLines={2}>
+              <Ionicons name="location-outline" size={14} color={colors.text.tertiary} />
+              <AppText style={[styles.placeLineText, theme.textSecondary]} numberOfLines={2}>
                 {event.location_name || event.city || 'Location TBD'}
                 {distanceLabel ? ` · ${distanceLabel}` : ''}
               </AppText>
             </View>
           </View>
 
-          <View style={styles.card}>
+          <View style={[styles.card, theme.card]}>
             <View style={styles.attendeeHeaderLine}>
-              <AppText style={styles.attendeeHeaderLabel}>{attendeeHeaderLabel}</AppText>
-              <AppText style={styles.attendeeHeaderSeparator}>·</AppText>
+              <AppText style={[styles.attendeeHeaderLabel, theme.textTertiary]}>{attendeeHeaderLabel}</AppText>
+              <AppText style={[styles.attendeeHeaderSeparator, theme.textTertiary]}>·</AppText>
               <AppText style={styles.attendeeHeaderSpots}>{attendeeHeaderSpots}</AppText>
             </View>
             {showSpotUrgency ? (
               <Animated.View style={[styles.spotUrgencyWrap, urgencyAnimatedStyle]}>
-                <AppText style={styles.spotUrgencyText}>{spotUrgencyText}</AppText>
+                <AppText style={[styles.spotUrgencyText, { color: colors.error }]}>{spotUrgencyText}</AppText>
               </Animated.View>
             ) : null}
             {visibleAttendeeChips.length > 0 ? (
-              <View style={styles.attendeePreviewStrip}>
+              <View style={[styles.attendeePreviewStrip, theme.subtleCard]}>
                 <View style={styles.attendeeInitialsRow}>
                   {visibleAttendeeChips.map((attendee) => (
                     <Pressable
@@ -687,32 +743,32 @@ export default function EventDetailScreen() {
                   ))}
                 </View>
                 {hiddenAttendeeCount > 0 ? (
-                  <View style={styles.morePeopleChip}>
-                    <AppText style={styles.morePeopleText}>{morePeopleLabel(hiddenAttendeeCount)}</AppText>
+                  <View style={[styles.morePeopleChip, theme.card]}>
+                    <AppText style={[styles.morePeopleText, theme.textTertiary]}>{morePeopleLabel(hiddenAttendeeCount)}</AppText>
                   </View>
                 ) : null}
                 {showInviteChip ? (
-                  <Pressable style={styles.inviteChip} onPress={handleInvite}>
-                    <AppText style={styles.inviteChipText}>+ Invite</AppText>
+                  <Pressable style={[styles.inviteChip, theme.card]} onPress={handleInvite}>
+                    <AppText style={[styles.inviteChipText, theme.textTertiary]}>+ Invite</AppText>
                   </Pressable>
                 ) : null}
               </View>
             ) : (
-              <AppText style={styles.noAttendeesText}>
+              <AppText style={[styles.noAttendeesText, theme.textTertiary]}>
                 {completed ? 'No one joined this catchup.' : 'No one has joined yet — be the first!'}
               </AppText>
             )}
-            <View style={styles.fillTrack}>
+            <View style={[styles.fillTrack, { backgroundColor: colors.background.secondary }]}>
               <Animated.View style={[styles.fillBar, { backgroundColor: fillColor }, fillAnimatedStyle]} />
             </View>
           </View>
 
           {description ? (
-            <View style={styles.card}>
-              <AppText style={styles.attendeeSectionLabel}>ABOUT</AppText>
+            <View style={[styles.card, theme.card]}>
+              <AppText style={[styles.attendeeSectionLabel, theme.textTertiary]}>ABOUT</AppText>
               <Animated.View style={[styles.descriptionClip, aboutAnimatedStyle]}>
                 <AppText
-                  style={styles.description}
+                  style={[styles.description, theme.textSecondary]}
                   numberOfLines={shouldCollapseDescription && !aboutExpanded ? 4 : undefined}
                 >
                   {description}
@@ -733,13 +789,13 @@ export default function EventDetailScreen() {
           ) : null}
 
           {detailGallery.length > 0 ? (
-            <View style={styles.card}>
-              <AppText style={styles.attendeeSectionLabel}>PHOTOS</AppText>
+            <View style={[styles.card, theme.card]}>
+              <AppText style={[styles.attendeeSectionLabel, theme.textTertiary]}>PHOTOS</AppText>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.detailPhotoRail}>
                 {detailGallery.map((photo) => (
                   <Pressable
                     key={`${photo.url}-${photo.index}`}
-                    style={styles.detailPhotoWrap}
+                    style={[styles.detailPhotoWrap, theme.subtleCard]}
                     onPress={() => openGallery(photo.index)}
                   >
                     <Image
@@ -762,16 +818,16 @@ export default function EventDetailScreen() {
 
           {event.organizer ? (
             <View style={styles.hostSection}>
-              <AppText style={styles.attendeeSectionLabel}>HOST</AppText>
-              <View style={styles.hostCard}>
+              <AppText style={[styles.attendeeSectionLabel, theme.textTertiary]}>HOST</AppText>
+              <View style={[styles.hostCard, theme.subtleCard]}>
                 <AvatarBubble name={event.organizer.username} uri={event.organizer.avatar} size={48} />
                 <View style={styles.hostText}>
-                  <AppText style={styles.hostName}>{isHost ? 'You' : event.organizer.username}</AppText>
-                  <AppText style={styles.hostUsername}>@{event.organizer.username}</AppText>
+                  <AppText style={[styles.hostName, theme.textPrimary]}>{isHost ? 'You' : event.organizer.username}</AppText>
+                  <AppText style={[styles.hostUsername, theme.textTertiary]}>@{event.organizer.username}</AppText>
                   {hostActivity ? (
                     <View style={styles.hostStatusRow}>
                       <View style={[styles.hostStatusDot, hostActivity.online ? styles.hostStatusOnline : styles.hostStatusOffline]} />
-                      <AppText style={[styles.hostStatusText, hostActivity.online ? styles.hostStatusTextOnline : styles.hostStatusTextOffline]}>
+                      <AppText style={[styles.hostStatusText, hostActivity.online ? styles.hostStatusTextOnline : theme.textTertiary]}>
                         {hostActivity.label}
                       </AppText>
                     </View>
@@ -788,17 +844,17 @@ export default function EventDetailScreen() {
             </View>
           ) : null}
 
-          <View style={styles.card}>
-            <AppText style={styles.sectionTitle}>Location</AppText>
-            <AppText style={styles.placeTitle}>{event.location_name || event.city || 'Location TBD'}</AppText>
-            {event.address ? <AppText style={styles.placeSub}>{event.address}</AppText> : null}
-            {event.city ? <AppText style={styles.placeSub}>{event.city}</AppText> : null}
+          <View style={[styles.card, theme.card]}>
+            <AppText style={[styles.sectionTitle, theme.textPrimary]}>Location</AppText>
+            <AppText style={[styles.placeTitle, theme.textPrimary]}>{event.location_name || event.city || 'Location TBD'}</AppText>
+            {event.address ? <AppText style={[styles.placeSub, theme.textSecondary]}>{event.address}</AppText> : null}
+            {event.city ? <AppText style={[styles.placeSub, theme.textSecondary]}>{event.city}</AppText> : null}
             {canOpenGoogleMaps ? (
-              <Pressable style={styles.googleMapsLink} onPress={openMaps}>
+              <Pressable style={[styles.googleMapsLink, theme.softAccent]} onPress={openMaps}>
                 {({ pressed }) => (
                   <>
-                    <Ionicons name="navigate-outline" size={15} color={pressed ? ACCENT_SOON : ACCENT} />
-                    <AppText style={[styles.googleMapsText, pressed && styles.googleMapsTextPressed]}>
+                    <Ionicons name="navigate-outline" size={15} color={pressed ? ACCENT_SOON : colors.primary.default} />
+                    <AppText style={[styles.googleMapsText, { color: colors.primary.default }, pressed && styles.googleMapsTextPressed]}>
                       Open in Google Maps
                     </AppText>
                   </>
@@ -809,10 +865,10 @@ export default function EventDetailScreen() {
         </View>
       </ScrollView>
 
-      <View style={[styles.actionBar, { paddingBottom: insets.bottom + 12 }]}>
+      <View style={[styles.actionBar, theme.actionBar, { paddingBottom: insets.bottom + 12 }]}>
         {actionSummaryText ? (
           <View style={styles.actionInfo}>
-            <AppText style={styles.actionSummary} numberOfLines={1}>
+            <AppText style={[styles.actionSummary, theme.textTertiary]} numberOfLines={1}>
               {actionSummaryText}
             </AppText>
           </View>
@@ -821,9 +877,9 @@ export default function EventDetailScreen() {
         )}
         {canManage ? (
           <View style={styles.hostActions}>
-            <Animated.View style={[styles.hostButtonGroup, hostEditAnimatedStyle]}>
+            <Animated.View style={[styles.hostButtonGroup, theme.card, hostEditAnimatedStyle]}>
               <Pressable
-                style={styles.hostEditSegment}
+                style={[styles.hostEditSegment, { backgroundColor: isDark ? colors.primary.default : DARK }]}
                 onPressIn={() => {
                   hostEditScale.value = withSpring(0.97, { damping: 14, stiffness: 260 });
                 }}
@@ -836,15 +892,15 @@ export default function EventDetailScreen() {
                   Edit
                 </AppText>
               </Pressable>
-              <View style={styles.hostButtonSeparator} />
+              <View style={[styles.hostButtonSeparator, { backgroundColor: colors.border }]} />
               <Pressable
-                style={styles.hostDeleteSegment}
+                style={[styles.hostDeleteSegment, { backgroundColor: colors.background.card }]}
                 onPress={handleDelete}
                 disabled={deleteCatchup.isPending}
               >
                 {({ pressed }) => (
                   <AppText
-                    style={[styles.hostDeleteText, pressed && !deleteCatchup.isPending && styles.hostDeleteTextPressed]}
+                    style={[styles.hostDeleteText, theme.textTertiary, pressed && !deleteCatchup.isPending && styles.hostDeleteTextPressed]}
                     numberOfLines={1}
                   >
                     Delete
@@ -858,8 +914,11 @@ export default function EventDetailScreen() {
             <Pressable
               style={[
                 styles.primaryCta,
+                { backgroundColor: isDark ? colors.primary.default : DARK },
                 event.has_joined && styles.joinedCta,
+                event.has_joined && theme.softAccent,
                 (isFull || completed || isPendingApproval) && styles.fullCta,
+                (isFull || completed || isPendingApproval) && theme.disabledSurface,
               ]}
               onPressIn={() => {
                 if (!actionDisabled) ctaScale.value = withSpring(0.95, { damping: 14, stiffness: 260 });
@@ -881,7 +940,9 @@ export default function EventDetailScreen() {
                   style={[
                     styles.primaryCtaText,
                     event.has_joined && styles.joinedCtaText,
+                    event.has_joined && { color: colors.primary.default },
                     (isFull || completed || isPendingApproval) && styles.fullCtaText,
+                    (isFull || completed || isPendingApproval) && theme.textTertiary,
                   ]}
                 >
                   {joinEvent.isPending
@@ -933,26 +994,26 @@ export default function EventDetailScreen() {
         onRequestClose={() => setDeleteModalVisible(false)}
       >
         <View style={styles.modalRoot}>
-          <BlurView intensity={28} tint="light" style={StyleSheet.absoluteFillObject} />
-          <Pressable style={styles.modalScrim} onPress={() => setDeleteModalVisible(false)}>
-            <Pressable style={styles.deleteModalCard}>
-              <View style={styles.deleteModalIcon}>
-                <Ionicons name="trash-outline" size={24} color={ERROR} />
+          <BlurView intensity={28} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFillObject} />
+          <Pressable style={[styles.modalScrim, theme.modalScrim]} onPress={() => setDeleteModalVisible(false)}>
+            <Pressable style={[styles.deleteModalCard, theme.card]}>
+              <View style={[styles.deleteModalIcon, { backgroundColor: colors.error + '18' }]}>
+                <Ionicons name="trash-outline" size={24} color={colors.error} />
               </View>
-              <AppText style={styles.deleteModalTitle}>Delete this catchup?</AppText>
-              <AppText style={styles.deleteModalBody}>
+              <AppText style={[styles.deleteModalTitle, theme.textPrimary]}>Delete this catchup?</AppText>
+              <AppText style={[styles.deleteModalBody, theme.textSecondary]}>
                 This can't be undone. Everyone who joined will be notified.
               </AppText>
               <View style={styles.deleteModalActions}>
                 <Pressable
-                  style={styles.modalCancelButton}
+                  style={[styles.modalCancelButton, theme.disabledSurface]}
                   onPress={() => setDeleteModalVisible(false)}
                   disabled={deleteCatchup.isPending}
                 >
-                  <AppText style={styles.modalCancelText}>Cancel</AppText>
+                  <AppText style={[styles.modalCancelText, theme.textPrimary]}>Cancel</AppText>
                 </Pressable>
                 <Pressable
-                  style={[styles.modalDeleteButton, deleteCatchup.isPending && styles.modalButtonDisabled]}
+                  style={[styles.modalDeleteButton, { backgroundColor: colors.error }, deleteCatchup.isPending && styles.modalButtonDisabled]}
                   onPress={confirmDelete}
                   disabled={deleteCatchup.isPending}
                 >

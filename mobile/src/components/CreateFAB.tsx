@@ -28,6 +28,7 @@ import { orbitKeys } from '../hooks/orbitKeys';
 import { AppText } from '../ui/AppText';
 import { formatApiError } from '../utils/apiErrors';
 import { useToast } from '../context/ToastContext';
+import { useOrbitTheme } from '../theme';
 import type { OrbitEvent } from '../types';
 
 const ACCENT = '#00B4D8';
@@ -117,10 +118,23 @@ function sameSlotTime(left: Date, right: Date) {
 }
 
 function SectionLabel({ children, optional }: { children: React.ReactNode; optional?: boolean }) {
+  const { colors } = useOrbitTheme();
   return (
     <View style={styles.labelRow}>
-      <AppText style={styles.sectionLabel}>{children}</AppText>
-      {optional ? <AppText style={styles.optionalBadge}>Optional</AppText> : null}
+      <AppText style={[styles.sectionLabel, { color: colors.text.tertiary }]}>{children}</AppText>
+      {optional ? (
+        <AppText
+          style={[
+            styles.optionalBadge,
+            {
+              color: colors.text.tertiary,
+              backgroundColor: colors.background.secondary,
+            },
+          ]}
+        >
+          Optional
+        </AppText>
+      ) : null}
     </View>
   );
 }
@@ -137,6 +151,7 @@ export function CreateFAB({
 }: Props) {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
+  const { colors, resolvedScheme } = useOrbitTheme();
   const user = useAuthStore((s) => s.user);
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
@@ -178,6 +193,56 @@ export function CreateFAB({
 
   const progress = useRef(new Animated.Value(0)).current;
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isDark = resolvedScheme === 'dark';
+  const theme = useMemo(
+    () =>
+      StyleSheet.create({
+        title: { color: colors.text.primary },
+        secondaryText: { color: colors.text.secondary },
+        tertiaryText: { color: colors.text.tertiary },
+        mutedText: { color: colors.text.muted },
+        input: {
+          color: colors.text.primary,
+          backgroundColor: colors.background.card,
+          borderColor: colors.borderLight,
+        },
+        inputFocused: {
+          borderColor: colors.primary.default,
+        },
+        iconField: {
+          backgroundColor: colors.background.card,
+          borderColor: colors.borderLight,
+        },
+        panel: {
+          backgroundColor: colors.background.card,
+          borderColor: colors.borderLight,
+        },
+        subtlePanel: {
+          backgroundColor: colors.background.secondary,
+          borderColor: colors.border,
+        },
+        activeSoft: {
+          backgroundColor: colors.primary.default + (isDark ? '24' : '18'),
+          borderColor: colors.primary.default,
+        },
+        chip: {
+          backgroundColor: colors.background.secondary,
+          borderColor: colors.borderLight,
+        },
+        lightButton: {
+          backgroundColor: colors.background.card,
+          borderColor: colors.borderLight,
+        },
+        previewPill: {
+          backgroundColor: isDark ? 'rgba(11,17,26,0.88)' : 'rgba(255,255,255,0.92)',
+        },
+        overlay: {
+          backgroundColor: isDark ? 'rgba(5,8,13,0.72)' : 'rgba(0,0,0,0.3)',
+        },
+      }),
+    [colors, isDark]
+  );
+  const placeholderColor = colors.text.muted;
 
   useEffect(() => {
     Animated.spring(progress, {
@@ -212,7 +277,7 @@ export function CreateFAB({
 
   const fabBg = progress.interpolate({
     inputRange: [0, 1],
-    outputRange: [ACCENT, DARK],
+    outputRange: [colors.primary.default, isDark ? colors.background.elevated : DARK],
   });
   const rotate = progress.interpolate({
     inputRange: [0, 1],
@@ -545,29 +610,29 @@ export function CreateFAB({
     <>
       <View style={styles.header}>
         <View>
-          <AppText style={styles.title}>{isEditing ? 'Edit catchup' : 'Create a catchup'}</AppText>
-          <AppText style={styles.subtitle}>{isEditing ? 'Tune the details' : 'Get people together'}</AppText>
+          <AppText style={[styles.title, theme.title]}>{isEditing ? 'Edit catchup' : 'Create a catchup'}</AppText>
+          <AppText style={[styles.subtitle, theme.tertiaryText]}>{isEditing ? 'Tune the details' : 'Get people together'}</AppText>
         </View>
-        <TouchableOpacity style={styles.headerClose} onPress={closeSheet} hitSlop={12}>
-          <Ionicons name="close" size={22} color={DARK} />
+        <TouchableOpacity style={[styles.headerClose, theme.subtlePanel]} onPress={closeSheet} hitSlop={12}>
+          <Ionicons name="close" size={22} color={colors.text.primary} />
         </TouchableOpacity>
       </View>
 
       {preview ? (
         <View style={styles.preview}>
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.previewScroll}>
-            <View style={styles.previewHero}>
+            <View style={[styles.previewHero, theme.subtlePanel]}>
               {photos[coverPhotoIndex] ? (
                 <Image source={{ uri: photos[coverPhotoIndex].uri }} style={styles.previewImage} />
               ) : (
-                <View style={styles.previewEmptyImage}>
-                  <Ionicons name="sparkles-outline" size={24} color={ACCENT} />
+                <View style={[styles.previewEmptyImage, theme.subtlePanel]}>
+                  <Ionicons name="sparkles-outline" size={24} color={colors.primary.default} />
                 </View>
               )}
               <View style={styles.previewHeroShade} />
               {selectedCategoryName ? (
-                <View style={styles.previewHeroPill}>
-                  <AppText style={styles.previewHeroPillText}>{selectedCategoryName}</AppText>
+                <View style={[styles.previewHeroPill, theme.previewPill]}>
+                  <AppText style={[styles.previewHeroPillText, { color: colors.primary.default }]}>{selectedCategoryName}</AppText>
                 </View>
               ) : null}
             </View>
@@ -583,28 +648,28 @@ export function CreateFAB({
               </ScrollView>
             ) : null}
 
-            <View style={styles.previewCard}>
-              <AppText style={styles.previewTitle}>{name.trim() || 'Catchup draft'}</AppText>
+            <View style={[styles.previewCard, theme.panel]}>
+              <AppText style={[styles.previewTitle, theme.title]}>{name.trim() || 'Catchup draft'}</AppText>
               <View style={styles.previewMetaRow}>
-                <Ionicons name="calendar-outline" size={16} color={ACCENT} />
-                <AppText style={styles.previewMeta}>{format(selectedDate, 'EEE, MMM d')}{selectedTime ? ` at ${format(selectedTime, 'h:mm a')}` : ''}</AppText>
+                <Ionicons name="calendar-outline" size={16} color={colors.primary.default} />
+                <AppText style={[styles.previewMeta, theme.secondaryText]}>{format(selectedDate, 'EEE, MMM d')}{selectedTime ? ` at ${format(selectedTime, 'h:mm a')}` : ''}</AppText>
               </View>
               {previewLocation ? (
                 <View style={styles.previewMetaRow}>
-                  <Ionicons name="location-outline" size={16} color={ACCENT} />
-                  <AppText style={styles.previewMeta} numberOfLines={2}>{previewLocation.name || previewLocation.address}</AppText>
+                  <Ionicons name="location-outline" size={16} color={colors.primary.default} />
+                  <AppText style={[styles.previewMeta, theme.secondaryText]} numberOfLines={2}>{previewLocation.name || previewLocation.address}</AppText>
                 </View>
               ) : null}
-              {description.trim() ? <AppText style={styles.previewDesc} numberOfLines={4}>{description.trim()}</AppText> : null}
+              {description.trim() ? <AppText style={[styles.previewDesc, theme.tertiaryText]} numberOfLines={4}>{description.trim()}</AppText> : null}
               <View style={styles.previewFooterRow}>
-                <AppText style={styles.spots}>{previewSpotsLeft} spots left</AppText>
-                <AppText style={styles.previewMode}>{joinMode === 'open' ? 'Open join' : 'Approval'}</AppText>
+                <AppText style={[styles.spots, { color: colors.primary.default }]}>{previewSpotsLeft} spots left</AppText>
+                <AppText style={[styles.previewMode, theme.subtlePanel, theme.secondaryText]}>{joinMode === 'open' ? 'Open join' : 'Approval'}</AppText>
               </View>
             </View>
           </ScrollView>
           <View style={styles.previewActions}>
-            <TouchableOpacity style={styles.ghostBtn} onPress={() => setPreview(false)}><AppText style={styles.ghostText}>Edit</AppText></TouchableOpacity>
-            <TouchableOpacity style={styles.blackBtn} onPress={() => void submit()} disabled={submitting}>
+            <TouchableOpacity style={[styles.ghostBtn, theme.lightButton]} onPress={() => setPreview(false)}><AppText style={[styles.ghostText, { color: colors.primary.default }]}>Edit</AppText></TouchableOpacity>
+            <TouchableOpacity style={[styles.blackBtn, { backgroundColor: colors.primary.default }]} onPress={() => void submit()} disabled={submitting}>
               {submitting ? (
                 <AppText style={styles.blackBtnText}>{isEditing ? 'Saving...' : 'Posting...'}</AppText>
               ) : (
@@ -624,50 +689,50 @@ export function CreateFAB({
             onChangeText={(text) => setName(text.slice(0, 60))}
             onFocus={() => setNameFocused(true)}
             onBlur={() => setNameFocused(false)}
-            style={[styles.input, name.length > 0 && name.trim().length < 3 && styles.inputError, nameFocused && styles.inputFocused]}
+            style={[styles.input, theme.input, name.length > 0 && name.trim().length < 3 && styles.inputError, nameFocused && theme.inputFocused]}
             placeholder="Morning run, chai break, jam session..."
-            placeholderTextColor="#C0C0C0"
+            placeholderTextColor={placeholderColor}
           />
-          {nameFocused ? <AppText style={styles.counter}>{name.length}/60</AppText> : null}
+          {nameFocused ? <AppText style={[styles.counter, theme.mutedText]}>{name.length}/60</AppText> : null}
 
           <SectionLabel>WHERE?</SectionLabel>
-          <View style={styles.modeRow}>
+          <View style={[styles.modeRow, theme.subtlePanel]}>
             {(['search', 'manual'] as LocationMode[]).map((mode) => (
-              <TouchableOpacity key={mode} style={[styles.modePill, locationMode === mode && styles.modePillActive]} onPress={() => setLocationMode(mode)}>
-                <Ionicons name={mode === 'search' ? 'search' : 'create-outline'} size={14} color={locationMode === mode ? ACCENT : '#6B7F8B'} />
-                <AppText style={[styles.modeText, locationMode === mode && styles.modeTextActive]}>{mode === 'search' ? 'Search' : 'Address'}</AppText>
+              <TouchableOpacity key={mode} style={[styles.modePill, locationMode === mode && theme.lightButton]} onPress={() => setLocationMode(mode)}>
+                <Ionicons name={mode === 'search' ? 'search' : 'create-outline'} size={14} color={locationMode === mode ? colors.primary.default : colors.text.tertiary} />
+                <AppText style={[styles.modeText, { color: colors.text.tertiary }, locationMode === mode && { color: colors.primary.default }]}>{mode === 'search' ? 'Search' : 'Address'}</AppText>
               </TouchableOpacity>
             ))}
           </View>
           {locationMode === 'search' ? (
             <View style={styles.locationBox}>
-              <View style={styles.inputIconRow}>
-                <Ionicons name="search" size={17} color={MUTED} />
-                <TextInput style={styles.iconInput} value={locationQuery} onChangeText={handleLocationChange} placeholder="Search for a place" placeholderTextColor="#C0C0C0" />
+              <View style={[styles.inputIconRow, theme.iconField]}>
+                <Ionicons name="search" size={17} color={colors.text.tertiary} />
+                <TextInput style={[styles.iconInput, { color: colors.text.primary }]} value={locationQuery} onChangeText={handleLocationChange} placeholder="Search for a place" placeholderTextColor={placeholderColor} />
                 {searchingLocation ? <OrbitLoader variant="inline" size="sm" /> : null}
                 {!searchingLocation && location ? (
-                  <View style={styles.selectedLocationIcon}>
-                    <Ionicons name="checkmark" size={14} color={SUCCESS} />
+                  <View style={[styles.selectedLocationIcon, { backgroundColor: colors.background.card }]}>
+                    <Ionicons name="checkmark" size={14} color={colors.success} />
                   </View>
                 ) : null}
               </View>
               {locationQuery.trim().length >= 2 && (searchingLocation || locationResults.length > 0 || !location) ? (
-                <View style={styles.dropdown}>
+                <View style={[styles.dropdown, theme.panel]}>
                   {searchingLocation ? (
                     <View style={styles.dropdownState}>
                       <OrbitLoader variant="inline" size="sm" />
-                      <AppText style={styles.dropdownStateText}>Searching places...</AppText>
+                      <AppText style={[styles.dropdownStateText, theme.tertiaryText]}>Searching places...</AppText>
                     </View>
                   ) : locationResults.length ? (
                     locationResults.slice(0, 6).map((item, index) => (
-                      <TouchableOpacity key={`${item.lat}-${item.lng}-${index}`} style={styles.dropdownRow} onPress={() => { setLocation(item); setLocationQuery(item.name); setLocationResults([]); }}>
-                        <AppText style={styles.dropdownName}>{item.name}</AppText>
-                        <AppText style={styles.dropdownAddress} numberOfLines={1}>{item.address}</AppText>
+                      <TouchableOpacity key={`${item.lat}-${item.lng}-${index}`} style={[styles.dropdownRow, { borderBottomColor: colors.border }]} onPress={() => { setLocation(item); setLocationQuery(item.name); setLocationResults([]); }}>
+                        <AppText style={[styles.dropdownName, theme.title]}>{item.name}</AppText>
+                        <AppText style={[styles.dropdownAddress, theme.tertiaryText]} numberOfLines={1}>{item.address}</AppText>
                       </TouchableOpacity>
                     ))
                   ) : (
                     <View style={styles.dropdownState}>
-                      <AppText style={styles.dropdownStateText}>No places found. Try a more specific search.</AppText>
+                      <AppText style={[styles.dropdownStateText, theme.tertiaryText]}>No places found. Try a more specific search.</AppText>
                     </View>
                   )}
                 </View>
@@ -678,9 +743,9 @@ export function CreateFAB({
             <TextInput
               value={manualAddress}
               onChangeText={setManualAddress}
-              style={[styles.input, styles.textArea]}
+              style={[styles.input, theme.input, styles.textArea]}
               placeholder="Type the full address"
-              placeholderTextColor="#C0C0C0"
+              placeholderTextColor={placeholderColor}
               multiline
             />
           ) : null}
@@ -691,39 +756,39 @@ export function CreateFAB({
               const date = startOfDay(addDays(new Date(), index));
               const selected = startOfSelected(date) === startOfSelected(selectedDate);
               return (
-                <TouchableOpacity key={date.toISOString()} style={[styles.dateChip, selected && styles.dateChipActive]} onPress={() => chooseDate(date)}>
-                  <AppText style={[styles.dateChipText, selected && styles.dateChipTextActive]}>{index === 0 ? 'Today' : 'Tomorrow'}</AppText>
-                  <AppText style={[styles.dateChipDay, selected && styles.dateChipTextActive]}>{format(date, 'MMM d')}</AppText>
+                <TouchableOpacity key={date.toISOString()} style={[styles.dateChip, theme.chip, selected && theme.activeSoft]} onPress={() => chooseDate(date)}>
+                  <AppText style={[styles.dateChipText, theme.secondaryText, selected && { color: colors.primary.default }]}>{index === 0 ? 'Today' : 'Tomorrow'}</AppText>
+                  <AppText style={[styles.dateChipDay, theme.tertiaryText, selected && { color: colors.primary.default }]}>{format(date, 'MMM d')}</AppText>
                 </TouchableOpacity>
               );
             })}
             <TouchableOpacity
-              style={[styles.dateChip, styles.calendarChip, calendarOpen && styles.dateChipActive]}
+              style={[styles.dateChip, styles.calendarChip, theme.chip, calendarOpen && theme.activeSoft]}
               onPress={() => {
                 setCalendarMonth(startOfMonth(selectedDate));
                 setCalendarOpen((value) => !value);
               }}
             >
-              <Ionicons name="calendar-outline" size={17} color={calendarOpen ? ACCENT : '#5F7180'} />
+              <Ionicons name="calendar-outline" size={17} color={calendarOpen ? colors.primary.default : colors.text.tertiary} />
             </TouchableOpacity>
           </View>
           {calendarOpen ? (
-            <View style={styles.calendarCard}>
+            <View style={[styles.calendarCard, theme.panel]}>
               <View style={styles.calendarHeader}>
                 <TouchableOpacity
-                  style={styles.calendarNav}
+                  style={[styles.calendarNav, theme.subtlePanel]}
                   disabled={startOfSelected(calendarMonth) <= startOfSelected(startOfMonth(new Date()))}
                   onPress={() => setCalendarMonth((month) => subMonths(month, 1))}
                 >
-                  <Ionicons name="chevron-back" size={18} color={startOfSelected(calendarMonth) <= startOfSelected(startOfMonth(new Date())) ? '#C7D1D8' : DARK} />
+                  <Ionicons name="chevron-back" size={18} color={startOfSelected(calendarMonth) <= startOfSelected(startOfMonth(new Date())) ? colors.text.muted : colors.text.primary} />
                 </TouchableOpacity>
-                <AppText style={styles.calendarTitle}>{format(calendarMonth, 'MMMM yyyy')}</AppText>
-                <TouchableOpacity style={styles.calendarNav} onPress={() => setCalendarMonth((month) => addMonths(month, 1))}>
-                  <Ionicons name="chevron-forward" size={18} color={DARK} />
+                <AppText style={[styles.calendarTitle, theme.title]}>{format(calendarMonth, 'MMMM yyyy')}</AppText>
+                <TouchableOpacity style={[styles.calendarNav, theme.subtlePanel]} onPress={() => setCalendarMonth((month) => addMonths(month, 1))}>
+                  <Ionicons name="chevron-forward" size={18} color={colors.text.primary} />
                 </TouchableOpacity>
               </View>
               <View style={styles.weekRow}>
-                {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => <AppText key={`${day}-${index}`} style={styles.weekText}>{day}</AppText>)}
+                {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => <AppText key={`${day}-${index}`} style={[styles.weekText, theme.tertiaryText]}>{day}</AppText>)}
               </View>
               <View style={styles.calendarGrid}>
                 {calendarDays.map((day, index) => {
@@ -734,32 +799,32 @@ export function CreateFAB({
                     <TouchableOpacity
                       key={day?.toISOString() || `blank-${index}`}
                       disabled={disabled}
-                      style={[styles.dayCell, selected && styles.dayCellActive]}
+                      style={[styles.dayCell, selected && { backgroundColor: colors.primary.default }]}
                       onPress={() => day && chooseDate(day)}
                     >
-                      {day ? <AppText style={[styles.dayText, disabled && styles.dayTextDisabled, selected && styles.dayTextActive]}>{format(day, 'd')}</AppText> : null}
-                      {today && !selected ? <View style={styles.todayDot} /> : null}
+                      {day ? <AppText style={[styles.dayText, theme.title, disabled && { color: colors.text.muted }, selected && styles.dayTextActive]}>{format(day, 'd')}</AppText> : null}
+                      {today && !selected ? <View style={[styles.todayDot, { backgroundColor: colors.primary.default }]} /> : null}
                     </TouchableOpacity>
                   );
                 })}
               </View>
             </View>
           ) : null}
-          <TouchableOpacity style={styles.timePill} onPress={openTimePicker}>
+          <TouchableOpacity style={[styles.timePill, theme.iconField]} onPress={openTimePicker}>
             <View style={styles.timePillLeft}>
-              <Ionicons name="time-outline" size={18} color={ACCENT} />
-              <AppText style={styles.timePillText}>{selectedTime ? format(selectedTime, 'h:mm a') : 'Select time'}</AppText>
+              <Ionicons name="time-outline" size={18} color={colors.primary.default} />
+              <AppText style={[styles.timePillText, theme.title]}>{selectedTime ? format(selectedTime, 'h:mm a') : 'Select time'}</AppText>
             </View>
-            <Ionicons name={timeOpen ? 'chevron-up' : 'chevron-down'} size={16} color={MUTED} />
+            <Ionicons name={timeOpen ? 'chevron-up' : 'chevron-down'} size={16} color={colors.text.tertiary} />
           </TouchableOpacity>
-          {timeHint ? <AppText style={styles.hint}>{timeHint}</AppText> : null}
+          {timeHint ? <AppText style={[styles.hint, theme.tertiaryText]}>{timeHint}</AppText> : null}
           {timeOpen ? (
-            <View style={styles.timePickerCard}>
+            <View style={[styles.timePickerCard, theme.panel]}>
               {slots.length ? (
                 <>
                   <View style={styles.timePickerHeader}>
-                    <AppText style={styles.timePickerTitle}>Available times</AppText>
-                    <AppText style={styles.timePickerMeta}>{isSameDay(selectedDate, new Date()) ? 'Future only' : format(selectedDate, 'MMM d')}</AppText>
+                    <AppText style={[styles.timePickerTitle, theme.title]}>Available times</AppText>
+                    <AppText style={[styles.timePickerMeta, theme.tertiaryText]}>{isSameDay(selectedDate, new Date()) ? 'Future only' : format(selectedDate, 'MMM d')}</AppText>
                   </View>
                   <ScrollView
                     style={styles.timeSlotScroll}
@@ -773,10 +838,10 @@ export function CreateFAB({
                         <TouchableOpacity
                           key={slot.toISOString()}
                           activeOpacity={0.86}
-                          style={[styles.timeSlot, selected && styles.timeSlotActive]}
+                          style={[styles.timeSlot, theme.chip, selected && { borderColor: colors.primary.default, backgroundColor: colors.primary.default }]}
                           onPress={() => chooseTimeSlot(slot)}
                         >
-                          <AppText style={[styles.timeSlotText, selected && styles.timeSlotTextActive]}>{format(slot, 'h:mm a')}</AppText>
+                          <AppText style={[styles.timeSlotText, theme.secondaryText, selected && styles.timeSlotTextActive]}>{format(slot, 'h:mm a')}</AppText>
                         </TouchableOpacity>
                       );
                     })}
@@ -784,8 +849,8 @@ export function CreateFAB({
                 </>
               ) : (
                 <View style={styles.timeEmptyState}>
-                  <Ionicons name="moon-outline" size={18} color={MUTED} />
-                  <AppText style={styles.timeEmptyText}>Too late for today - try tomorrow?</AppText>
+                  <Ionicons name="moon-outline" size={18} color={colors.text.tertiary} />
+                  <AppText style={[styles.timeEmptyText, theme.tertiaryText]}>Too late for today - try tomorrow?</AppText>
                 </View>
               )}
             </View>
@@ -794,59 +859,59 @@ export function CreateFAB({
           <SectionLabel>WHO'S INVITED?</SectionLabel>
           <View style={styles.cardRow}>
             {(['open', 'approval'] as JoinMode[]).map((mode) => (
-              <TouchableOpacity key={mode} style={[styles.joinCard, joinMode === mode && styles.joinCardActive]} onPress={() => setJoinMode(mode)}>
-                <Ionicons name={mode === 'open' ? 'earth' : 'lock-closed'} size={20} color={joinMode === mode ? ACCENT : MUTED} />
-                <AppText style={styles.joinTitle}>{mode === 'open' ? 'Open' : 'Approval'}</AppText>
-                <AppText style={styles.joinCopy}>{mode === 'open' ? 'Anyone can join' : 'You approve each one'}</AppText>
+              <TouchableOpacity key={mode} style={[styles.joinCard, theme.chip, joinMode === mode && theme.activeSoft]} onPress={() => setJoinMode(mode)}>
+                <Ionicons name={mode === 'open' ? 'earth' : 'lock-closed'} size={20} color={joinMode === mode ? colors.primary.default : colors.text.tertiary} />
+                <AppText style={[styles.joinTitle, theme.title]}>{mode === 'open' ? 'Open' : 'Approval'}</AppText>
+                <AppText style={[styles.joinCopy, theme.tertiaryText]}>{mode === 'open' ? 'Anyone can join' : 'You approve each one'}</AppText>
               </TouchableOpacity>
             ))}
           </View>
-          {joinMode === 'approval' ? <AppText style={styles.hint}>You'll get a notification for each request</AppText> : null}
+          {joinMode === 'approval' ? <AppText style={[styles.hint, theme.tertiaryText]}>You'll get a notification for each request</AppText> : null}
           <View style={styles.stepperRow}>
-            <AppText style={styles.stepperLabel}>Max people</AppText>
-            <View style={styles.stepper}>
-              <TouchableOpacity disabled={maxPeople <= 2} style={[styles.stepBtn, maxPeople <= 2 && styles.disabled]} onPress={() => setMaxPeopleText(String(maxPeople - 1))}><AppText style={styles.stepText}>-</AppText></TouchableOpacity>
-              <TextInput style={styles.stepInput} keyboardType="number-pad" value={maxPeopleText} onChangeText={(text) => setMaxPeopleText(text.replace(/\D/g, ''))} onBlur={() => setMaxPeopleText(String(maxPeople))} />
-              <TouchableOpacity disabled={maxPeople >= 100} style={[styles.stepBtn, maxPeople >= 100 && styles.disabled]} onPress={() => setMaxPeopleText(String(maxPeople + 1))}><AppText style={styles.stepText}>+</AppText></TouchableOpacity>
+            <AppText style={[styles.stepperLabel, theme.title]}>Max people</AppText>
+            <View style={[styles.stepper, theme.iconField]}>
+              <TouchableOpacity disabled={maxPeople <= 2} style={[styles.stepBtn, maxPeople <= 2 && styles.disabled]} onPress={() => setMaxPeopleText(String(maxPeople - 1))}><AppText style={[styles.stepText, { color: colors.primary.default }]}>-</AppText></TouchableOpacity>
+              <TextInput style={[styles.stepInput, { color: colors.text.primary }]} keyboardType="number-pad" value={maxPeopleText} onChangeText={(text) => setMaxPeopleText(text.replace(/\D/g, ''))} onBlur={() => setMaxPeopleText(String(maxPeople))} />
+              <TouchableOpacity disabled={maxPeople >= 100} style={[styles.stepBtn, maxPeople >= 100 && styles.disabled]} onPress={() => setMaxPeopleText(String(maxPeople + 1))}><AppText style={[styles.stepText, { color: colors.primary.default }]}>+</AppText></TouchableOpacity>
             </View>
           </View>
-          <AppText style={styles.smallHint}>2-100 people</AppText>
+          <AppText style={[styles.smallHint, theme.mutedText]}>2-100 people</AppText>
 
           <SectionLabel>WHAT KIND?</SectionLabel>
           {loadingCategories ? (
-            <View style={styles.skeletonRow}>{[72, 84, 64, 96].map((w) => <View key={w} style={[styles.skeleton, { width: w }]} />)}</View>
+            <View style={styles.skeletonRow}>{[72, 84, 64, 96].map((w) => <View key={w} style={[styles.skeleton, { width: w, backgroundColor: colors.background.secondary }]} />)}</View>
           ) : otherMode ? (
             <View>
-              <TextInput style={styles.input} value={customCategory} onChangeText={setCustomCategory} placeholder="Your category" placeholderTextColor="#C0C0C0" />
+              <TextInput style={[styles.input, theme.input]} value={customCategory} onChangeText={setCustomCategory} placeholder="Your category" placeholderTextColor={placeholderColor} />
               <View style={styles.otherActions}>
-                <TouchableOpacity style={styles.smallCancelBtn} onPress={() => { setOtherMode(false); setCustomCategory(''); }}><AppText style={styles.cancelText}>Cancel</AppText></TouchableOpacity>
+                <TouchableOpacity style={[styles.smallCancelBtn, theme.subtlePanel]} onPress={() => { setOtherMode(false); setCustomCategory(''); }}><AppText style={[styles.cancelText, theme.tertiaryText]}>Cancel</AppText></TouchableOpacity>
               </View>
             </View>
           ) : (
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {categories.map((cat) => (
-                <TouchableOpacity key={cat.id} style={[styles.categoryPill, categoryId === cat.id && styles.categoryPillActive]} onPress={() => { setCategoryId(cat.id); setCustomCategory(''); }}>
-                  <AppText style={[styles.categoryText, categoryId === cat.id && styles.categoryTextActive]}>{cat.icon ? `${cat.icon} ` : ''}{cat.name}</AppText>
+                <TouchableOpacity key={cat.id} style={[styles.categoryPill, theme.chip, categoryId === cat.id && theme.activeSoft]} onPress={() => { setCategoryId(cat.id); setCustomCategory(''); }}>
+                  <AppText style={[styles.categoryText, theme.secondaryText, categoryId === cat.id && { color: colors.primary.default }]}>{cat.icon ? `${cat.icon} ` : ''}{cat.name}</AppText>
                 </TouchableOpacity>
               ))}
-              <TouchableOpacity style={styles.categoryPill} onPress={() => setOtherMode(true)}><AppText style={styles.categoryText}>+ Other</AppText></TouchableOpacity>
+              <TouchableOpacity style={[styles.categoryPill, theme.chip]} onPress={() => setOtherMode(true)}><AppText style={[styles.categoryText, theme.secondaryText]}>+ Other</AppText></TouchableOpacity>
             </ScrollView>
           )}
 
           <SectionLabel optional>TELL PEOPLE MORE</SectionLabel>
-          <TextInput style={[styles.input, styles.desc]} value={description} onChangeText={(text) => setDescription(text.slice(0, 300))} placeholder="What should people know? Vibe, what to bring, any instructions..." placeholderTextColor="#C0C0C0" multiline maxLength={300} />
-          <AppText style={[styles.counter, description.length >= 280 && { color: ERROR }]}>{description.length}/300</AppText>
+          <TextInput style={[styles.input, theme.input, styles.desc]} value={description} onChangeText={(text) => setDescription(text.slice(0, 300))} placeholder="What should people know? Vibe, what to bring, any instructions..." placeholderTextColor={placeholderColor} multiline maxLength={300} />
+          <AppText style={[styles.counter, theme.mutedText, description.length >= 280 && { color: ERROR }]}>{description.length}/300</AppText>
 
           <SectionLabel optional>ADD PHOTOS</SectionLabel>
           <View style={styles.photoSectionHeader}>
-            <AppText style={styles.photoSectionTitle}>Photos</AppText>
-            <AppText style={styles.photoSectionCount}>{photos.length}/5</AppText>
+            <AppText style={[styles.photoSectionTitle, theme.title]}>Photos</AppText>
+            <AppText style={[styles.photoSectionCount, theme.tertiaryText]}>{photos.length}/5</AppText>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photoRail}>
             {photos.map((photo, index) => (
               <TouchableOpacity
                 key={`${photo.uri}-${index}`}
-                style={[styles.photoWrap, coverPhotoIndex === index && styles.photoWrapActive]}
+                style={[styles.photoWrap, theme.subtlePanel, coverPhotoIndex === index && styles.photoWrapActive]}
                 onPress={() => setCoverPhotoIndex(index)}
                 activeOpacity={0.9}
               >
@@ -862,19 +927,19 @@ export function CreateFAB({
               </TouchableOpacity>
             ))}
             {photos.length < 5 ? (
-              <TouchableOpacity style={styles.addPhoto} onPress={pickPhoto}>
-                <Ionicons name="add" size={24} color={MUTED} />
-                <AppText style={styles.addText}>Add</AppText>
+              <TouchableOpacity style={[styles.addPhoto, theme.subtlePanel]} onPress={pickPhoto}>
+                <Ionicons name="add" size={24} color={colors.text.tertiary} />
+                <AppText style={[styles.addText, theme.tertiaryText]}>Add</AppText>
               </TouchableOpacity>
             ) : null}
           </ScrollView>
 
           <View style={styles.endActions}>
-            <TouchableOpacity style={styles.reviewBtn} onPress={openPreview}>
-              <Ionicons name="eye-outline" size={18} color={ACCENT} />
-              <AppText style={styles.reviewText}>Preview</AppText>
+            <TouchableOpacity style={[styles.reviewBtn, theme.lightButton]} onPress={openPreview}>
+              <Ionicons name="eye-outline" size={18} color={colors.primary.default} />
+              <AppText style={[styles.reviewText, { color: colors.primary.default }]}>Preview</AppText>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.catchupBtn} onPress={() => void submit()} disabled={submitting}>
+            <TouchableOpacity style={[styles.catchupBtn, { backgroundColor: colors.primary.default }]} onPress={() => void submit()} disabled={submitting}>
               {submitting ? (
                 <AppText style={styles.catchupText}>{isEditing ? 'Saving...' : 'Posting...'}</AppText>
               ) : (
@@ -910,15 +975,15 @@ export function CreateFAB({
       </BottomSheet>
 
       <Modal visible={confirmCity} transparent animationType="fade" onRequestClose={() => setConfirmCity(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.confirmCard}>
-            <AppText style={styles.confirmTitle}>Different city?</AppText>
-            <AppText style={styles.confirmBody}>This catchup is in {currentLocation()?.city || 'another city'} but you're based in {user?.city || 'your city'}. Continue?</AppText>
-            <TouchableOpacity style={styles.confirmPrimary} onPress={() => void submit(true)}>
+        <View style={[styles.modalOverlay, theme.overlay]}>
+          <View style={[styles.confirmCard, theme.panel]}>
+            <AppText style={[styles.confirmTitle, theme.title]}>Different city?</AppText>
+            <AppText style={[styles.confirmBody, theme.secondaryText]}>This catchup is in {currentLocation()?.city || 'another city'} but you're based in {user?.city || 'your city'}. Continue?</AppText>
+            <TouchableOpacity style={[styles.confirmPrimary, { backgroundColor: colors.primary.default }]} onPress={() => void submit(true)}>
               <AppText style={styles.confirmPrimaryText}>{isEditing ? 'Yes, save it' : 'Yes, post it'}</AppText>
               <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => setConfirmCity(false)}><AppText style={styles.confirmSecondary}>Go back</AppText></TouchableOpacity>
+            <TouchableOpacity onPress={() => setConfirmCity(false)}><AppText style={[styles.confirmSecondary, theme.tertiaryText]}>Go back</AppText></TouchableOpacity>
           </View>
         </View>
       </Modal>

@@ -35,7 +35,6 @@ export default function TabsLayout() {
             <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
             {/* Hidden screens — accessible via deep link / programmatic nav */}
             <Tabs.Screen name="index" options={{ href: null }} />
-            <Tabs.Screen name="map" options={{ href: null }} />
           </Tabs>
         </View>
       </View>

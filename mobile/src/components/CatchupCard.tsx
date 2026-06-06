@@ -17,6 +17,7 @@ import { router } from 'expo-router';
 import { format, formatDistanceToNowStrict, isSameDay, isThisWeek, isTomorrow } from 'date-fns';
 import { API_BASE_URL } from '../api/client';
 import { AppText } from '../ui/AppText';
+import { useOrbitTheme } from '../theme';
 import type { OrbitEvent } from '../types';
 import {
   ACCENT,
@@ -70,10 +71,11 @@ interface AvatarBubbleProps {
 }
 
 const AvatarBubble = memo(function AvatarBubble({ name, uri, size = 22, showBorder = false }: AvatarBubbleProps) {
+  const { colors: themeColors } = useOrbitTheme();
   const colors = useMemo(() => nameToAvatarColor(name), [name]);
   const resolvedUri = useMemo(() => mediaUrl(uri), [uri]);
   const fontSize = size <= 22 ? 9 : 12;
-  const borderStyle = showBorder ? { borderWidth: 1.5, borderColor: '#FFFFFF' } : undefined;
+  const borderStyle = showBorder ? { borderWidth: 1.5, borderColor: themeColors.background.card } : undefined;
 
   return (
     <View style={[ss.avatarBubble, { width: size, height: size, borderRadius: size / 2, backgroundColor: colors.bg }, borderStyle]}>
@@ -98,6 +100,7 @@ interface AttendeeStackProps {
 }
 
 const AttendeeStack = memo(function AttendeeStack({ event, isCompleted = false }: AttendeeStackProps) {
+  const { colors } = useOrbitTheme();
   const preview = event.attendees_preview ?? [];
   const organizerId = event.organizer?.id;
 
@@ -113,7 +116,7 @@ const AttendeeStack = memo(function AttendeeStack({ event, isCompleted = false }
         {event.organizer ? (
           <AvatarBubble name={event.organizer.username} uri={event.organizer.avatar} size={22} />
         ) : null}
-        <AppText style={ss.beFirstText}>Be first to join</AppText>
+        <AppText style={[ss.beFirstText, { color: colors.text.tertiary }]}>Be first to join</AppText>
       </View>
     );
   }
@@ -131,8 +134,8 @@ const AttendeeStack = memo(function AttendeeStack({ event, isCompleted = false }
         </View>
       ))}
       {extra > 0 ? (
-        <View style={[ss.avatarBubble, ss.avatarMore, { marginLeft: -6 }]}>
-          <AppText style={ss.avatarMoreText}>+{extra}</AppText>
+        <View style={[ss.avatarBubble, ss.avatarMore, { marginLeft: -6, backgroundColor: colors.background.secondary }]}>
+          <AppText style={[ss.avatarMoreText, { color: colors.text.tertiary }]}>+{extra}</AppText>
         </View>
       ) : null}
     </View>
@@ -155,6 +158,55 @@ export const CatchupCard = memo(function CatchupCard({
   isInitialLoad = false,
   index = 0,
 }: CatchupCardProps) {
+  const { colors, shadows, resolvedScheme } = useOrbitTheme();
+  const themed = useMemo(
+    () =>
+      StyleSheet.create({
+        card: {
+          backgroundColor: colors.background.card,
+          borderColor: colors.borderLight,
+          shadowColor: shadows.md.shadowColor,
+          shadowOpacity: resolvedScheme === 'dark' ? 0.34 : 0.07,
+          shadowRadius: shadows.md.shadowRadius,
+        },
+        imageWrap: {
+          backgroundColor: colors.background.secondary,
+        },
+        textPrimary: {
+          color: colors.text.primary,
+        },
+        textSecondary: {
+          color: colors.text.secondary,
+        },
+        textTertiary: {
+          color: colors.text.tertiary,
+        },
+        divider: {
+          borderTopColor: colors.border,
+        },
+        hostBadge: {
+          backgroundColor: colors.background.secondary,
+          borderColor: colors.borderLight,
+        },
+        joinedButton: {
+          backgroundColor: colors.primary.default + (resolvedScheme === 'dark' ? '26' : '18'),
+        },
+        fullButton: {
+          backgroundColor: colors.background.secondary,
+        },
+        completedButton: {
+          backgroundColor: colors.background.secondary,
+          borderColor: colors.borderLight,
+        },
+        primaryButton: {
+          backgroundColor: resolvedScheme === 'dark' ? colors.primary.default : DARK,
+        },
+        primaryButtonText: {
+          color: '#FFFFFF',
+        },
+      }),
+    [colors, resolvedScheme, shadows]
+  );
   const coverUrl = useMemo(
     () => mediaUrl(event.photos?.[event.cover_photo_index ?? 0]?.url ?? event.image_url),
     [event.photos, event.cover_photo_index, event.image_url]
@@ -244,6 +296,18 @@ export const CatchupCard = memo(function CatchupCard({
   } else if (event.join_mode === 'approval') {
     joinLabel = 'Request';
   }
+  const themedJoinBtn = isCompleted
+    ? themed.completedButton
+    : event.has_joined
+      ? themed.joinedButton
+      : isFull
+        ? themed.fullButton
+        : themed.primaryButton;
+  const themedJoinText = isCompleted || isFull
+    ? themed.textTertiary
+    : event.has_joined
+      ? { color: colors.primary.default }
+      : themed.primaryButtonText;
 
   // FadeIn (opacity-only) — no translation so cards never appear off-position mid-animation
   const entering = isInitialLoad && index < 8
@@ -264,11 +328,11 @@ export const CatchupCard = memo(function CatchupCard({
                 size={28}
                 showBorder
               />
-              <AppText style={ss.creatorName} numberOfLines={1}>
+              <AppText style={[ss.creatorName, themed.textPrimary]} numberOfLines={1}>
                 {event.organizer.username}
               </AppText>
-              <AppText style={ss.creatorSep}> · </AppText>
-              <AppText style={ss.creatorTime} numberOfLines={1}>{relativeCreatedAt}</AppText>
+              <AppText style={[ss.creatorSep, themed.textTertiary]}> · </AppText>
+              <AppText style={[ss.creatorTime, themed.textTertiary]} numberOfLines={1}>{relativeCreatedAt}</AppText>
             </>
           ) : null}
         </View>
@@ -285,11 +349,11 @@ export const CatchupCard = memo(function CatchupCard({
 
       {/* Row 2: Title */}
       <View style={ss.titleRow}>
-        <AppText style={ss.title} numberOfLines={2}>{event.title}</AppText>
+        <AppText style={[ss.title, themed.textPrimary]} numberOfLines={2}>{event.title}</AppText>
         {event.is_own ? (
-          <View style={ss.hostBadge}>
-            <Ionicons name="sparkles-outline" size={13} color={DARK} />
-            <AppText style={ss.hostBadgeText}>Host</AppText>
+          <View style={[ss.hostBadge, themed.hostBadge]}>
+            <Ionicons name="sparkles-outline" size={13} color={colors.text.primary} />
+            <AppText style={[ss.hostBadgeText, themed.textPrimary]}>Host</AppText>
           </View>
         ) : null}
       </View>
@@ -298,7 +362,7 @@ export const CatchupCard = memo(function CatchupCard({
       <View style={ss.detailsRow}>
         <View style={ss.locationCluster}>
           <Ionicons name="location-outline" size={15} color={ACCENT} />
-          <AppText style={ss.venueText} numberOfLines={1} ellipsizeMode="tail">
+          <AppText style={[ss.venueText, themed.textSecondary]} numberOfLines={1} ellipsizeMode="tail">
             {event.location_name}
           </AppText>
         </View>
@@ -308,10 +372,10 @@ export const CatchupCard = memo(function CatchupCard({
             <Ionicons
               name="time-outline"
               size={15}
-              color={timeInfo.urgent ? ACCENT : '#8D99A6'}
+              color={timeInfo.urgent ? colors.primary.default : colors.text.tertiary}
             />
             <AppText
-              style={[ss.timeText, timeInfo.urgent && ss.timeUrgent]}
+              style={[ss.timeText, themed.textSecondary, timeInfo.urgent && { color: colors.primary.default }]}
               numberOfLines={1}
             >
               {timeInfo.text}
@@ -321,16 +385,16 @@ export const CatchupCard = memo(function CatchupCard({
       </View>
 
       {/* Row 4: Action */}
-      <View style={[ss.actionRow, !showActionMeta && ss.actionRowCompact]}>
+        <View style={[ss.actionRow, themed.divider, !showActionMeta && ss.actionRowCompact]}>
         {showActionMeta ? (
           <View style={ss.actionLeft}>
             <AttendeeStack event={event} isCompleted={isCompleted} />
             <View style={ss.spotMeta}>
-              <Ionicons name="people-outline" size={14} color="#687A86" />
-              <AppText style={ss.goingText} numberOfLines={1}>
+              <Ionicons name="people-outline" size={14} color={colors.text.tertiary} />
+              <AppText style={[ss.goingText, themed.textSecondary]} numberOfLines={1}>
                 {isCompleted ? completedJoinedText : `${event.attendee_count}/${maxPeople} spots`}
                 {!isCompleted ? (
-                  <AppText style={ss.joinModeText}>
+                  <AppText style={[ss.joinModeText, themed.textTertiary]}>
                     {' · '}{event.join_mode === 'approval' ? 'Approval' : 'Open'}
                   </AppText>
                 ) : null}
@@ -341,12 +405,12 @@ export const CatchupCard = memo(function CatchupCard({
         <View style={ss.actionRight}>
           {spotsLeft <= 2 && spotsLeft > 0 && !event.has_joined && !isCompleted ? (
             <Animated.View style={spotsAnimStyle}>
-              <AppText style={ss.spotsUrgentText}>{spotsLeft} left!</AppText>
+              <AppText style={[ss.spotsUrgentText, { color: colors.error }]}>{spotsLeft} left!</AppText>
             </Animated.View>
           ) : null}
           <Animated.View style={btnAnimStyle}>
             <Pressable
-              style={[ss.joinBtn, joinBtnExtra]}
+              style={[ss.joinBtn, joinBtnExtra, themedJoinBtn]}
               disabled={isCompleted || (!event.is_own && (event.has_joined || isFull))}
               onPress={(e) => {
                 // @ts-ignore — stopPropagation is a synthetic event method
@@ -357,7 +421,7 @@ export const CatchupCard = memo(function CatchupCard({
                 if (event.has_joined && !event.is_own) Alert.alert('Leave catchup?', 'Unjoin support is coming soon.');
               }}
             >
-              <AppText style={[ss.joinText, joinTextExtra]}>{joinLabel}</AppText>
+              <AppText style={[ss.joinText, joinTextExtra, themedJoinText]}>{joinLabel}</AppText>
             </Pressable>
           </Animated.View>
         </View>
@@ -369,12 +433,12 @@ export const CatchupCard = memo(function CatchupCard({
   return (
     <Animated.View
       entering={entering}
-      style={[ss.card, cardAnimStyle]}
+      style={[ss.card, themed.card, cardAnimStyle]}
     >
       <Pressable onPress={handleCardPress} style={ss.pressable}>
         {hasImage ? (
           <>
-            <View style={ss.imageWrap}>
+            <View style={[ss.imageWrap, themed.imageWrap]}>
               <Image
                 source={{ uri: coverUrl! }}
                 style={ss.coverImage}

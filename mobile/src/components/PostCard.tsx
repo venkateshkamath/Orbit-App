@@ -15,6 +15,7 @@ import { CommentsModal } from './CommentsModal';
 import { nameToAvatarColor } from '../constants/designTokens';
 import { useDeletePostMutation, useToggleLikeMutation } from '../hooks/useOrbitApi';
 import { useAuthStore } from '../stores';
+import { useOrbitTheme } from '../theme';
 import { useToast } from '../context/ToastContext';
 import { formatApiError } from '../utils/apiErrors';
 import type { Post } from '../types';
@@ -39,6 +40,7 @@ export interface PostCardProps {
 
 export const PostCard = memo(function PostCard({ post }: PostCardProps) {
   const currentUser = useAuthStore((s) => s.user);
+  const { colors, shadows, resolvedScheme } = useOrbitTheme();
   const toast = useToast();
   const deleteMutation = useDeletePostMutation();
   const likeMutation = useToggleLikeMutation();
@@ -77,7 +79,17 @@ export const PostCard = memo(function PostCard({ post }: PostCardProps) {
 
   return (
     <>
-      <View style={styles.card}>
+      <View
+        style={[
+          styles.card,
+          {
+            backgroundColor: colors.background.card,
+            borderColor: colors.borderLight,
+            shadowColor: shadows.md.shadowColor,
+            shadowOpacity: resolvedScheme === 'dark' ? 0.3 : 0.04,
+          },
+        ]}
+      >
         {/* ── Header ── */}
         <View style={styles.header}>
           {/* Avatar */}
@@ -102,8 +114,8 @@ export const PostCard = memo(function PostCard({ post }: PostCardProps) {
 
           {/* Name + time */}
           <View style={styles.authorBlock}>
-            <AppText style={styles.username}>@{post.author.username}</AppText>
-            <AppText style={styles.timestamp}>{timeAgo}</AppText>
+            <AppText style={[styles.username, { color: colors.text.primary }]}>@{post.author.username}</AppText>
+            <AppText style={[styles.timestamp, { color: colors.text.tertiary }]}>{timeAgo}</AppText>
           </View>
 
           {/* 3-dot menu — own posts only */}
@@ -113,21 +125,21 @@ export const PostCard = memo(function PostCard({ post }: PostCardProps) {
               onPress={handleDelete}
               hitSlop={8}
             >
-              <Ionicons name="ellipsis-horizontal" size={20} color="#888" />
+              <Ionicons name="ellipsis-horizontal" size={20} color={colors.text.tertiary} />
             </TouchableOpacity>
           ) : null}
         </View>
 
         {/* ── Caption ── */}
         {post.caption ? (
-          <AppText style={styles.caption}>{post.caption}</AppText>
+          <AppText style={[styles.caption, { color: colors.text.primary }]}>{post.caption}</AppText>
         ) : null}
 
         {/* ── Image ── */}
         {imageUri ? (
           <Image
             source={{ uri: imageUri }}
-            style={styles.postImage}
+            style={[styles.postImage, { backgroundColor: colors.background.secondary }]}
             contentFit="cover"
             transition={200}
           />
@@ -144,9 +156,9 @@ export const PostCard = memo(function PostCard({ post }: PostCardProps) {
             <Ionicons
               name={post.is_liked ? 'heart' : 'heart-outline'}
               size={18}
-              color={post.is_liked ? '#EF4444' : '#888'}
+              color={post.is_liked ? colors.error : colors.text.tertiary}
             />
-            <AppText style={styles.footerCount}>{post.like_count}</AppText>
+            <AppText style={[styles.footerCount, { color: colors.text.secondary }]}>{post.like_count}</AppText>
           </TouchableOpacity>
 
           {/* Comments */}
@@ -154,15 +166,15 @@ export const PostCard = memo(function PostCard({ post }: PostCardProps) {
             style={styles.footerAction}
             onPress={() => setCommentsOpen(true)}
           >
-            <Ionicons name="chatbubble-outline" size={17} color="#888" />
-            <AppText style={styles.footerCount}>{post.comment_count}</AppText>
+            <Ionicons name="chatbubble-outline" size={17} color={colors.text.tertiary} />
+            <AppText style={[styles.footerCount, { color: colors.text.secondary }]}>{post.comment_count}</AppText>
           </TouchableOpacity>
 
           {/* Location */}
           {post.location_name ? (
             <View style={styles.footerLocation}>
-              <Ionicons name="location-outline" size={14} color="#BBB" />
-              <AppText style={styles.footerLocationText} numberOfLines={1}>
+              <Ionicons name="location-outline" size={14} color={colors.text.muted} />
+              <AppText style={[styles.footerLocationText, { color: colors.text.muted }]} numberOfLines={1}>
                 {post.location_name}
               </AppText>
             </View>
@@ -171,8 +183,8 @@ export const PostCard = memo(function PostCard({ post }: PostCardProps) {
 
         {/* Deleting overlay */}
         {deleteMutation.isPending ? (
-          <View style={styles.deletingOverlay}>
-            <AppText style={styles.deletingText}>Deleting…</AppText>
+          <View style={[styles.deletingOverlay, { backgroundColor: resolvedScheme === 'dark' ? 'rgba(5,8,13,0.82)' : 'rgba(255,255,255,0.75)' }]}>
+            <AppText style={[styles.deletingText, { color: colors.error }]}>Deleting…</AppText>
           </View>
         ) : null}
       </View>
