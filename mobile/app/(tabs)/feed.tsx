@@ -40,6 +40,7 @@ import { OrbitLoader } from '../../src/components/OrbitLoader';
 import { PostCard } from '../../src/components/PostCard';
 import { StateView } from '../../src/components/StateView';
 import { useAuthStore } from '../../src/stores';
+import { useOrbitTheme } from '../../src/theme';
 import { AppText } from '../../src/ui/AppText';
 import type { OrbitEvent } from '../../src/types';
 
@@ -93,6 +94,31 @@ function SegmentedControl({
 }) {
   const [width, setWidth] = useState(0);
   const indicatorX = useSharedValue(0);
+  const { colors, shadows, resolvedScheme } = useOrbitTheme();
+  const themeSeg = useMemo(
+    () =>
+      StyleSheet.create({
+        container: {
+          backgroundColor: colors.background.secondary,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: colors.border,
+        },
+        indicator: {
+          backgroundColor: colors.background.card,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: colors.borderLight,
+          shadowColor: shadows.md.shadowColor,
+          shadowOpacity: resolvedScheme === 'dark' ? 0.28 : 0.08,
+        },
+        label: {
+          color: colors.text.tertiary,
+        },
+        labelActive: {
+          color: colors.text.primary,
+        },
+      }),
+    [colors, resolvedScheme, shadows]
+  );
 
   useEffect(() => {
     if (width === 0) return;
@@ -110,12 +136,12 @@ function SegmentedControl({
 
   return (
     <View
-      style={seg.container}
+      style={[seg.container, themeSeg.container]}
       onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
     >
       {width > 0 ? (
         <Animated.View
-          style={[seg.indicator, { width: (width - 8) / 2 }, indicatorStyle]}
+          style={[seg.indicator, themeSeg.indicator, { width: (width - 8) / 2 }, indicatorStyle]}
         />
       ) : null}
       {(['catchups', 'pulse'] as const).map((tab) => {
@@ -127,7 +153,7 @@ function SegmentedControl({
             onPress={() => onChange(tab)}
             activeOpacity={0.8}
           >
-            <AppText style={[seg.label, isActive && seg.labelActive]}>
+            <AppText style={[seg.label, themeSeg.label, isActive && themeSeg.labelActive]}>
               {tab === 'catchups' ? 'Catchups' : 'Pulse'}
             </AppText>
           </TouchableOpacity>
@@ -207,6 +233,7 @@ export default function FeedScreen() {
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
+  const { colors, resolvedScheme } = useOrbitTheme();
   const [activeTab, setActiveTab] = useState<'catchups' | 'pulse'>('catchups');
   const [filter, setFilter] = useState<CatchupFeedFilter>('near');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -321,6 +348,45 @@ export default function FeedScreen() {
       'coffee',
     ];
   }, [currentUser?.city]);
+  const isDark = resolvedScheme === 'dark';
+  const themed = useMemo(
+    () => ({
+      screen: { backgroundColor: colors.background.primary },
+      header: { backgroundColor: colors.background.primary },
+      searchBar: {
+        backgroundColor: colors.background.secondary,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: colors.border,
+      },
+      iconMuted: colors.text.tertiary,
+      textMuted: colors.text.muted,
+      textSecondary: colors.text.secondary,
+      rowSurface: {
+        backgroundColor: colors.background.card,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: colors.borderLight,
+      },
+      subtleSurface: {
+        backgroundColor: colors.background.secondary,
+      },
+      filterPill: {
+        backgroundColor: colors.background.secondary,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: colors.border,
+      },
+      filterPillActive: {
+        backgroundColor: colors.text.primary,
+        borderColor: colors.text.primary,
+      },
+      filterTextActive: {
+        color: colors.background.primary,
+      },
+      overlay: {
+        backgroundColor: isDark ? 'rgba(5,8,13,0.78)' : 'rgba(255,255,255,0.72)',
+      },
+    }),
+    [colors, isDark]
+  );
 
   useEffect(() => {
     if (!searchOpen) return;
@@ -446,18 +512,18 @@ export default function FeedScreen() {
   };
 
   const header = (
-    <View style={styles.header}>
+    <View style={[styles.header, themed.header]}>
       <View style={styles.logoRow}>
-        <AppText style={styles.logo}>orbit</AppText>
-        <TouchableOpacity style={styles.locationPill} onPress={() => undefined}>
-          <AppText style={styles.locationText}>📍 {areaName}</AppText>
+        <AppText style={[styles.logo, { color: colors.primary.default }]}>orbit</AppText>
+        <TouchableOpacity style={[styles.locationPill, { borderColor: colors.borderLight, backgroundColor: colors.background.card }]} onPress={() => undefined}>
+          <AppText style={[styles.locationText, { color: colors.text.secondary }]}>📍 {areaName}</AppText>
         </TouchableOpacity>
       </View>
-      <Pressable style={styles.searchBar} onPress={openSearch}>
-        <Ionicons name="search" size={18} color="#BBBBBB" />
-        <AppText style={styles.searchPlaceholder}>Search catchups, people, places...</AppText>
-        <TouchableOpacity style={styles.filterBtn} onPress={() => undefined}>
-          <Ionicons name="options-outline" size={20} color="#555555" />
+      <Pressable style={[styles.searchBar, themed.searchBar]} onPress={openSearch}>
+        <Ionicons name="search" size={18} color={themed.iconMuted} />
+        <AppText style={[styles.searchPlaceholder, { color: colors.text.muted }]}>Search catchups, people, places...</AppText>
+        <TouchableOpacity style={[styles.filterBtn, themed.subtleSurface]} onPress={() => undefined}>
+          <Ionicons name="options-outline" size={20} color={colors.text.secondary} />
         </TouchableOpacity>
       </Pressable>
     </View>
@@ -477,10 +543,10 @@ export default function FeedScreen() {
         {FILTERS.map((pill) => (
           <TouchableOpacity
             key={pill.key}
-            style={[styles.filterPill, filter === pill.key && styles.filterPillActive]}
+            style={[styles.filterPill, themed.filterPill, filter === pill.key && themed.filterPillActive]}
             onPress={() => setFilter(pill.key)}
           >
-            <AppText style={[styles.filterText, filter === pill.key && styles.filterTextActive]}>
+            <AppText style={[styles.filterText, { color: colors.text.secondary }, filter === pill.key && themed.filterTextActive]}>
               {pill.label}
             </AppText>
           </TouchableOpacity>
@@ -491,17 +557,17 @@ export default function FeedScreen() {
 
   const searchModal = (
     <Modal visible={searchOpen} animationType="fade" onRequestClose={closeSearch}>
-      <View style={styles.searchScreen}>
+      <View style={[styles.searchScreen, themed.screen]}>
         <View style={[styles.searchTop, { paddingTop: insets.top + 12 }]}>
-          <View style={[styles.searchBar, styles.searchBarExpanded]}>
-            <Ionicons name="search" size={18} color="#BBBBBB" />
+          <View style={[styles.searchBar, styles.searchBarExpanded, themed.searchBar]}>
+            <Ionicons name="search" size={18} color={themed.iconMuted} />
             <TextInput
               autoFocus
               value={searchQuery}
               onChangeText={setSearchQuery}
-              style={styles.searchInput}
+              style={[styles.searchInput, { color: colors.text.primary }]}
               placeholder="Search catchups, people, places..."
-              placeholderTextColor="#BBBBBB"
+              placeholderTextColor={colors.text.muted}
               autoCapitalize="none"
               autoCorrect={false}
               returnKeyType="search"
@@ -510,12 +576,12 @@ export default function FeedScreen() {
               <ActivityIndicator size="small" color={ACCENT} />
             ) : searchQuery.length > 0 ? (
               <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={8}>
-                <Ionicons name="close-circle" size={18} color="#9AA6AF" />
+                <Ionicons name="close-circle" size={18} color={colors.text.tertiary} />
               </TouchableOpacity>
             ) : null}
           </View>
           <TouchableOpacity style={styles.cancelBtn} onPress={closeSearch} hitSlop={8}>
-            <AppText style={styles.cancelText}>Cancel</AppText>
+            <AppText style={[styles.cancelText, { color: colors.primary.default }]}>Cancel</AppText>
           </TouchableOpacity>
         </View>
         <ScrollView
@@ -524,44 +590,44 @@ export default function FeedScreen() {
         >
           {showSearchSuggestions ? (
             <View style={styles.suggestionsWrap}>
-              {trendingCatchups.length ? <AppText style={styles.sectionHeader}>Trending near you</AppText> : null}
+              {trendingCatchups.length ? <AppText style={[styles.sectionHeader, { color: colors.text.tertiary }]}>Trending near you</AppText> : null}
               {trendingCatchups.map((item) => (
-                <TouchableOpacity key={`trend-c-${item.id}`} style={styles.suggestionRow} onPress={() => openCatchup(item.id)}>
-                  <View style={styles.suggestionIcon}>
-                    <Ionicons name="flame-outline" size={18} color={ACCENT} />
+                <TouchableOpacity key={`trend-c-${item.id}`} style={[styles.suggestionRow, themed.rowSurface]} onPress={() => openCatchup(item.id)}>
+                  <View style={[styles.suggestionIcon, themed.subtleSurface]}>
+                    <Ionicons name="flame-outline" size={18} color={colors.primary.default} />
                   </View>
                   <View style={styles.userInfo}>
-                    <AppText style={styles.searchMiniTitle} numberOfLines={1}>{item.title}</AppText>
-                    <AppText style={styles.searchMiniSub} numberOfLines={1}>
+                    <AppText style={[styles.searchMiniTitle, { color: colors.text.primary }]} numberOfLines={1}>{item.title}</AppText>
+                    <AppText style={[styles.searchMiniSub, { color: colors.text.tertiary }]} numberOfLines={1}>
                       {item.location_name || item.city || 'Nearby'} · {item.attendee_count}/{item.max_people ?? 10} going
                     </AppText>
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color="#9AA6AF" />
+                  <Ionicons name="chevron-forward" size={18} color={colors.text.tertiary} />
                 </TouchableOpacity>
               ))}
 
-              {recentPulse.length ? <AppText style={styles.sectionHeader}>Fresh pulse</AppText> : null}
+              {recentPulse.length ? <AppText style={[styles.sectionHeader, { color: colors.text.tertiary }]}>Fresh pulse</AppText> : null}
               {recentPulse.map((item) => (
-                <View key={`trend-p-${item.id}`} style={styles.suggestionRow}>
-                  <View style={styles.suggestionIcon}>
-                    <Ionicons name="images-outline" size={18} color={ACCENT} />
+                <View key={`trend-p-${item.id}`} style={[styles.suggestionRow, themed.rowSurface]}>
+                  <View style={[styles.suggestionIcon, themed.subtleSurface]}>
+                    <Ionicons name="images-outline" size={18} color={colors.primary.default} />
                   </View>
                   <View style={styles.userInfo}>
-                    <AppText style={styles.searchMiniTitle} numberOfLines={1}>{item.caption || 'Photo post'}</AppText>
-                    <AppText style={styles.searchMiniSub} numberOfLines={1}>@{item.author.username}</AppText>
+                    <AppText style={[styles.searchMiniTitle, { color: colors.text.primary }]} numberOfLines={1}>{item.caption || 'Photo post'}</AppText>
+                    <AppText style={[styles.searchMiniSub, { color: colors.text.tertiary }]} numberOfLines={1}>@{item.author.username}</AppText>
                   </View>
                 </View>
               ))}
 
-              <AppText style={styles.sectionHeader}>Try searching</AppText>
+              <AppText style={[styles.sectionHeader, { color: colors.text.tertiary }]}>Try searching</AppText>
               {searchIdeas.map((idea) => (
-                <TouchableOpacity key={idea} style={styles.suggestionRow} onPress={() => applySearchText(idea)}>
-                  <View style={styles.suggestionIcon}>
-                    <Ionicons name="search-outline" size={18} color={ACCENT} />
+                <TouchableOpacity key={idea} style={[styles.suggestionRow, themed.rowSurface]} onPress={() => applySearchText(idea)}>
+                  <View style={[styles.suggestionIcon, themed.subtleSurface]}>
+                    <Ionicons name="search-outline" size={18} color={colors.primary.default} />
                   </View>
                   <View style={styles.userInfo}>
-                    <AppText style={styles.searchMiniTitle}>{idea}</AppText>
-                    <AppText style={styles.searchMiniSub}>Search all catchups, people, posts, and places</AppText>
+                    <AppText style={[styles.searchMiniTitle, { color: colors.text.primary }]}>{idea}</AppText>
+                    <AppText style={[styles.searchMiniSub, { color: colors.text.tertiary }]}>Search all catchups, people, posts, and places</AppText>
                   </View>
                 </TouchableOpacity>
               ))}
@@ -569,62 +635,62 @@ export default function FeedScreen() {
           ) : null}
           {searchError ? (
             <View style={styles.searchState}>
-              <Ionicons name="alert-circle-outline" size={36} color="#D94A45" />
-              <AppText style={styles.searchStateTitle}>{searchError}</AppText>
+              <Ionicons name="alert-circle-outline" size={36} color={colors.error} />
+              <AppText style={[styles.searchStateTitle, { color: colors.text.secondary }]}>{searchError}</AppText>
             </View>
           ) : null}
           {showSearchEmpty ? (
             <View style={styles.searchState}>
-              <Ionicons name="search-outline" size={38} color="#9AA6AF" />
-              <AppText style={styles.searchStateTitle}>No results for "{debouncedSearchQuery}"</AppText>
+              <Ionicons name="search-outline" size={38} color={colors.text.tertiary} />
+              <AppText style={[styles.searchStateTitle, { color: colors.text.secondary }]}>No results for "{debouncedSearchQuery}"</AppText>
             </View>
           ) : null}
-          {searchResults.catchups.length ? <AppText style={styles.sectionHeader}>Catchups</AppText> : null}
+          {searchResults.catchups.length ? <AppText style={[styles.sectionHeader, { color: colors.text.tertiary }]}>Catchups</AppText> : null}
           {searchResults.catchups.map((item) => (
-            <TouchableOpacity key={`c-${item.id}`} style={styles.searchMini} onPress={() => openCatchup(item.id)}>
-              <AppText style={styles.searchMiniTitle}>{item.title}</AppText>
-              <AppText style={styles.searchMiniSub}>{item.location_name} · {format(new Date(item.start_at), 'MMM d, h:mm a')}</AppText>
+            <TouchableOpacity key={`c-${item.id}`} style={[styles.searchMini, themed.rowSurface]} onPress={() => openCatchup(item.id)}>
+              <AppText style={[styles.searchMiniTitle, { color: colors.text.primary }]}>{item.title}</AppText>
+              <AppText style={[styles.searchMiniSub, { color: colors.text.tertiary }]}>{item.location_name} · {format(new Date(item.start_at), 'MMM d, h:mm a')}</AppText>
             </TouchableOpacity>
           ))}
-          {searchResults.places.length ? <AppText style={styles.sectionHeader}>Places</AppText> : null}
+          {searchResults.places.length ? <AppText style={[styles.sectionHeader, { color: colors.text.tertiary }]}>Places</AppText> : null}
           {searchResults.places.map((item, index) => (
             <TouchableOpacity
               key={`place-${item.id ?? `${item.lat}-${item.lng}-${index}`}`}
-              style={styles.placeRow}
+              style={[styles.placeRow, themed.rowSurface]}
               onPress={() => usePlaceSuggestion(item)}
             >
-              <View style={styles.placeIcon}>
-                <Ionicons name="location-outline" size={18} color={ACCENT} />
+              <View style={[styles.placeIcon, themed.subtleSurface]}>
+                <Ionicons name="location-outline" size={18} color={colors.primary.default} />
               </View>
               <View style={styles.userInfo}>
-                <AppText style={styles.searchMiniTitle} numberOfLines={1}>{item.name || item.display_name}</AppText>
-                <AppText style={styles.searchMiniSub} numberOfLines={2}>{item.city || item.address || item.display_name}</AppText>
+                <AppText style={[styles.searchMiniTitle, { color: colors.text.primary }]} numberOfLines={1}>{item.name || item.display_name}</AppText>
+                <AppText style={[styles.searchMiniSub, { color: colors.text.tertiary }]} numberOfLines={2}>{item.city || item.address || item.display_name}</AppText>
               </View>
-              <Ionicons name="search-outline" size={17} color="#9AA6AF" />
+              <Ionicons name="search-outline" size={17} color={colors.text.tertiary} />
             </TouchableOpacity>
           ))}
-          {searchResults.posts.length ? <AppText style={styles.sectionHeader}>Posts</AppText> : null}
+          {searchResults.posts.length ? <AppText style={[styles.sectionHeader, { color: colors.text.tertiary }]}>Posts</AppText> : null}
           {searchResults.posts.map((item) => (
-            <View key={`p-${item.id}`} style={styles.searchMini}>
-              <AppText style={styles.searchMiniTitle} numberOfLines={1}>{item.caption || 'Photo post'}</AppText>
-              <AppText style={styles.searchMiniSub}>@{item.author.username}</AppText>
+            <View key={`p-${item.id}`} style={[styles.searchMini, themed.rowSurface]}>
+              <AppText style={[styles.searchMiniTitle, { color: colors.text.primary }]} numberOfLines={1}>{item.caption || 'Photo post'}</AppText>
+              <AppText style={[styles.searchMiniSub, { color: colors.text.tertiary }]}>@{item.author.username}</AppText>
             </View>
           ))}
-          {searchResults.people.length ? <AppText style={styles.sectionHeader}>People</AppText> : null}
+          {searchResults.people.length ? <AppText style={[styles.sectionHeader, { color: colors.text.tertiary }]}>People</AppText> : null}
           {searchResults.people.map((item) => (
-            <TouchableOpacity key={`u-${item.id}`} style={styles.userRow} onPress={() => openUser(item.id)}>
-              <View style={styles.userAvatar}>
+            <TouchableOpacity key={`u-${item.id}`} style={[styles.userRow, themed.rowSurface]} onPress={() => openUser(item.id)}>
+              <View style={[styles.userAvatar, themed.subtleSurface]}>
                 {item.avatar ? (
                   <Image source={{ uri: item.avatar }} style={styles.userAvatarImage} contentFit="cover" />
                 ) : (
-                  <AppText style={styles.userInitial}>{item.username.charAt(0).toUpperCase()}</AppText>
+                  <AppText style={[styles.userInitial, { color: colors.primary.default }]}>{item.username.charAt(0).toUpperCase()}</AppText>
                 )}
               </View>
               <View style={styles.userInfo}>
-                <AppText style={styles.searchMiniTitle}>@{item.username}</AppText>
-                <AppText style={styles.searchMiniSub}>{item.city || 'Nearby'}</AppText>
+                <AppText style={[styles.searchMiniTitle, { color: colors.text.primary }]}>@{item.username}</AppText>
+                <AppText style={[styles.searchMiniSub, { color: colors.text.tertiary }]}>{item.city || 'Nearby'}</AppText>
               </View>
-              <Ionicons name="chevron-forward" size={18} color="#9AA6AF" />
+              <Ionicons name="chevron-forward" size={18} color={colors.text.tertiary} />
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -633,8 +699,8 @@ export default function FeedScreen() {
   );
 
   return (
-    <View style={styles.container}>
-      <SafeAreaView edges={['top']} style={styles.safe}>
+    <View style={[styles.container, themed.screen]}>
+      <SafeAreaView edges={['top']} style={[styles.safe, themed.screen]}>
         {header}
         <SegmentedControl active={activeTab} onChange={setActiveTab} />
         {activeTab === 'catchups' ? filterRail : null}
@@ -713,7 +779,7 @@ export default function FeedScreen() {
         ) : null}
       </SafeAreaView>
       {isLoading && activeTab === 'catchups' ? (
-        <View style={styles.loadingOverlay}><OrbitLoader /></View>
+        <View style={[styles.loadingOverlay, themed.overlay]}><OrbitLoader /></View>
       ) : null}
       {isFetching && !isLoading && !isFetchingNextPage && activeTab === 'catchups' ? (
         <View style={styles.filterFetchBar} />

@@ -1,9 +1,5 @@
-/**
- * Discover tab — map-first nearby people
- */
+import { Redirect } from 'expo-router';
 
-import MapScreen from '../../src/screens/MapScreen';
-
-export default function DiscoverScreen() {
-  return <MapScreen variant="discover" />;
+export default function TabsIndexRedirect() {
+  return <Redirect href="/(tabs)/feed" />;
 }

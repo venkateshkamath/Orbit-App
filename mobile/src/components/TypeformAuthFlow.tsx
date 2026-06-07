@@ -61,19 +61,20 @@ function extractCity(displayName: string): string {
   return displayName.split(',')[0].trim();
 }
 
-function inputBorderColor(focused: boolean, validity?: 'ok' | 'error') {
+function inputBorderColor(focused: boolean, validity?: 'ok' | 'error', idle = '#E0E0E0') {
   if (validity === 'ok') return GREEN;
   if (validity === 'error') return RED;
-  return focused ? CYAN : '#E0E0E0';
+  return focused ? CYAN : idle;
 }
 
 // ─── sub-component ────────────────────────────────────────────────────────────
 
 function Question({ title, subtitle, fonts }: { title: string; subtitle: string; fonts: any }) {
+  const { colors } = useOrbitTheme();
   return (
     <View style={s.questionBlock}>
-      <AppText style={[s.heading, { fontFamily: fonts.bold }]}>{title}</AppText>
-      <AppText style={[s.subtitle, { fontFamily: fonts.regular }]}>{subtitle}</AppText>
+      <AppText style={[s.heading, { color: colors.text.primary, fontFamily: fonts.bold }]}>{title}</AppText>
+      <AppText style={[s.subtitle, { color: colors.text.secondary, fontFamily: fonts.regular }]}>{subtitle}</AppText>
     </View>
   );
 }
@@ -81,7 +82,7 @@ function Question({ title, subtitle, fonts }: { title: string; subtitle: string;
 // ─── main component ───────────────────────────────────────────────────────────
 
 export function TypeformAuthFlow({ mode }: { mode: Mode }) {
-  const { fonts } = useOrbitTheme();
+  const { colors, fonts, resolvedScheme } = useOrbitTheme();
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const {
@@ -144,6 +145,49 @@ export function TypeformAuthFlow({ mode }: { mode: Mode }) {
   const isLastStep  = (mode === 'login' && step === 1) || (mode === 'signup' && step === 5);
   const nextLabel   = isLastStep ? "Let's go" : 'Continue';
   const centerContent = mode !== 'signup' || step !== 2;
+  const isDark = resolvedScheme === 'dark';
+  const theme = useMemo(
+    () =>
+      StyleSheet.create({
+        screen: { backgroundColor: colors.background.primary },
+        track: { backgroundColor: colors.border },
+        input: {
+          color: colors.text.primary,
+          backgroundColor: colors.background.card,
+          borderColor: colors.borderLight,
+        },
+        softSurface: {
+          backgroundColor: colors.background.secondary,
+          borderColor: colors.borderLight,
+        },
+        elevatedSurface: {
+          backgroundColor: colors.background.card,
+          borderColor: colors.borderLight,
+        },
+        activeSoft: {
+          backgroundColor: colors.primary.default + (isDark ? '24' : '18'),
+          borderColor: colors.primary.default,
+        },
+        textPrimary: { color: colors.text.primary },
+        textSecondary: { color: colors.text.secondary },
+        textTertiary: { color: colors.text.tertiary },
+        textMuted: { color: colors.text.muted },
+        bottomNav: {
+          backgroundColor: colors.background.primary,
+          borderTopColor: colors.border,
+        },
+        nextCapsule: {
+          backgroundColor: isDark ? colors.primary.default : BLACK,
+        },
+        nextCircle: {
+          backgroundColor: isDark ? colors.background.card : colors.primary.default,
+        },
+      }),
+    [colors, isDark]
+  );
+  const placeholderColor = colors.text.muted;
+  const fieldBorder = (isFocused: boolean, validity?: 'ok' | 'error') =>
+    inputBorderColor(isFocused, validity, colors.borderLight);
 
   const progressWidth = progressAnim.interpolate({ inputRange: [0, 1], outputRange: [0, width] });
 
@@ -335,7 +379,7 @@ export function TypeformAuthFlow({ mode }: { mode: Mode }) {
       const email = phoneEmail(phone);
       if (mode === 'login') {
         await verifyLoginOtp(email, code);
-        router.replace('/(tabs)');
+        router.replace('/(tabs)/feed');
       } else {
         await verifySignupOtp(email, code);
         transition(2, 1);
@@ -385,7 +429,7 @@ export function TypeformAuthFlow({ mode }: { mode: Mode }) {
         if (avatarUri) await authApi.uploadAvatar(avatarUri);
         if (selectedCity) await updateLocation(selectedCity.lat, selectedCity.lng);
         setOnboardingComplete(true);
-        router.replace('/(tabs)');
+        router.replace('/(tabs)/feed');
       } catch (e: unknown) {
         setFormError(formatApiError(e));
       } finally {
@@ -455,8 +499,8 @@ export function TypeformAuthFlow({ mode }: { mode: Mode }) {
       <>
         <Question title={title} subtitle={sub} fonts={fonts} />
         <View style={s.phoneRow}>
-          <View style={[s.countryBox, { borderColor: inputBorderColor(focused === 'phone') }]}>
-            <AppText style={[s.countryText, { fontFamily: fonts.semibold }]}>🇮🇳  +91</AppText>
+          <View style={[s.countryBox, theme.softSurface, { borderColor: fieldBorder(focused === 'phone') }]}>
+            <AppText style={[s.countryText, theme.textPrimary, { fontFamily: fonts.semibold }]}>🇮🇳  +91</AppText>
           </View>
           <TextInput
             value={phone}
@@ -464,11 +508,11 @@ export function TypeformAuthFlow({ mode }: { mode: Mode }) {
             onFocus={() => setFocused('phone')}
             onBlur={() => setFocused(null)}
             placeholder="Phone number"
-            placeholderTextColor="#C0C0C0"
+            placeholderTextColor={placeholderColor}
             keyboardType="number-pad"
             returnKeyType="done"
             onSubmitEditing={() => { if (stepValid) void onContinue(); }}
-            style={[s.input, s.phoneInput, { borderColor: inputBorderColor(focused === 'phone'), fontFamily: fonts.regular }]}
+            style={[s.input, theme.input, s.phoneInput, { borderColor: fieldBorder(focused === 'phone'), fontFamily: fonts.regular }]}
           />
         </View>
       </>
@@ -497,8 +541,9 @@ export function TypeformAuthFlow({ mode }: { mode: Mode }) {
                 s.otpBox,
                 {
                   fontFamily: fonts.bold,
-                  borderColor: errorOtp ? RED : otp[i] ? CYAN : focused === `otp-${i}` ? CYAN : '#E0E0E0',
-                  backgroundColor: otp[i] ? '#F0FAFB' : '#FFF',
+                  color: colors.text.primary,
+                  borderColor: errorOtp ? colors.error : otp[i] ? colors.primary.default : focused === `otp-${i}` ? colors.primary.default : colors.borderLight,
+                  backgroundColor: otp[i] ? colors.primary.default + (isDark ? '24' : '14') : colors.background.card,
                 },
               ]}
             />
@@ -509,7 +554,7 @@ export function TypeformAuthFlow({ mode }: { mode: Mode }) {
           onPress={sendOtp}
           style={s.resendBtn}
         >
-          <AppText style={[s.resendText, { color: resendIn > 0 ? '#BBBBBB' : CYAN, fontFamily: fonts.medium }]}>
+          <AppText style={[s.resendText, { color: resendIn > 0 ? colors.text.muted : colors.primary.default, fontFamily: fonts.medium }]}>
             {resendIn > 0 ? `Resend in 0:${String(resendIn).padStart(2, '0')}` : 'Resend code'}
           </AppText>
         </Pressable>
@@ -530,10 +575,10 @@ export function TypeformAuthFlow({ mode }: { mode: Mode }) {
           fonts={fonts}
         />
 
-        <View style={s.selTrack}>
-          <View style={[s.selFill, { width: `${fill * 100}%`, backgroundColor: done ? GREEN : CYAN }]} />
+        <View style={[s.selTrack, { backgroundColor: colors.border }]}>
+          <View style={[s.selFill, { width: `${fill * 100}%`, backgroundColor: done ? colors.success : colors.primary.default }]} />
         </View>
-        <AppText style={[s.selLabel, { color: done ? GREEN : '#AAAAAA', fontFamily: fonts.medium }]}>
+        <AppText style={[s.selLabel, { color: done ? colors.success : colors.text.tertiary, fontFamily: fonts.medium }]}>
           {done
             ? `${selectedIds.length} selected  ✓`
             : selectedIds.length === 0
@@ -545,9 +590,9 @@ export function TypeformAuthFlow({ mode }: { mode: Mode }) {
           <View style={s.skeletonWrap}>
             {[0, 1, 2].map((r) => (
               <View key={r} style={{ marginBottom: 16 }}>
-                <View style={[s.skeletonLine, { width: 140, marginBottom: 10 }]} />
+                <View style={[s.skeletonLine, { width: 140, marginBottom: 10, backgroundColor: colors.background.secondary }]} />
                 <View style={s.skeletonRow}>
-                  {[90, 110, 80].map((w, j) => <View key={j} style={[s.skeletonPill, { width: w }]} />)}
+                  {[90, 110, 80].map((w, j) => <View key={j} style={[s.skeletonPill, { width: w, backgroundColor: colors.background.secondary }]} />)}
                 </View>
               </View>
             ))}
@@ -564,9 +609,9 @@ export function TypeformAuthFlow({ mode }: { mode: Mode }) {
                   {/* Category header capsule */}
                   <Pressable
                     onPress={() => toggleCategory(cat)}
-                    style={[s.catCapsule, isOpen && s.catCapsuleOpen]}
+                    style={[s.catCapsule, theme.softSurface, isOpen && theme.activeSoft]}
                   >
-                    <AppText style={[s.catCapsuleText, { fontFamily: fonts.semibold }, isOpen && s.catCapsuleTextOpen]}>
+                    <AppText style={[s.catCapsuleText, theme.textPrimary, { fontFamily: fonts.semibold }, isOpen && { color: colors.primary.default }]}>
                       {label}
                     </AppText>
                     <View style={s.catRight}>
@@ -578,7 +623,7 @@ export function TypeformAuthFlow({ mode }: { mode: Mode }) {
                       <Ionicons
                         name={isOpen ? 'chevron-up' : 'chevron-down'}
                         size={15}
-                        color={isOpen ? CYAN : '#AAAAAA'}
+                        color={isOpen ? colors.primary.default : colors.text.tertiary}
                       />
                     </View>
                   </Pressable>
@@ -596,9 +641,9 @@ export function TypeformAuthFlow({ mode }: { mode: Mode }) {
                                 sel ? p.filter((id) => id !== it.id) : [...p, it.id]
                               )
                             }
-                            style={[s.pill, sel && s.pillActive]}
+                            style={[s.pill, theme.softSurface, sel && theme.activeSoft]}
                           >
-                            <AppText style={[s.pillText, sel && s.pillTextActive, { fontFamily: fonts.medium }]}>
+                            <AppText style={[s.pillText, theme.textSecondary, sel && { color: colors.primary.default }, { fontFamily: fonts.medium }]}>
                               {it.emoji ? `${it.emoji} ` : ''}{it.name}
                             </AppText>
                           </Pressable>
@@ -625,38 +670,39 @@ export function TypeformAuthFlow({ mode }: { mode: Mode }) {
         />
         <View style={s.cityWrap}>
           <View style={s.cityInputRow}>
-            <Ionicons name="location-outline" size={18} color="#BBBBBB" style={s.cityIcon} />
+            <Ionicons name="location-outline" size={18} color={colors.text.tertiary} style={s.cityIcon} />
             <TextInput
               value={cityQuery}
               onChangeText={(t) => { setCityQuery(t); setSelectedCity(null); }}
               onFocus={() => setFocused('city')}
               onBlur={() => setFocused(null)}
               placeholder="Search your city"
-              placeholderTextColor="#C0C0C0"
+              placeholderTextColor={placeholderColor}
               returnKeyType="search"
               style={[
                 s.input,
+                theme.input,
                 s.padLeft,
                 {
-                  borderColor: selectedCity ? GREEN : inputBorderColor(focused === 'city'),
+                  borderColor: selectedCity ? colors.success : fieldBorder(focused === 'city'),
                   fontFamily: fonts.regular,
                   paddingRight: cityLoading ? 46 : 18,
                 },
               ]}
             />
             {cityLoading && (
-              <ActivityIndicator size="small" color={CYAN} style={s.citySpinner} />
+              <ActivityIndicator size="small" color={colors.primary.default} style={s.citySpinner} />
             )}
             {selectedCity && !cityLoading && (
-              <Ionicons name="checkmark-circle" size={20} color={GREEN} style={s.citySpinner} />
+              <Ionicons name="checkmark-circle" size={20} color={colors.success} style={s.citySpinner} />
             )}
           </View>
 
           {/* Dropdown — only when no city selected and query is long enough */}
           {cityQuery.trim().length >= 2 && !selectedCity && (
-            <View style={s.cityDropdown}>
+            <View style={[s.cityDropdown, theme.elevatedSurface]}>
               {cityLoading ? null : cityResults.length === 0 ? (
-                <AppText style={[s.cityNoResults, { fontFamily: fonts.regular }]}>
+                <AppText style={[s.cityNoResults, theme.textTertiary, { fontFamily: fonts.regular }]}>
                   No cities found
                 </AppText>
               ) : (
@@ -669,10 +715,14 @@ export function TypeformAuthFlow({ mode }: { mode: Mode }) {
                       setCityQuery(city);
                       setCityResults([]);
                     }}
-                    style={({ pressed }) => [s.cityRow, pressed && s.cityRowPressed]}
+                    style={({ pressed }) => [
+                      s.cityRow,
+                      { borderBottomColor: colors.border },
+                      pressed && { backgroundColor: colors.background.secondary },
+                    ]}
                   >
-                    <Ionicons name="location-outline" size={14} color={CYAN} style={{ marginRight: 10 }} />
-                    <AppText style={[s.cityRowText, { fontFamily: fonts.medium }]} numberOfLines={1}>
+                    <Ionicons name="location-outline" size={14} color={colors.primary.default} style={{ marginRight: 10 }} />
+                    <AppText style={[s.cityRowText, theme.textPrimary, { fontFamily: fonts.medium }]} numberOfLines={1}>
                       {extractCity(r.display_name)}
                     </AppText>
                   </Pressable>
@@ -687,7 +737,7 @@ export function TypeformAuthFlow({ mode }: { mode: Mode }) {
 
   function renderUsername() {
     const validity  = usernameStatus === 'ok' ? 'ok' : usernameStatus === 'taken' ? 'error' : undefined;
-    const hintColor = usernameStatus === 'ok' ? GREEN : usernameStatus === 'taken' ? RED : '#BBBBBB';
+    const hintColor = usernameStatus === 'ok' ? colors.success : usernameStatus === 'taken' ? colors.error : colors.text.muted;
     const hintText  = usernameStatus === 'ok'
       ? `@${username} is yours!`
       : usernameStatus === 'taken' ? 'already taken, try another'
@@ -696,22 +746,22 @@ export function TypeformAuthFlow({ mode }: { mode: Mode }) {
       <>
         <Question title="Pick a username" subtitle="Something unique, just for you" fonts={fonts} />
         <View style={s.inputWrap}>
-          <AppText style={[s.atPrefix, { fontFamily: fonts.semibold }]}>@</AppText>
+          <AppText style={[s.atPrefix, { color: colors.text.tertiary, fontFamily: fonts.semibold }]}>@</AppText>
           <TextInput
             value={username}
             onChangeText={setUsername}
             placeholder="username"
-            placeholderTextColor="#C0C0C0"
+            placeholderTextColor={placeholderColor}
             autoCapitalize="none"
             autoCorrect={false}
             onFocus={() => setFocused('username')}
             onBlur={() => setFocused(null)}
-            style={[s.input, s.padLeft, s.padRight, { borderColor: inputBorderColor(focused === 'username', validity), fontFamily: fonts.regular }]}
+            style={[s.input, theme.input, s.padLeft, s.padRight, { borderColor: fieldBorder(focused === 'username', validity), fontFamily: fonts.regular }]}
           />
           <View style={s.rightIcon}>
-            {usernameStatus === 'checking' && <ActivityIndicator size="small" color={CYAN} />}
-            {usernameStatus === 'ok'       && <Ionicons name="checkmark-circle" size={22} color={GREEN} />}
-            {usernameStatus === 'taken'    && <Ionicons name="close-circle" size={22} color={RED} />}
+            {usernameStatus === 'checking' && <ActivityIndicator size="small" color={colors.primary.default} />}
+            {usernameStatus === 'ok'       && <Ionicons name="checkmark-circle" size={22} color={colors.success} />}
+            {usernameStatus === 'taken'    && <Ionicons name="close-circle" size={22} color={colors.error} />}
           </View>
         </View>
         <AppText style={[s.hint, { color: hintColor, fontFamily: fonts.regular }]}>{hintText}</AppText>
@@ -735,43 +785,53 @@ export function TypeformAuthFlow({ mode }: { mode: Mode }) {
 
         {/* Photo circle */}
         <View style={s.photoCenter}>
-          <Animated.View style={[s.photoHalo, { opacity: haloOpacity, transform: [{ scale: haloScale }] }]} />
-          <Animated.View style={[s.photoArc, { transform: [{ rotate: arcRotate }] }]} />
-          <Animated.View style={[s.photoCircle, { transform: [{ scale: photoEnterAnim }] }]}>
+          <Animated.View style={[s.photoHalo, { backgroundColor: colors.primary.default + '22', opacity: haloOpacity, transform: [{ scale: haloScale }] }]} />
+          <Animated.View style={[s.photoArc, { borderTopColor: colors.primary.default, borderRightColor: colors.primary.default + '44', transform: [{ rotate: arcRotate }] }]} />
+          <Animated.View
+            style={[
+              s.photoCircle,
+              {
+                backgroundColor: colors.primary.default + (isDark ? '18' : '10'),
+                borderColor: colors.primary.default,
+                shadowColor: colors.primary.default,
+              },
+              { transform: [{ scale: photoEnterAnim }] },
+            ]}
+          >
             {avatarUri ? (
               <Image source={{ uri: avatarUri }} style={s.photoImage} />
             ) : (
               <>
-                <AppText style={[s.photoInitial, { fontFamily: fonts.extrabold }]}>{initial}</AppText>
-                <Ionicons name="person" size={40} color={`${CYAN}55`} style={{ zIndex: 1 }} />
+                <AppText style={[s.photoInitial, { color: colors.primary.default + '22', fontFamily: fonts.extrabold }]}>{initial}</AppText>
+                <Ionicons name="person" size={40} color={colors.primary.default + '66'} style={{ zIndex: 1 }} />
               </>
             )}
           </Animated.View>
-          {!!avatarUri && <View style={s.photoGlowRing} pointerEvents="none" />}
+          {!!avatarUri && <View style={[s.photoGlowRing, { borderColor: colors.primary.default }]} pointerEvents="none" />}
         </View>
 
         {/* Camera / Gallery options */}
-        <View style={s.photoOptions}>
+        <View style={[s.photoOptions, theme.elevatedSurface]}>
           <TouchableOpacity onPress={takePhoto} style={s.photoOptionBtn} activeOpacity={0.8}>
             <View style={s.photoOptionIcon}>
-              <Ionicons name="camera" size={22} color={CYAN} />
+              <Ionicons name="camera" size={22} color={colors.primary.default} />
             </View>
-            <AppText style={[s.photoOptionLabel, { fontFamily: fonts.semibold }]}>Camera</AppText>
+            <AppText style={[s.photoOptionLabel, theme.textPrimary, { fontFamily: fonts.semibold }]}>Camera</AppText>
           </TouchableOpacity>
 
-          <View style={s.photoOptionDivider} />
+          <View style={[s.photoOptionDivider, { backgroundColor: colors.border }]} />
 
           <TouchableOpacity onPress={pickFromGallery} style={s.photoOptionBtn} activeOpacity={0.8}>
             <View style={s.photoOptionIcon}>
-              <Ionicons name="images" size={22} color={CYAN} />
+              <Ionicons name="images" size={22} color={colors.primary.default} />
             </View>
-            <AppText style={[s.photoOptionLabel, { fontFamily: fonts.semibold }]}>Gallery</AppText>
+            <AppText style={[s.photoOptionLabel, theme.textPrimary, { fontFamily: fonts.semibold }]}>Gallery</AppText>
           </TouchableOpacity>
         </View>
 
         <View style={s.photoBadge}>
-          <Ionicons name="shield-checkmark-outline" size={12} color="#BBBBBB" />
-          <AppText style={[s.photoBadgeText, { fontFamily: fonts.regular }]}>Only visible to people near you</AppText>
+          <Ionicons name="shield-checkmark-outline" size={12} color={colors.text.muted} />
+          <AppText style={[s.photoBadgeText, theme.textTertiary, { fontFamily: fonts.regular }]}>Only visible to people near you</AppText>
         </View>
       </>
     );
@@ -790,13 +850,25 @@ export function TypeformAuthFlow({ mode }: { mode: Mode }) {
             value={name}
             onChangeText={setName}
             placeholder="Your name"
-            placeholderTextColor="#C0C0C0"
+            placeholderTextColor={placeholderColor}
             returnKeyType="done"
             onSubmitEditing={() => { if (stepValid) void onContinue(); }}
             onFocus={() => setFocused('name')}
             onBlur={() => setFocused(null)}
-            style={[s.input, { borderColor: inputBorderColor(focused === 'name'), fontFamily: fonts.regular }]}
+            style={[s.input, theme.input, { borderColor: fieldBorder(focused === 'name'), fontFamily: fonts.regular }]}
           />
+          <Pressable
+            onPress={() => router.replace('/(auth)/login')}
+            hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+            style={s.modeSwitch}
+          >
+            <AppText style={[s.modeSwitchText, theme.textTertiary, { fontFamily: fonts.regular }]}>
+              Already have an account?{' '}
+              <AppText style={[s.modeSwitchLink, { color: colors.primary.default, fontFamily: fonts.semibold }]}>
+                Log in
+              </AppText>
+            </AppText>
+          </Pressable>
         </>
       );
     }
@@ -819,11 +891,11 @@ export function TypeformAuthFlow({ mode }: { mode: Mode }) {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={s.screen}
+      style={[s.screen, theme.screen]}
     >
       {/* ── progress bar ── */}
-      <View style={[s.track, { marginTop: insets.top }]}>
-        <Animated.View style={[s.trackFill, { width: progressWidth }]} />
+      <View style={[s.track, theme.track, { marginTop: insets.top }]}>
+        <Animated.View style={[s.trackFill, { backgroundColor: colors.primary.default, width: progressWidth }]} />
       </View>
 
       {/* ── step content ── */}
@@ -856,18 +928,18 @@ export function TypeformAuthFlow({ mode }: { mode: Mode }) {
       )}
 
       {/* ── bottom navigation ── */}
-      <View style={[s.bottomNav, { paddingBottom: Math.max(insets.bottom + 8, 28) }]}>
+      <View style={[s.bottomNav, theme.bottomNav, { paddingBottom: Math.max(insets.bottom + 8, 28) }]}>
         <Pressable
           onPress={goBack}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          style={[s.backCapsule, !showBack && s.invisible]}
+          style={[s.backCapsule, theme.softSurface, !showBack && s.invisible]}
           disabled={!showBack}
         >
-          <Ionicons name="arrow-back" size={16} color={BLACK} />
-          <AppText style={[s.backLabel, { fontFamily: fonts.semibold }]}>Back</AppText>
+          <Ionicons name="arrow-back" size={16} color={colors.text.primary} />
+          <AppText style={[s.backLabel, theme.textPrimary, { fontFamily: fonts.semibold }]}>Back</AppText>
         </Pressable>
 
-        <AppText style={[s.stepDot, { fontFamily: fonts.regular }]}>
+        <AppText style={[s.stepDot, theme.textMuted, { fontFamily: fonts.regular }]}>
           {displayStep + 1} / {total}
         </AppText>
 
@@ -876,13 +948,13 @@ export function TypeformAuthFlow({ mode }: { mode: Mode }) {
             activeOpacity={0.88}
             disabled={!stepValid || loading}
             onPress={onContinue}
-            style={s.nextCapsule}
+            style={[s.nextCapsule, theme.nextCapsule]}
           >
-            <AppText style={[s.nextLabel, { fontFamily: fonts.bold }]}>{nextLabel}</AppText>
-            <View style={s.nextCircle}>
+            <AppText style={[s.nextLabel, { color: isDark ? colors.background.primary : '#FFFFFF', fontFamily: fonts.bold }]}>{nextLabel}</AppText>
+            <View style={[s.nextCircle, theme.nextCircle]}>
               {loading
-                ? <ActivityIndicator size="small" color={BLACK} />
-                : <Ionicons name="arrow-forward" size={18} color={BLACK} />
+                ? <ActivityIndicator size="small" color={colors.text.primary} />
+                : <Ionicons name="arrow-forward" size={18} color={colors.text.primary} />
               }
             </View>
           </TouchableOpacity>
@@ -1045,6 +1117,9 @@ const s = StyleSheet.create({
   atPrefix:  { position: 'absolute', left: 18, top: 14, zIndex: 1, fontSize: 18, color: '#AAAAAA' },
 
   hint: { marginTop: 10, fontSize: 13, lineHeight: 18 },
+  modeSwitch: { alignSelf: 'center', marginTop: 24, paddingVertical: 8, paddingHorizontal: 8 },
+  modeSwitchText: { fontSize: 14, textAlign: 'center' },
+  modeSwitchLink: { fontWeight: '700' },
 
   // ── photo ─────────────────────────────────────────────────────────────────
   photoCenter: { alignSelf: 'center', width: 180, height: 180, alignItems: 'center', justifyContent: 'center', marginTop: 8, marginBottom: 24 },

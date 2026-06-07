@@ -9,6 +9,7 @@ import React, {
 import { Animated, Easing, Pressable, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppText } from '../ui/AppText';
+import { useOrbitTheme } from '../theme';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -64,6 +65,7 @@ const BORDER_COLOR: Record<ToastType, string> = {
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const insets = useSafeAreaInsets();
+  const { colors, shadows } = useOrbitTheme();
   const [current, setCurrent] = useState<ToastEntry | null>(null);
   const translateY = useRef(new Animated.Value(-100)).current;
   const idRef    = useRef(0);
@@ -119,12 +121,16 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             style={[
               styles.toast,
               {
+                backgroundColor: colors.background.card,
                 borderLeftColor: BORDER_COLOR[current.type],
+                shadowColor: shadows.lg.shadowColor,
+                shadowOpacity: shadows.lg.shadowOpacity,
+                shadowRadius: shadows.lg.shadowRadius,
                 transform: [{ translateY }],
               },
             ]}
           >
-            <AppText style={styles.toastText}>{current.text}</AppText>
+            <AppText style={[styles.toastText, { color: colors.text.primary }]}>{current.text}</AppText>
           </Animated.View>
         </Pressable>
       ) : null}

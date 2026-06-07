@@ -10,6 +10,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useOrbitTheme } from '../theme';
 
 type Props = {
   visible: boolean;
@@ -21,6 +22,7 @@ type Props = {
 
 export function BottomSheet({ visible, onClose, children, heightRatio = 0.85, style }: Props) {
   const insets = useSafeAreaInsets();
+  const { colors, shadows } = useOrbitTheme();
   const [mounted, setMounted] = useState(visible);
   const screenHeight = Dimensions.get('window').height;
   const sheetHeight = Math.round(screenHeight * heightRatio);
@@ -78,9 +80,16 @@ export function BottomSheet({ visible, onClose, children, heightRatio = 0.85, st
 
   if (!mounted) return null;
 
+  const sheetStyle = {
+    backgroundColor: colors.background.card,
+    shadowColor: shadows.lg.shadowColor,
+    shadowOpacity: shadows.lg.shadowOpacity,
+    shadowRadius: shadows.lg.shadowRadius,
+  };
+
   return (
     <View style={StyleSheet.absoluteFillObject} pointerEvents="box-none">
-      <Animated.View style={[styles.backdrop, { opacity: backdrop }]}>
+      <Animated.View style={[styles.backdrop, { backgroundColor: colors.overlay, opacity: backdrop }]}>
         <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
       </Animated.View>
       <Animated.View
@@ -91,11 +100,12 @@ export function BottomSheet({ visible, onClose, children, heightRatio = 0.85, st
             paddingBottom: insets.bottom,
             transform: [{ translateY }],
           },
+          sheetStyle,
           style,
         ]}
       >
         <View style={styles.handleHit} {...panResponder.panHandlers}>
-          <View style={styles.handle} />
+          <View style={[styles.handle, { backgroundColor: colors.borderLight }]} />
         </View>
         {children}
       </Animated.View>
